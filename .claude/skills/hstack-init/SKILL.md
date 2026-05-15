@@ -71,7 +71,7 @@ Init is split into discrete mini-sessions, each commitable independently. The or
      - The `none` value is honest when the resource genuinely isn't documented yet; the agent does not invent paths to fill the field.
    - **Module-to-area mapping** for this repo — a list of module ids with their canonical path globs. Read `package.json` and the consuming repo's directory layout to propose a starting set; the engineer confirms or revises.
    - **Adversarial-review floor** — default 3, 5 for `agent`/`auth`/`billing`.
-   - **Production agent ledger** — enabled or not for this repo.
+   - **Production-runtime agent ledger** — enabled or not. This logs the consuming repo's *runtime* AI agents (the orchestrator, tool calls into customer accounts, MCP-mediated actions) to `audit/agent-ledger/` at the consuming repo root. **It is NOT about hstack's own subagents** (`spec-author`, `planner`, `implementer`, etc.) — those are already audited via the kernel's auto-commit-at-status-transition rule and visible in `git log`. The v1 ledger is useful telemetry (debugging, cost attribution, per-tenant breakdowns), not defensible audit evidence; v2 substrate adds hash-chain integrity, signed records, and WORM storage. Frame the question to the engineer accordingly so the term "agent" isn't ambiguous.
    - **Active MCP set** — pre-populated from the MCP probe above; the engineer confirms.
 
    Write `hstack/config.yaml` with `schemaVersion: 1`. The `init-status` field starts at `minimal-complete` after this mini-session ends, advancing to `complete` only when every required context document is at `current`. Commit.
