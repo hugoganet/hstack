@@ -50,7 +50,8 @@ Invoke when the consuming repo has no `hstack/config.yaml`, or when `hstack/conf
 Before any work:
 
 - Verify `hstack/` directory exists at the repo root. If not, halt and ask the engineer to confirm they are in the right directory.
-- Read `hstack/CLAUDE.md` (kernel) and `hstack/templates/` — both must be present. If either is missing, halt and ask the engineer to install or restore the hstack source.
+- Read `hstack/CLAUDE.md` (kernel) and `hstack/templates/` — both must be present. If either is missing, halt and ask the engineer to install or restore the hstack source. **The kernel describes the framework, not the consuming repo's product.** Treat it as behavioral rules, never as content to be configured.
+- **Load the consuming-repo context layer.** Read every artifact in the consuming repo (the working directory, NOT `hstack/`) that hints at its product, stack, or design system: `CLAUDE.md`, `README.md`, `package.json`, `docs/` if present, `.claude/agents/` and `.claude/skills/` for sibling tooling. This is the product being configured. Every interview prompt below frames against THIS context, not against `hstack/CLAUDE.md`.
 - Probe Claude Code's MCP configuration for the consuming repo and write a draft `hstack/context/mcp-status.md` listing which MCPs are wired (Notion, Linear, GitHub, Figma, Supabase) and which are absent. Run `{{TODO-SCRIPT: hstack/scripts/init-detect-mcps.sh}}` for this; if absent, the Skill produces the file by interviewing the engineer instead.
 - If `hstack/.session-state/` contains a prior init session-state file, read it and confirm with the engineer that resumption is the intent.
 
@@ -60,7 +61,20 @@ If the engineer signals "start fresh, abandon the prior partial init," archive t
 
 Init is split into discrete mini-sessions, each commitable independently. The order is fixed because later documents reference earlier ones.
 
-1. **Mini-session 0 — config skeleton.** Interview the engineer for the small set of `hstack/config.yaml` decisions that gate everything else: configured story store (Notion DB, Linear, GitHub Issues, or `hstack/stories/`); personas store; design-system paths (`components`, `tokens`, `brand-guidelines`); module-to-area mapping (a list of module ids with their canonical path globs); adversarial-review floor (default 3, 5 for `agent`/`auth`/`billing`); whether the production agent ledger is enabled; the active MCP set. Write `hstack/config.yaml` with `schemaVersion: 1` and commit.
+1. **Mini-session 0 — config skeleton.** Every prompt in this mini-session is about THE CONSUMING REPO (not about hstack itself). Interview the engineer for:
+   - **Story store** for this repo's user stories — Notion DB, Linear, GitHub Issues, or `hstack/stories/`.
+   - **Personas store** for this repo's personas — typically `hstack/context/personas/` or a Notion DB.
+   - **Design system** for this repo. The schema is per-resource because partial / external states are common (Figma MCP for components, Notion for brand-guidelines, in-repo for tokens later). For each of `components`, `tokens`, `brand-guidelines`, ask:
+     - `source` — controlled enum: `in-repo` | `figma-mcp` | `notion-mcp` | `submodule` | `npm` | `external-other` | `none`.
+     - Source-specific follow-up: `path` for `in-repo`; `figma-file-id` for `figma-mcp`; `notion-page-id` for `notion-mcp`; `package` name for `npm`; `repo-url` for `submodule` / `external-other`.
+     - Optional `notes` — especially useful for in-progress states like "via Figma MCP until vendored into the repo."
+     - The `none` value is honest when the resource genuinely isn't documented yet; the agent does not invent paths to fill the field.
+   - **Module-to-area mapping** for this repo — a list of module ids with their canonical path globs. Read `package.json` and the consuming repo's directory layout to propose a starting set; the engineer confirms or revises.
+   - **Adversarial-review floor** — default 3, 5 for `agent`/`auth`/`billing`.
+   - **Production agent ledger** — enabled or not for this repo.
+   - **Active MCP set** — pre-populated from the MCP probe above; the engineer confirms.
+
+   Write `hstack/config.yaml` with `schemaVersion: 1`. The `init-status` field starts at `minimal-complete` after this mini-session ends, advancing to `complete` only when every required context document is at `current`. Commit.
 
 2. **Mini-session 1 — vision.** Invoke `product-manager` via the Task tool with `subagent_type: product-manager` and context = [`hstack/CLAUDE.md`, `hstack/templates/vision.md`, any pointer the engineer offers to an existing vision source]. The subagent walks the five vision sections, confirms each, writes `hstack/context/vision.md` at `status: drafted` and advances to `current` at the end. Prompt cleanup of the source per the subagent's contract. Commit.
 

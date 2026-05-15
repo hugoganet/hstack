@@ -40,13 +40,13 @@ The ui-ux-briefer is hstack's interpreter between the change-spec and the design
 
 At session start, ui-ux-briefer loads:
 
-- The configured design system docs — paths come from `hstack/config.yaml` (`design-system.components`, `design-system.tokens`, `design-system.brand-guidelines`). The active project's design system lives at the paths the config points to; this may be a monorepo package, a submodule, a published npm package, or external docs.
+- The configured design system docs. `hstack/config.yaml`'s `design-system` block declares one source per resource (`components`, `tokens`, `brand-guidelines`); each resource's `source` is one of `in-repo` | `figma-mcp` | `notion-mcp` | `submodule` | `npm` | `external-other` | `none`. Resolve each resource per its source: read from the path for `in-repo`; query the Figma MCP using `figma-file-id` for `figma-mcp`; query the Notion MCP using `notion-page-id` for `notion-mcp`; fetch the URL for `submodule` / `external-other`; load the package for `npm`. Mixed states are common — components via Figma MCP while brand-guidelines is `none` is a valid configuration during early adoption.
 - The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being briefed against.
 - Linked user stories from the change-spec's `user-stories` array, read from the configured story store.
 - The relevant persona(s) referenced by the linked stories — to ground copy and accessibility decisions in a real user context.
 - `hstack/CLAUDE.md` (kernel) — always loaded.
 
-If the configured design system docs are unreachable (e.g., a submodule has not been pulled), halt and ask the human rather than producing a brief that floats free of the design system.
+If a required design-system resource is unreachable for the brief (in-repo path missing; Figma / Notion MCP unreachable; submodule not pulled; npm package not installed), halt and ask the human rather than producing a brief that floats free of the design system. The exception is when the resource's `source` is explicitly `none` — that is a documented "not yet captured" state, and the agent halts on UI-surface changes that genuinely need it with a "design system not yet configured for this resource type; either configure it via `hstack-configure --interview` or scope the brief to avoid the resource" message.
 
 ## Templates this subagent writes
 

@@ -50,7 +50,7 @@ Before any work:
 
 - Verify the change-spec exists at `hstack/specs/changes/<id>/spec.md` and is at `status: ready-to-plan` or later.
 - Verify `surfaces` includes `ui`. If not, halt with the surface-conditional message.
-- Verify the configured design system docs (paths from `hstack/config.yaml`) are reachable. Halt if absent — `ui-ux-briefer`'s contract refuses to brief against a missing design system.
+- Verify the configured design-system resources are reachable per their declared source in `hstack/config.yaml` (`design-system.components.source`, `tokens.source`, `brand-guidelines.source`). For each resource the brief will need: `in-repo` paths must resolve; `figma-mcp` / `notion-mcp` sources require the corresponding MCP to be wired and reachable (UI-surface changes are high-stakes — graceful degradation is not safe here); `submodule` / `npm` / `external-other` must fetch. A resource at `source: none` is treated as "not yet captured" — halt if the brief genuinely needs it, otherwise proceed against the resources that ARE configured.
 - Verify the `design-system-version` declared in `hstack/config.yaml` is current and is what the brief will reference. Halt on drift.
 - Read the change-spec's `user-stories` array; verify each story is reachable in the configured store and read it. Halt if any linked story or its persona is missing.
 
