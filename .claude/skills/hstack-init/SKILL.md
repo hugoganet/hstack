@@ -1,0 +1,132 @@
+---
+name: hstack-init
+description: |
+  Use this skill when an engineer is adopting hstack on a fresh repository for the first time and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. Until init completes, no other hstack Skill works — every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as five-to-seven mini-sessions of ten-to-fifteen minutes each (one per product-context document) rather than one ninety-minute block, so that an interruption costs at most one in-flight field. Examples:
+
+  <example>
+  Context: A fresh Moso clone has no `hstack/config.yaml` and no `hstack/context/` content; the engineer wants to bootstrap hstack from scratch.
+  user: "Start /hstack:init on this repo."
+  assistant: "I'll invoke the product-manager subagent for the first mini-session — vision.md. We'll commit when vision is done and resume with glossary next."
+  <commentary>
+  Init is the only Skill permitted to write `hstack/config.yaml` and to populate the product-context layer. It orchestrates the product-manager subagent across five-to-seven document interviews, each ending at a commit point. The "no other Skill works until init complete" rule is enforced by every downstream Skill's precondition checks.
+  </commentary>
+  </example>
+
+  <example>
+  Context: Init was started two days ago, three documents were committed, and a session crash dropped the fourth. The engineer wants to resume rather than restart.
+  user: "Resume /hstack:init — vision, glossary, and mvp-scope are already done."
+  assistant: "I'll read hstack/.session-state/<session-id>.yaml, confirm which documents are at status `current`, and resume with the next missing one — data-architecture, based on what I see on disk."
+  <commentary>
+  Idempotency is load-bearing here: the Skill reads disk state, recognizes which documents are already terminal, and continues at the next empty mini-session boundary rather than re-running completed interviews.
+  </commentary>
+  </example>
+tools:
+  - Read
+  - Write
+  - Edit
+  - Grep
+  - Glob
+  - Bash
+  - Task
+  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator run after every confirmed field write}}"
+  - "{{TODO-SCRIPT: hstack/scripts/init-detect-mcps.sh — probes the consuming repo's Claude Code config for available MCPs and writes hstack/context/mcp-status.md}}"
+---
+
+## Purpose
+
+`hstack-init` is the first-run, conversational bootstrap Skill. It writes `hstack/config.yaml` and populates the canonical product-context layer at `hstack/context/`. It is the longest Skill in the system by elapsed time, structured deliberately as a series of short mini-sessions so the user can stop and resume without losing work. It is not the workflow itself: it does not author change-specs, plans, or any per-change artifact. It is also not the editor of an existing config — that is `hstack-configure`'s role.
+
+## When to invoke
+
+Invoke when the consuming repo has no `hstack/config.yaml`, or when `hstack/config.yaml` exists but at least one required product-context document is missing or below `status: current`. Every other hstack Skill checks for init completion at session start; if init is incomplete, those Skills halt with a message directing the engineer here. Init runs once per repo lifetime, although `hstack-configure --migrate` may re-invoke targeted slices of it on schema-version upgrades.
+
+## Inputs
+
+- No positional arguments. The Skill drives entirely from on-disk state and conversation.
+- Optional flag `--resume` is implicit: the Skill always reads `hstack/.session-state/<session-id>.yaml` when present and continues from the next un-confirmed field.
+
+## Preconditions
+
+Before any work:
+
+- Verify `hstack/` directory exists at the repo root. If not, halt and ask the engineer to confirm they are in the right directory.
+- Read `hstack/CLAUDE.md` (kernel) and `hstack/templates/` — both must be present. If either is missing, halt and ask the engineer to install or restore the hstack source.
+- Probe Claude Code's MCP configuration for the consuming repo and write a draft `hstack/context/mcp-status.md` listing which MCPs are wired (Notion, Linear, GitHub, Figma, Supabase) and which are absent. Run `{{TODO-SCRIPT: hstack/scripts/init-detect-mcps.sh}}` for this; if absent, the Skill produces the file by interviewing the engineer instead.
+- If `hstack/.session-state/` contains a prior init session-state file, read it and confirm with the engineer that resumption is the intent.
+
+If the engineer signals "start fresh, abandon the prior partial init," archive the existing session-state file before proceeding.
+
+## Orchestration steps
+
+Init is split into discrete mini-sessions, each commitable independently. The order is fixed because later documents reference earlier ones.
+
+1. **Mini-session 0 — config skeleton.** Interview the engineer for the small set of `hstack/config.yaml` decisions that gate everything else: configured story store (Notion DB, Linear, GitHub Issues, or `hstack/stories/`); personas store; design-system paths (`components`, `tokens`, `brand-guidelines`); module-to-area mapping (a list of module ids with their canonical path globs); adversarial-review floor (default 3, 5 for `agent`/`auth`/`billing`); whether the production agent ledger is enabled; the active MCP set. Write `hstack/config.yaml` with `schemaVersion: 1` and commit.
+
+2. **Mini-session 1 — vision.** Invoke `product-manager` via the Task tool with `subagent_type: product-manager` and context = [`hstack/CLAUDE.md`, `hstack/templates/vision.md`, any pointer the engineer offers to an existing vision source]. The subagent walks the five vision sections, confirms each, writes `hstack/context/vision.md` at `status: drafted` and advances to `current` at the end. Prompt cleanup of the source per the subagent's contract. Commit.
+
+3. **Mini-session 2 — glossary.** Same orchestration with `hstack/templates/glossary.md`. Output: `hstack/context/glossary.md` at `current`. Commit.
+
+4. **Mini-session 3 — mvp-scope.** Same orchestration with `hstack/templates/mvp-scope.md`. Output: `hstack/context/mvp-scope.md` at `current`. Commit.
+
+5. **Mini-session 4 — personas.** For each persona the engineer names, the `product-manager` subagent runs a persona sub-interview against `hstack/templates/persona.md`, including the challenge prompt "What is this persona explicitly not?" Personas are written to the configured store (typically `hstack/context/personas/<slug>.md`). Commit after each persona individually so partial completion is durable.
+
+6. **Mini-session 5 — data-architecture, tech-stack, ci-cd.** These three are interview-light because the engineer has often already documented them in `CLAUDE.md`, `package.json`, or `.github/workflows/`. The Skill orchestrates by handing each in turn to `product-manager` (or `spec-author` if the engineer prefers a more code-grounded read) with the relevant existing source plus the canonical template. Output: three files at `current`. Commit after each.
+
+7. **Mini-session 6 — threat-model, hardening-checklist, incident-runbook.** These are the security-context triplet. `incident-runbook.md` is written with `git-ignored: true` in its frontmatter; the Skill verifies that an entry exists in the repo's `.gitignore` before proceeding (creating the entry with confirmation if absent). The Skill warns the engineer at the start of this mini-session that incident-runbook content will not be committed to git and will need an out-of-band sync target named in `hstack/config.yaml`. Commit each context file as it lands.
+
+The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, updating after every confirmed field write. The state file captures which mini-session is in progress, which fields within it are confirmed, and what the next prompt should be.
+
+## Outputs
+
+- `hstack/config.yaml` (status field on the config carries `init-status: minimal-complete` once mini-session 0 ends, advancing to `complete` only when every required context document is at `current`).
+- `hstack/context/vision.md` at `current`.
+- `hstack/context/glossary.md` at `current`.
+- `hstack/context/mvp-scope.md` at `current`.
+- `hstack/context/personas/<slug>.md` per persona, or sync stubs when the store is Notion / Linear.
+- `hstack/context/data-architecture.md`, `tech-stack.md`, `ci-cd.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
+- `hstack/context/incident-runbook.md` at `current` with `git-ignored: true`; corresponding `.gitignore` entry verified.
+- `hstack/context/mcp-status.md` documenting active and degraded MCPs.
+
+## Auto-commit triggers
+
+Each of the following emits an auto-commit on the active working branch:
+
+- `hstack/config.yaml` reaches `init-status: minimal-complete` (end of mini-session 0).
+- Each product-context document's status moves to `current` (end of each mini-session).
+- Each persona's status moves to `current` (end of each persona sub-interview).
+- `hstack/config.yaml`'s `init-status` advances to `complete` (end of mini-session 6).
+
+The commit message names the mini-session and the artifact. Aside from these, init does not auto-commit.
+
+## Idempotency contract
+
+Re-running `hstack-init` on a repo where init has progressed partway through:
+
+- Reads `hstack/config.yaml` and every existing `hstack/context/*.md`. Any file at `status: current` is considered done; the Skill does not re-interview it.
+- Reads `hstack/.session-state/<session-id>.yaml` if present and resumes the in-flight mini-session at its next un-confirmed field.
+- Produces a no-op diff for completed mini-sessions; the only writes happen to the first incomplete document.
+- Re-running after all mini-sessions are complete is a no-op that prints the init-status summary.
+
+## Stop conditions
+
+Beyond the kernel's general stop conditions, this Skill halts when:
+
+- The `product-manager` subagent halts (e.g., because a persona answer is too vague, or because a referenced source document is unreachable). The Skill surfaces the subagent's halt message and waits.
+- A configured MCP the engineer named as the story store is not wired in Claude Code. The Skill does not silently fall back to a different store; it asks the engineer to wire the MCP or pick a different store, then re-runs the relevant config field.
+- The engineer signals end-of-session mid-mini-session. The Skill writes the session-state file, commits any field that has been confirmed and written, and exits cleanly.
+- `incident-runbook.md` would be committed to git. Halt; verify the gitignore entry first.
+
+## Failure modes
+
+- **Missing kernel or templates.** Halt with a clear message; this is a hstack installation problem, not an init problem.
+- **Subagent unreachable mid-mini-session.** Persist current state; instruct the engineer to retry in a moment.
+- **Notion/Linear/GitHub MCP unreachable but configured as the story store.** Halt and ask the engineer to wire it; do not silently fall back to `hstack/stories/`.
+- **`.gitignore` write refused.** The Skill cannot proceed past mini-session 6's incident-runbook step without it. Halt and surface the issue.
+
+## Anti-patterns
+
+- Never write `hstack/config.yaml` silently from inferred defaults. Every field passes through the engineer's confirmation gate via the `product-manager` subagent.
+- Never collapse the seven mini-sessions into one long block. The mini-session structure is the resumability contract.
+- Never advance `init-status: complete` while any required context document is below `current`.
+- Never write `incident-runbook.md` content to the conversation transcript more than necessary; the file's contents are sensitive and should be confirmed in summary form rather than pasted verbatim.
+- Never re-interview a completed mini-session on resume. Read the disk; trust the prior commit.
