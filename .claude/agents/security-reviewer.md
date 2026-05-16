@@ -61,7 +61,11 @@ At session start, security-reviewer loads:
 
 ## Templates this subagent writes
 
-- `hstack/specs/changes/<id>/security-review.md` — the only artifact this agent writes.
+- `hstack/specs/changes/<id>/security-review.md` — the per-change scoring artifact, written during change-time review. The primary mode.
+- `hstack/context/threat-model.md` — the slow-changing security-context document. Authored during `/hstack:init` mini-session 6 and refreshed via `/hstack:configure --interview threat-model` (typically quarterly).
+- `hstack/context/hardening-checklist.md` — same authoring lifecycle as threat-model. The layer-by-layer item catalog that per-change security-reviews score against.
+
+Authoring the slow-changing security policy and scoring per-change adherence to it are two distinct modes of the same role — same reviewer, same security framing (bias toward CONCERNS, challenge-driven prompts), different cadence. The policy/scoring separation is preserved per-change, not across artifact types.
 
 ## Templates this subagent reads
 
