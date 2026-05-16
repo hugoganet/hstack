@@ -64,9 +64,11 @@ Before any work:
 
 4. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the seeded file. Validation at `status: draft` is permissive — empty arrays and empty prose are allowed at draft — but the universal floor (FM-01) must pass.
 
-5. **Auto-commit.** Commit message: `change-spec(<id>): scaffold`.
+5. **Offer branch creation.** Run `git branch --show-current`. If the current branch is `main` (or the configured default), ask the engineer: "You're on `<current-branch>`. Convention is one branch per change-spec — create `change/<id>` from here and check out before the scaffold commits? [Y/n/type-different-name]". Default Yes. On confirmation, run `git checkout -b change/<id>` BEFORE step 6 so the scaffold commit lands on the correct branch from the start. If the engineer declines or names a different branch, honor the choice and continue on the chosen branch. If the current branch is anything other than the configured default (i.e., already on a feature branch), do nothing — the engineer has a deliberate branching strategy and the Skill respects it.
 
-6. **Surface next steps.** Print a one-line instruction directing the engineer to invoke `spec-author` (or `hstack-story-draft` first if the change is user-facing and no story exists yet).
+6. **Auto-commit.** Commit message: `chore(change-new): scaffold <id>`.
+
+7. **Surface next steps.** Print a one-line instruction directing the engineer to invoke `spec-author` (or `hstack-story-draft` first if the change is user-facing and no story exists yet).
 
 The Skill does not invoke any subagent. Scaffolding is mechanical and the engineer's subsequent moves vary by change.
 

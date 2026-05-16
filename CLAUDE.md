@@ -119,6 +119,22 @@ The `trivial` tag is an escape hatch, not a release valve. Misuse is grounds for
 
 ---
 
+## Branch hygiene
+
+Every per-change workflow Skill assumes one branch per change-spec, named `change/<change-id>`, branching from `main`. The convention is enforced at exactly two moments and surfaced (without enforcement) at a third:
+
+- **Offered at `/hstack:change-new`.** When the change-id becomes known, the Skill offers to create `change/<change-id>` from the current branch and check out before the scaffold auto-commits. Default Yes; the engineer can decline or supply a different branch name.
+- **Enforced at `/hstack:implement`.** Hard halt on `main` (or the configured default branch) for any change not carrying `trivial: true`. The kernel's database-workflow and forbidden-tools rules already forbid committing real work to `main`; this is the workflow-level corollary.
+- **Surfaced at `/hstack:help`.** When a non-trivial in-flight change-spec exists but the current branch is `main` (or any branch other than the expected `change/<change-id>`), the situation report flags the mismatch.
+
+Other workflow Skills (`change-plan`, `ui-brief`, `security-review`, `data-review`, `verify`, `adversarial-review`) tolerate any branch. Their artifacts live under `hstack/specs/changes/<id>/` and are git-cherry-pickable if they land on the wrong branch — recoverable, not load-bearing.
+
+`/hstack:branch <change-id>` is the explicit mid-flow switch command for when the engineer realizes they're on the wrong branch already. Honors the same convention.
+
+Trivial changes (`trivial: true`) bypass branch hygiene and may commit directly on `main`, per the existing trivial-changes carve-out.
+
+---
+
 ## v1 / v2 split
 
 hstack v1 is good engineering hygiene. v1 does not by itself deliver SOC 2 or GDPR posture. The architecture document's v2 roadmap names the substrate work required before hstack-governed code can defensibly carry a production-grade label: executable security tests, audit-architecture spec, tool-call and MCP blast-radius controls, MCP hard-fail on load-bearing dependencies, session-id verification, and more.

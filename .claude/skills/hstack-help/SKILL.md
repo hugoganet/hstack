@@ -82,7 +82,11 @@ No subagents are invoked. Every step is a direct file read or shell call.
 
 2. **Section 2 — Health.**
    - MCPs: read `hstack/context/mcp-status.md` for wired vs degraded.
-   - Branch: `git branch --show-current`. Flag if on `main` while in-flight changes exist (typical pattern is one branch per change-spec).
+   - **Branch hygiene.** Run `git branch --show-current`. For each in-flight non-trivial change-spec, the expected branch is `change/<change-id>` per the kernel's branch-hygiene rule. Compare:
+     - Current branch is `main` AND ≥ 1 non-trivial in-flight change exists → flag explicitly: "On `main` with in-flight non-trivial change `<id>`; expected `change/<id>`. Run `/hstack:branch <id>` to switch."
+     - Current branch matches the expected `change/<id>` of one in-flight change → "Branch `change/<id>` matches in-flight change `<id>`."
+     - Current branch is `change/<other-id>` and `<other-id>` is no longer in-flight (shipped or archived) → "On `change/<other-id>` (shipped); ready to start something new."
+     - Trivial-only in-flight changes → no branch warning (trivial may commit on main).
    - Git state: `git status --short` count. Flag uncommitted hstack-relevant files.
    - Last hstack commit: `git log -1 --format='%h %s (%cr)' -- hstack/`. Shows when hstack-touching work last landed.
    - Local-ahead-of-remote: `git rev-list --count @{u}..HEAD 2>/dev/null` (silently skip if no upstream).

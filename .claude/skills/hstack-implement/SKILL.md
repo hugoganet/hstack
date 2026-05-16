@@ -65,6 +65,7 @@ Before any work — the Skill re-checks every gate even when the change-spec car
 - ui-brief at `status: drafted` and figma-handoff at `status: ready` when `surfaces` includes `ui`.
 - User-stories non-empty unless `internal-tooling: true`.
 - The relevant module-spec at `status: current`.
+- **Branch state.** Run `git branch --show-current`. If the current branch is `main` (or the configured default) AND `change-spec.trivial` is not `true`, HARD HALT with: "Refusing to implement on `main` — change-spec `<id>` is not marked trivial. Check out `change/<id>` first, or run `/hstack:branch <id>` to create-and-switch." Trivial changes (`trivial: true`) may proceed on main per the kernel's trivial-changes carve-out. This check enforces the kernel's branch-hygiene contract at the last moment before code lands.
 
 Enumerate the kernel's forbidden tool surfaces explicitly before invoking the subagent — defense in depth with the implementer's own check:
 
