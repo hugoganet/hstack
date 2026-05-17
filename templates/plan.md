@@ -32,11 +32,11 @@ _One subsection per phase. 4–8 phases typical. >12 requires `oversized-plan-ju
 
 -
 
-**Test Strategy.** _Which test files, what they assert._
+**Test Strategy.** _Pointer to the test-plan section(s) this phase satisfies. Format: `test-plan §<section> — <one-line summary>`. The phase lands the tests named in the referenced section; do not restate or invent tests here. If this phase's work is exclusively non-test (e.g., a migration whose tests live in a later phase), state that explicitly and name the downstream phase that closes the loop._
 
 **Risk.** _One sentence on what could go wrong locally._
 
-**Verifier Expectations.** _What `verifier` must observe to mark this phase passed._
+**Verifier Expectations.** _What `verifier` must observe to mark this phase passed. References both this plan's Test Strategy and the test-plan sections the phase satisfies._
 
 ## Cross-Phase Risks
 

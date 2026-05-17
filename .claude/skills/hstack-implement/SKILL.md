@@ -47,7 +47,7 @@ tools:
 
 ## When to invoke
 
-Invoke once the change-spec is at `status: ready-for-implementation` (which means every upstream gate is terminal: plan at `ready`, security-review at `passed` or `concerns-acknowledged`, data-review at `passed` or `concerns-acknowledged` when applicable, ui-brief at `drafted` and figma-handoff at `ready` when applicable, user-stories non-empty unless internal-tooling). One invocation per phase. Re-invoke for each subsequent phase.
+Invoke once the change-spec is at `status: ready-for-implementation` (which means every upstream gate is terminal: test-plan at `passed` or `concerns-acknowledged`, plan at `ready`, security-review at `passed` or `concerns-acknowledged`, data-review at `passed` or `concerns-acknowledged` when applicable, ui-brief at `drafted` and figma-handoff at `ready` when applicable, user-stories non-empty unless internal-tooling). One invocation per phase. Re-invoke for each subsequent phase.
 
 ## Inputs
 
@@ -60,6 +60,7 @@ Before any work — the Skill re-checks every gate even when the change-spec car
 
 - Change-spec at `hstack/specs/changes/<change-id>/spec.md`. `status` must be `ready-for-implementation` or `in-progress`. `Invariants` ≥ 3 bullets, `in-scope` non-empty, every `in-scope` glob resolves.
 - Plan at `hstack/specs/changes/<change-id>/plan.md` at `status: ready` or `in-progress`. `<task-id>` must match a phase id in the plan body. `Files Touched` for the phase must be a strict subset of `in-scope`.
+- **Test-plan at `hstack/specs/changes/<change-id>/test-plan.md` at `status: passed` or `concerns-acknowledged`.** The implementer reads it at session start and writes the tests it specifies; without a terminal test-plan, the implementer halts.
 - Security-review at `status: passed` or `concerns-acknowledged`.
 - Data-review at `status: passed` or `concerns-acknowledged` when `surfaces` includes `db`.
 - ui-brief at `status: drafted` and figma-handoff at `status: ready` when `surfaces` includes `ui`.
@@ -76,7 +77,9 @@ Enumerate the kernel's forbidden tool surfaces explicitly before invoking the su
 - Any tool that mutates state outside the `in-scope` list.
 - MCPs not in the consuming repo's configured allow set.
 - `--no-verify` or other hook-bypassing git flags.
+- `--update-snapshots`, `jest --updateSnapshot`, `vitest -u`, or any equivalent bulk snapshot-update flag.
 - Destructive git operations (`git push --force`, `git reset --hard`, `git checkout .`) without explicit per-invocation authorization.
+- Modifications to existing test files without per-test authorization via the test-immutability protocol (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`).
 
 If the named phase appears to require any of the above, halt before invoking — surface the violation, ask the engineer to either reshape the phase or authorize per-invocation.
 
@@ -84,9 +87,9 @@ If the named phase appears to require any of the above, halt before invoking —
 
 1. **Re-verify gates.** Run the precondition checks above. Any failure halts the Skill with a precise message naming the failing artifact and field.
 
-2. **Invoke `implementer`.** Use the Task tool with `subagent_type: implementer` and context = [kernel, change-spec, plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel.
+2. **Invoke `implementer`.** Use the Task tool with `subagent_type: implementer` and context = [kernel, change-spec, plan, test-plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel.
 
-3. **Phase execution.** The subagent executes one phase per invocation. It writes the code diff scoped to the phase's Files Touched, updates `plan.steps-completed` to include `<task-id>` when the phase completes, and writes tests per the phase's Test Strategy.
+3. **Phase execution.** The subagent executes one phase per invocation. It writes the code diff scoped to the phase's Files Touched, updates `plan.steps-completed` to include `<task-id>` when the phase completes, and writes the tests named in the test-plan sections the phase's Test Strategy references. Test names, file paths, and assertion shape come from the test-plan; the implementer does not rename or omit tests.
 
 4. **Database workflow enforcement.** For phases touching schema: the subagent creates migration files via `supabase migration new <descriptive_name>`; enables RLS in the same migration as a new table; regenerates types via `supabase gen types typescript --local > types/database.types.ts`. Never `supabase db push` / `supabase db reset` against a remote project.
 
@@ -95,6 +98,8 @@ If the named phase appears to require any of the above, halt before invoking —
 6. **Scope-amendment halt.** If the subagent would touch a file outside `in-scope`, it halts and emits a scope-amendment request to the conversation. The Skill does not extend `in-scope` unilaterally. The engineer invokes `spec-author` (typically via direct request, not a Skill) to amend the change-spec, the Skill re-runs, the subagent re-loads.
 
 7. **Hook failures.** If a pre-commit hook fails on the auto-commit, the subagent investigates and fixes the underlying issue; does not bypass via `--no-verify`. If the fix would require out-of-scope edits, halt with a scope-amendment request.
+
+8. **Test-immutability protocol.** When the subagent determines an existing test file must be modified, deleted, or have a snapshot updated, it halts before touching the file and runs the kernel's authorization protocol: surface the test name, the reason, the proposed change, and the alternatives; wait for the canonical phrase verbatim (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`); echo the phrase in the commit message body and add a footnote under the relevant phase in `plan.md`. The Skill enforces this defense-in-depth — if a subagent's diff shows a modified pre-existing test file without a matching authorization in the conversation, the Skill blocks the commit.
 
 8. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the plan — PL-03 (every `steps-completed` entry matches a plan phase id), PL-04 (every Files Touched path is a subset of `in-scope`), PL-05 (plan status gating).
 
@@ -128,6 +133,7 @@ Beyond the kernel's general stop conditions:
 - A load-bearing MCP is unreachable mid-phase.
 - The change requires a migration against a remote environment.
 - A pre-commit or pre-push hook fails after investigation — halt and surface; do not bypass.
+- An existing test would need to be modified, deleted, or have its snapshot updated, and the human has not yet typed the canonical authorization phrase.
 - The engineer has not authorized a destructive git operation that the situation seems to call for.
 - An ambiguity in the plan or change-spec would require the implementer to make a design call beyond its role.
 
@@ -152,3 +158,6 @@ Beyond the kernel's general stop conditions:
 - Never use `client.defineJob` (Trigger.dev v2 deprecated).
 - Never invent a migration filename. Use `supabase migration new <descriptive_name>`.
 - Never claim a phase complete when tests fail or types are stale.
+- Never edit, delete, or neutralize an existing test without per-test authorization. The kernel's test-immutability rule is non-negotiable; the default fix for a failing test is to fix the code under test.
+- Never run bulk snapshot-update flags. Each snapshot update needs its own authorization.
+- Never accept a blanket "fix the tests" authorization. Per-test scope is mandatory.

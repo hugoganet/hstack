@@ -11,6 +11,10 @@ test-results:
   lint: pending
   typecheck: pending
 phase-coverage: {}                     # mirror of plan.steps-completed; { <phase-id>: pass | fail }
+test-plan-coverage:                    # observed-vs-promised against test-plan.md
+  edge-cases: pending                  # all-observed | partial | missing
+  tenant-isolation: pending            # all-observed | partial | missing | not-applicable
+  performance-budgets: pending         # all-within-budget | regressed | missing | not-applicable
 artifacts:
   test-output: <path>
 created: <YYYY-MM-DD>
@@ -29,6 +33,26 @@ _Table of phase id, verifier expectations met (yes/no), notes. Three columns max
 | phase-id | met | notes |
 | --- | --- | --- |
 |  |  |  |
+
+## Test-Plan Coverage
+
+_Observed-vs-promised against `test-plan.md`. Three subsections; populate only those that apply to this change._
+
+### Edge Cases
+
+_Every bullet in the test-plan's Edge Cases section maps to an observed test. Absent or skipped tests are listed with a recommended action._
+
+### Tenant Isolation
+
+_Every entry in the test-plan's `tenant-isolation-tests` array maps to an observed negative test. Absences here are high-severity and escalate to adversarial-review (V-03)._
+
+### Performance Budgets
+
+_Every row in the test-plan's Budgets table maps to an observed assertion within budget. Regressions and absences block `status: passed` (V-04)._
+
+| path | budget | observed | within budget |
+| --- | --- | --- | --- |
+|  |  |  |  |
 
 ## Test Suite Output
 

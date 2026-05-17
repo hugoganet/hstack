@@ -34,6 +34,43 @@ CI enforces the write boundary at PR time. Files modified outside In-Scope block
 
 ---
 
+## Test immutability
+
+Once a test file exists in the working tree (committed or staged), **no hstack subagent may edit or delete it without per-test, per-conversation human authorization.** This rule exists because the dominant failure mode of LLM-driven implementation is the model editing an assertion or deleting a test to make the suite go green, rather than fixing the code under test. The rule is load-bearing and not negotiable by any individual subagent.
+
+**What counts as a test.** Files matching the consuming repo's test patterns declared in `hstack/context/ci-cd.md` (e.g., `*.test.ts`, `*.spec.ts`, `__tests__/**/*`, `e2e/**/*`, `*_test.go`), snapshot files (`__snapshots__/*`), and assertion-bearing fixture files (factories and seed data that encode expected outputs).
+
+**Authorization protocol.** When a subagent determines an existing test must change:
+
+1. **Halt before editing.** The subagent does not modify the test file.
+2. **Surface the request.** State (a) the test file and the test name, (b) the reason the test must change (what the test currently asserts vs. what is now correct, with evidence), (c) the proposed change as a precise diff or description, (d) the alternatives — fix the code under test instead, amend the test-plan via `test-strategist`, file a tech-debt item, or close the test as obsolete.
+3. **Wait for the canonical phrase.** The human authorizes by typing one of:
+   - `Ok to change test <name>` — for assertion or logic changes inside an existing test.
+   - `Ok to delete test <name>` — for test removal, including consolidations and refactors that move tests.
+   - `Ok to update snapshot <name>` — for snapshot file updates. Required per-snapshot. `--update-snapshots` and equivalent bulk-update flags are forbidden.
+   - `Ok to refresh fixture <name>` — for assertion-bearing fixture data (e.g., a date-sensitive expected output that requires rebaselining).
+   `<name>` is either the file path or a uniquely-identifying test name. The subagent echoes the phrase back verbatim before acting to confirm scope.
+4. **Echo in the audit trail.** When the change lands, the subagent records the authorization in (a) the commit message body and (b) the relevant artifact — `verification.md` Discrepancies for verifier-time discoveries, `plan.md` per-phase footnote for implementer-time changes, `adversarial-review.md` Resolution Log for review-time changes.
+5. **Single-use.** Authorization covers the specific test and the specific change discussed in the current conversation. A second edit to the same test, or a follow-up change beyond what was discussed, requires fresh authorization. Authorization does not carry across sessions.
+
+**Carve-outs.**
+
+- **New tests are allowed without authorization.** The implementer writes the tests named in the test-plan as part of normal phase execution. "New" means the test path did not exist in the working tree at session start.
+- **A test-file move that preserves content exactly** (rename / relocation as part of an in-scope refactor) is permitted without authorization, but the subagent surfaces the move in its commit message so an adversarial-reviewer can verify no content drifted.
+- **Test data refresh** for date-sensitive or environment-sensitive fixtures uses the `Ok to refresh fixture` phrase rather than `change test`. Same authorization discipline, different semantics — refresh acknowledges the test's contract is intact but the input changed.
+
+**Forbidden no matter what.**
+
+- Blanket authorizations ("go ahead and fix any failing tests", "update whatever snapshots need it"). Authorizations are per-test, per-conversation. The subagent refuses blanket scope.
+- Bulk snapshot updates via `--update-snapshots`, `jest --updateSnapshot`, `vitest -u`, or any equivalent flag, including in pre-commit hooks.
+- Relaxing an assertion without authorization (e.g., tightening a regex to a substring match, broadening a `.toBe()` to `.toContain()`, increasing a timeout to mask a real bug).
+- Deleting a `.skip` annotation, replacing a `test()` call with `test.todo()`, or otherwise neutralizing a test without authorization. Neutralization is a form of deletion.
+- Editing a test as part of "cleaning up" a phase without an explicit authorization for that test, even if the edit is cosmetic.
+
+**Enforcers.** The implementer is the primary enforcer because it is the only subagent that writes code. The verifier reinforces by refusing to record a `passed` status when its diff-vs-prior-run check shows a test file modified mid-run. The adversarial-reviewer makes "test modified without authorization echo in the conversation or commit" a hard finding under spec-compliance. The test-strategist, in test-plan refresh mode, treats existing test files as read-only — when a refresh would require modifying an existing test, the strategist halts and routes the request through the authorization protocol or files a tech-debt item.
+
+---
+
 ## Frontmatter contract
 
 Every artifact under `hstack/specs/`, `hstack/context/`, `hstack/adr/`, `hstack/tech-debt/`, and `hstack/research/promoted/` carries YAML frontmatter. The shared floor every artifact must include:
@@ -62,7 +99,7 @@ Status transitions are written by subagents, not humans. Each subagent updates t
 Two rules:
 
 - **Auto-commit at status transition.** Every time a subagent moves an artifact's status to a new value, the change is git-committed to the active working branch. This produces the audit trail and provides the resumability checkpoint.
-- **Upstream must be terminal before downstream advances.** A change-spec reaches `ready-for-implementation` only when plan, security-review, data-review (when applicable), and ui-brief / figma-handoff (when applicable) are at correct terminal states. The transition gate is computed from artifact statuses, not asserted by an agent.
+- **Upstream must be terminal before downstream advances.** A change-spec reaches `ready-for-implementation` only when test-plan, plan, security-review, data-review (when applicable), and ui-brief / figma-handoff (when applicable) are at correct terminal states. The test-plan is itself upstream of the plan — the `planner` refuses to start until `test-plan.md` is at `passed` or `concerns-acknowledged`. The transition gate is computed from artifact statuses, not asserted by an agent.
 
 Per-type lifecycles live in the template schemas doc.
 
@@ -139,7 +176,7 @@ Trivial changes (`trivial: true`) bypass branch hygiene and may commit directly 
 
 hstack v1 is good engineering hygiene. v1 does not by itself deliver SOC 2 or GDPR posture. The architecture document's v2 roadmap names the substrate work required before hstack-governed code can defensibly carry a production-grade label: executable security tests, audit-architecture spec, tool-call and MCP blast-radius controls, MCP hard-fail on load-bearing dependencies, session-id verification, and more.
 
-Subagents and Skills in v1 must not falsely assert v2 guarantees. The `security-reviewer` produces a structured judgment, not an executable test result. The agent ledger is useful telemetry, not defensible audit evidence. Frame outputs accordingly.
+Subagents and Skills in v1 must not falsely assert v2 guarantees. The `security-reviewer` produces a structured judgment, not an executable test result. The `test-strategist` produces strategic judgment about test layering, edge cases, and coverage gaps — not coverage-measured or mutation-tested evidence; v2 substrate wires coverage instrumentation, mutation testing, and benchmark-asserted performance budgets. The agent ledger is useful telemetry, not defensible audit evidence. Frame outputs accordingly.
 
 ---
 
@@ -162,13 +199,14 @@ Load-at-session-start rules by subagent:
 
 - `product-manager`: vision, personas, mvp-scope, glossary.
 - `spec-author`: glossary, tech-stack, the relevant module-spec.
-- `planner`: change-spec, ui-brief, figma-handoff, data-review (when present).
+- `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope.
+- `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present).
 - `ui-ux-briefer`: configured design system docs, change-spec, linked stories.
 - `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd.
 - `data-specialist`: data-architecture, tech-stack, ci-cd, current schema (via MCP).
-- `implementer`: change-spec, plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack.
-- `verifier`: change-spec, ci-cd.
-- `adversarial-reviewer`: all change artifacts; explicitly no implementer transcripts.
+- `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack.
+- `verifier`: change-spec, plan, test-plan, ci-cd.
+- `adversarial-reviewer`: all change artifacts (including test-plan); explicitly no implementer transcripts.
 - `researcher`: query context plus relevant product-context docs as the query requires.
 
 A subagent that cannot reach a required context document halts and asks the human, rather than proceeding without it.

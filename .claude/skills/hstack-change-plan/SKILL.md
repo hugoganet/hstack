@@ -37,7 +37,7 @@ tools:
 
 ## When to invoke
 
-Invoke when the change-spec reaches `status: ready-to-plan` and the conditional upstream artifacts required by the spec's `surfaces` are at terminal status. Re-invoke when the change-spec or its upstream artifacts change shape in ways that invalidate the existing plan.
+Invoke when the change-spec reaches `status: ready-to-plan`, `test-plan.md` is at terminal status, and any conditional upstream artifacts required by the spec's `surfaces` are at terminal status. Re-invoke when the change-spec, the test-plan, or any conditional upstream artifact changes shape in ways that invalidate the existing plan.
 
 ## Inputs
 
@@ -49,16 +49,17 @@ Before any work:
 
 - Verify the change-spec exists at `hstack/specs/changes/<id>/spec.md` and is at `status: ready-to-plan` or later.
 - Verify the change-spec's `Invariants` section has ≥ 3 bullets (SP-04) and `Scope Boundaries` is non-empty (SP-05/SP-06). If empty, halt — the planner refuses.
+- **Verify `test-plan.md` is at `status: passed` or `concerns-acknowledged`.** This is the hard upstream gate; the planner refuses to sequence phases without a terminal test strategy. Halt otherwise and direct the engineer to `/hstack:test-plan`.
 - When `surfaces` includes `ui`: verify `ui-brief.md` at `status: drafted` and `figma-handoff.md` at `status: ready`. Halt otherwise.
 - When `surfaces` includes `db`: verify `data-review.md` at `status: passed` or `concerns-acknowledged`. Halt otherwise.
 - Verify the relevant module-spec at `status: current`.
 - Read `hstack/context/tech-stack.md` (loaded by `planner` for pinned runtime constraints).
 
-The security-review is not a planner precondition — security-review and the plan can be produced in either order, since neither depends on the other's content (the implementer reads both at session start).
+The security-review is not a planner precondition — security-review and the plan can be produced in either order, since neither depends on the other's content (the implementer reads both at session start). The test-plan, by contrast, IS a planner precondition: the planner's phase ordering and per-phase Test Strategy entries reference test-plan sections, so the test-plan must already be terminal.
 
 ## Orchestration steps
 
-1. **Invoke `planner`.** Use the Task tool with `subagent_type: planner` and context = [kernel, `hstack/templates/plan.md`, change-spec, ui-brief and figma-handoff if applicable, data-review if applicable, module-spec, tech-stack]. The subagent walks the four plan sections — Phase Overview, Per-Phase Detail, Cross-Phase Risks, Rollback.
+1. **Invoke `planner`.** Use the Task tool with `subagent_type: planner` and context = [kernel, `hstack/templates/plan.md`, change-spec, test-plan, ui-brief and figma-handoff if applicable, data-review if applicable, module-spec, tech-stack]. The subagent walks the four plan sections — Phase Overview, Per-Phase Detail, Cross-Phase Risks, Rollback. Per-phase Test Strategy entries point at test-plan sections rather than re-stating tests inline.
 
 2. **Phase decomposition.** Per the `planner` contract, typical plans hold 4–8 phases; > 12 phases requires an `oversized-plan-justification` frontmatter field. Each phase has a `step-id`, one-line summary, `depends-on` list, Files Touched (subset of `change-spec.in-scope`), Test Strategy, Risk sentence, and Verifier Expectations.
 
@@ -94,6 +95,7 @@ The security-review is not a planner precondition — security-review and the pl
 Beyond the kernel's general stop conditions:
 
 - Change-spec Invariants empty (< 3 bullets) or Scope Boundaries empty.
+- `test-plan.md` missing or non-terminal. Halt and direct the engineer to `/hstack:test-plan`.
 - Conditional upstream artifact missing or non-terminal.
 - A Files Touched entry would drift outside `in-scope`. Halt and request a scope amendment via `spec-author`.
 - > 12 phases without `oversized-plan-justification` in frontmatter.

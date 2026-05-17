@@ -69,7 +69,7 @@ No subagents are invoked. Every step is a direct file read or shell call.
    - Glob `hstack/specs/changes/*/spec.md`. For each, read frontmatter (`id`, `status`, `surfaces`, `owner`, `internal-tooling`, `trivial`, `parent-change`). Filter to non-terminal status (anything before `shipped`, `archived`).
    - For each in-flight change, compute the **next blocking action**:
      - `status: draft` → "Author via `spec-author` directly (or run `/hstack:story-draft` first if user-facing)."
-     - `status: ready-to-plan` and missing conditional artifacts → name them; suggest the appropriate Skill (`/hstack:security-review`, `/hstack:data-review` if db, `/hstack:ui-brief` if ui, `/hstack:change-plan`).
+     - `status: ready-to-plan` and missing conditional artifacts → name them; suggest the appropriate Skill (`/hstack:test-plan` first if missing — it gates the planner, `/hstack:security-review`, `/hstack:data-review` if db, `/hstack:ui-brief` if ui, `/hstack:change-plan`).
      - `status: ready-for-implementation` and plan has un-completed phases → "/hstack:implement <id> <next-task-id>" with the next phase id computed from `plan.steps-completed`.
      - `status: in-progress` → continue implementing remaining phases; verify after.
      - `status: ready-for-review` and no `verification.md` at passed → "/hstack:verify <id>".
@@ -105,6 +105,7 @@ Read every artifact in `hstack/specs/changes/<id>/`. Render the phase DAG as ASC
 
 ```
 spec [ready-for-implementation]
+  ├── test-plan [passed] ✓
   ├── ui-brief [drafted] ✓
   ├── figma-handoff [ready] ✓
   ├── data-review [passed] ✓

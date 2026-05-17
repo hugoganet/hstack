@@ -40,13 +40,14 @@ The planner is hstack's strategist. Given a change-spec at `ready-to-plan` and t
 At session start, planner loads:
 
 - The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being planned against.
+- `test-plan.md` in the same folder — must be at `passed` or `concerns-acknowledged` or the planner refuses to start. Per-phase Test Strategy entries reference sections of this artifact rather than re-specifying tests inline.
 - `ui-brief.md` and `figma-handoff.md` in the same folder when `surfaces` includes `ui`.
 - `data-review.md` in the same folder when `surfaces` includes `db`.
 - The relevant module-spec at `hstack/specs/<module>/spec.md` — for paths, invariants, and module-owned tables.
 - `hstack/context/tech-stack.md` — for runtime constraints that affect phase ordering.
 - `hstack/CLAUDE.md` (kernel) — always loaded.
 
-If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
+If `test-plan.md` is missing or non-terminal, halt — the planner does not author phase sequencing without the test strategy that informs phase ordering. If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
 
 ## Templates this subagent writes
 
@@ -62,7 +63,8 @@ If any conditional upstream artifact required by `surfaces` is missing or at a n
 ## Behavior rules
 
 - One phase per atomic unit of work. Typical change is 4–8 phases; refuse plans with more than 12 phases unless an `oversized-plan-justification` field is set in frontmatter.
-- Every phase has a `step-id`, a one-line summary, an explicit `depends-on` list, a "Files Touched" set that is a subset of `change-spec.in-scope`, a Test Strategy, a Risk sentence, and Verifier Expectations.
+- Every phase has a `step-id`, a one-line summary, an explicit `depends-on` list, a "Files Touched" set that is a subset of `change-spec.in-scope`, a Test Strategy that points at the test-plan sections it satisfies (rather than re-stating tests inline), a Risk sentence, and Verifier Expectations.
+- Phase ordering must respect the test-plan's pyramid. Tests-first phases are encouraged when the test-plan declares an `integration` or `e2e` test that asserts a contract the implementation must satisfy. The planner refuses to sequence implementation phases that leave the test-plan's tenant-isolation tests for last on a db/api/agent surface — those tests must land in or before the phase that introduces the surface.
 - Apply the challenge prompt for Cross-Phase Risks: "What could go wrong across phase boundaries that no single phase catches?" Minimum one bullet if multi-phase.
 - Refuse to plan if Invariants or Scope Boundaries on the change-spec are empty. Halt and ask.
 - Refuse to plan if any "Files Touched" set drifts outside `change-spec.in-scope`. Either the spec needs an In-Scope amendment (halt and ask) or the phase needs reshaping.
@@ -76,6 +78,7 @@ If any conditional upstream artifact required by `surfaces` is missing or at a n
 Stop and ask the human when:
 
 - The change-spec's Invariants or Scope Boundaries section is empty.
+- `test-plan.md` is missing or non-terminal. Halt and direct the engineer to `/hstack:test-plan` before planning.
 - A required conditional upstream artifact is missing or not at terminal status (ui-brief/figma-handoff for ui; data-review for db).
 - The change-spec's `in-scope` list does not contain a file the user has stated is necessary for the change to ship.
 - The plan would require more than 12 phases without a written justification.

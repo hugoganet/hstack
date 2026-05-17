@@ -6,7 +6,7 @@ description: |
   <example>
   Context: Every artifact for the billing-overage change is at terminal status and the engineer wants to open the PR.
   user: "/hstack:ship 2026-05-billing-overage-warning"
-  assistant: "I'll compute the scorecard: spec at ready-to-ship, plan completed, security-review passed, ui-brief drafted, figma-handoff ready, data-review passed, verification passed, adversarial-review findings-resolved. PR description will land in hstack/specs/changes/<id>/pr-body.md for you to paste."
+  assistant: "I'll compute the scorecard: spec at ready-to-ship, test-plan passed, plan completed, security-review passed, ui-brief drafted, figma-handoff ready, data-review passed, verification passed, adversarial-review findings-resolved. PR description will land in hstack/specs/changes/<id>/pr-body.md for you to paste."
   <commentary>
   The Skill is mechanical — it reads frontmatter and computes the gate result. No subagent is invoked. If any gate fails, the Skill names the failing artifact and halts.
   </commentary>
@@ -53,9 +53,9 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
 
 ## Orchestration steps
 
-1. **Read every change artifact.** Read `spec.md`, `plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md`. Capture each artifact's `status` and key gating fields.
+1. **Read every change artifact.** Read `spec.md`, `plan.md`, `test-plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md`. Capture each artifact's `status` and key gating fields.
 
-2. **Compute the nine-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
+2. **Compute the ten-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
    - GT-01: spec presence — change folder exists with non-draft change-spec, or PR carries `trivial: true`.
    - GT-02: diff within scope — every file in the PR diff (against the merge target) is a subset of `change-spec.in-scope`.
    - GT-03: pattern lints — every `hstack/lints/*.yaml` rule passes (the Skill runs `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}` for this and reads the exit code).
@@ -65,6 +65,7 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
    - GT-07: ui-brief at `drafted` and figma-handoff at `ready` (when applicable).
    - GT-08: `user-stories` non-empty (unless `internal-tooling: true`).
    - GT-09: every cross-reference rule (CG-01..CG-04) passes.
+   - GT-10: test-plan at `passed` or `concerns-acknowledged`, and `verification.test-plan-coverage` shows no missing tenant-isolation tests and no out-of-budget performance assertions.
 
 3. **Frontmatter validation.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` across every artifact. Any FM-* or per-type validation failure blocks ship.
 
@@ -72,9 +73,9 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
    - Title: the change-spec's `Problem` first sentence, prefixed with the change id.
    - Summary section: pull the Target Behavior bullets from the change-spec.
    - Surfaces touched: from frontmatter.
-   - Linked artifacts: pointers to spec, plan, reviews, verification, adversarial-review.
+   - Linked artifacts: pointers to spec, plan, test-plan, reviews, verification, adversarial-review.
    - Tech-debt created: pointers from `change-spec.creates-tech-debt`.
-   - Test plan: pulled from `plan.md` per-phase Test Strategy bullets.
+   - Test plan: pulled from `test-plan.md` — pyramid summary, tenant-isolation tests, and performance budgets — cross-referenced with `verification.test-plan-coverage` to show observed-vs-promised.
    - Scorecard summary: the nine-gate table from step 2.
 
    The pr-body.md is for the engineer to copy into the actual PR description — the Skill does not call `gh pr create` or otherwise open the PR.

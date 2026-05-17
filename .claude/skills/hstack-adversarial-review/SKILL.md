@@ -60,6 +60,7 @@ Before any work:
 - **Fresh-session attestation.** The Skill's first action is to print: "This Skill must run in a Claude Code session separate from the one that ran `hstack-implement`. The kernel's authoring-and-review-never-share-a-session principle is honor-system in v1; v2 substrate will verify via session-id comparison. Confirm you are in a fresh session before I proceed." Halt until the engineer confirms.
 - Verify the change-spec exists and is at `status: ready-for-review`.
 - Verify every required upstream artifact is at terminal status:
+  - test-plan at `passed` or `concerns-acknowledged`
   - plan at `completed`
   - security-review at `passed` or `concerns-acknowledged`
   - data-review at `passed` or `concerns-acknowledged` when applicable
@@ -71,9 +72,9 @@ Before any work:
 
 1. **Open with the fresh-session reminder.** Print the message verbatim; wait for the engineer's confirmation.
 
-2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, `hstack/templates/adversarial-review.md`, change-spec, plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
+2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, `hstack/templates/adversarial-review.md`, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
 
-3. **Findings generation across six categories.** The subagent produces findings in security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality. Clustering in one category is a smell — when it happens, the subagent flags the clustering in Methodology and explains why the change genuinely lives in one risk dimension.
+3. **Findings generation across six categories.** The subagent produces findings in security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality. Clustering in one category is a smell — when it happens, the subagent flags the clustering in Methodology and explains why the change genuinely lives in one risk dimension. Test-plan adherence is a first-class lens: missing edge-case tests surface as spec-compliance findings; missing tenant-isolation tests surface as data-integrity findings; unmet performance budgets surface as code-quality or data-integrity findings depending on cause; unmapped invariants in `verification.test-plan-coverage` surface as spec-compliance findings. **Test-immutability audit:** the subagent diffs every pre-existing test file against the branch base; any modification, deletion, or snapshot update without a matching `Ok to change/delete/update/refresh ...` authorization echo in a commit message is a mandatory finding under spec-compliance at minimum `severity: high`. Bulk snapshot-update flags visible in the diff or in CI logs escalate to `severity: critical`. These findings are filed even when they push the total over the findings-floor.
 
 4. **Findings-floor compliance.** Per AR-01, `findings` length must be ≥ `findings-floor`. If the subagent honestly cannot produce the floor, it sets `findings-fewer-than-floor: true` and writes a defended `justification-when-fewer` enumerating every category considered and why each produced no honest finding. "The change is small" alone is insufficient.
 

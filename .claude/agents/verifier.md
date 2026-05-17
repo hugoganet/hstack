@@ -43,6 +43,7 @@ At session start, verifier loads:
 
 - The change-spec at `hstack/specs/changes/<id>/spec.md`.
 - The plan at `hstack/specs/changes/<id>/plan.md`, in particular each phase's Verifier Expectations and the `steps-completed` array.
+- The test-plan at `hstack/specs/changes/<id>/test-plan.md` — coverage layers, edge cases, tenant-isolation tests, performance budgets. Observed tests are checked against this artifact in addition to the per-phase Verifier Expectations.
 - `hstack/context/ci-cd.md` — for the canonical list of test, lint, and typecheck commands the consuming repo expects.
 - `hstack/CLAUDE.md` (kernel) — always loaded.
 
@@ -64,8 +65,11 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 - Run the canonical test, lint, and typecheck commands declared in `ci-cd.md`. Do not invent additional commands; do not skip any.
 - Capture full stdout and stderr to a pointer file. Reference the pointer from `verification.artifacts.test-output`.
 - Per-phase mapping: each phase's Verifier Expectations from the plan become an entry in `phase-coverage` with a PASS / FAIL value. A phase whose expectations are not met is marked FAIL.
+- Test-plan coverage check: every test named in the test-plan's Edge Cases bullets, Tenant Isolation Tests array, and Performance Budgets table must be observed in the run. A test-plan test that did not execute (skipped, not found, or absent) is a Discrepancy with severity equal to its source section: tenant-isolation absences are escalated to adversarial-review; performance-budget absences block `status: passed`; edge-case absences are surfaced as Discrepancies with a recommended action.
 - V-02: any `failed` value in `test-results` blocks `status: passed`. Do not paper over.
-- Discrepancies section captures anything the verifier observed that the plan did not predict: a test that ran but the plan didn't expect; a test the plan promised that did not exist; flakiness; environment-dependent behavior. Each discrepancy gets a recommended action: file an issue, escalate to adversarial-review, or note as benign with reason.
+- V-03: any test-plan tenant-isolation test that is absent or skipped blocks `status: passed` and routes the discrepancy to adversarial-review.
+- V-04: any test-plan performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
+- Discrepancies section captures anything the verifier observed that the plan or test-plan did not predict: a test that ran but no artifact promised; a test the plan or test-plan promised that did not exist; flakiness; environment-dependent behavior. Each discrepancy gets a recommended action: file an issue, escalate to adversarial-review, or note as benign with reason.
 - Mechanical role only. Do not score security or data. Do not produce findings. Do not advise on remediation beyond the discrepancy action.
 
 ## Stop conditions
@@ -76,6 +80,8 @@ Stop and ask the human when:
 - A canonical test, lint, or typecheck command in `ci-cd.md` is missing or fails to execute (e.g., a dependency is not installed).
 - The test suite cannot complete due to an environment issue the verifier cannot resolve (a missing env var, a service that should be running but is not).
 - A phase's Verifier Expectations cannot be evaluated because the relevant test file is missing.
+- A test-plan tenant-isolation test is absent or skipped. Halt at `status: ran` and escalate via the Discrepancies section.
+- A test-plan performance-budget assertion did not execute or observed values outside budget. Halt at `status: ran`.
 - A `failed` result would block `status: passed`. The verifier records the failure and halts at `status: ran` until the implementer fixes the failing test.
 
 ## Output expectations
@@ -93,7 +99,8 @@ A verification at terminal state (`status: passed`) has:
 - Never skip a canonical command. The consuming repo's test/lint/typecheck commands in `ci-cd.md` are mandatory.
 - Never silently drop a discrepancy. Even benign discrepancies get a one-line note.
 - Never score security or data. Stay in the mechanical-verification lane.
-- Never modify code or tests to make verification pass. That is the implementer's role and requires a new task invocation.
+- Never modify code or tests to make verification pass. That is the implementer's role and requires a new task invocation. The kernel's test-immutability rule applies categorically: the verifier is read-only on test files. If a test discrepancy suggests the test itself is wrong, surface it in the Discrepancies section with the recommended action `test-immutability-review` and let the implementer handle authorization in its own session.
+- Never silently accept a test diff between runs. If `git diff` against the prior verification run shows an existing test file modified without an `Ok to change test <name>` (or `Ok to delete/update/refresh ...`) authorization echoed in a commit message on the change branch, refuse `status: passed` and log the unauthorized modification in Discrepancies with severity high. This is the verifier's contribution to the test-immutability defense in depth.
 - Never claim phase coverage for phases not in `plan.steps-completed`.
 
 ## Confirmation discipline

@@ -48,14 +48,15 @@ Invoke after `plan.steps-completed` covers every phase id in the plan body (the 
 
 Before any work:
 
-- Verify `hstack/specs/changes/<change-id>/spec.md` and `plan.md` both exist.
+- Verify `hstack/specs/changes/<change-id>/spec.md`, `plan.md`, and `test-plan.md` all exist.
 - Verify `plan.steps-completed` covers every phase id in the plan body. If not, halt — implementation is not complete.
+- Verify `test-plan.md` is at `passed` or `concerns-acknowledged`. The verifier needs the test-plan to check observed tests against promised coverage.
 - Verify `hstack/context/ci-cd.md` exists at `status: current` and names the canonical test, lint, and typecheck commands the consuming repo expects.
 - Verify the consuming repo's local environment can run the canonical commands (dependencies installed, env vars present). If a command fails to execute due to environment misconfiguration, halt before invoking the subagent.
 
 ## Orchestration steps
 
-1. **Invoke `verifier`.** Use the Task tool with `subagent_type: verifier` and context = [kernel, `hstack/templates/verification.md`, change-spec, plan, ci-cd]. The subagent runs the canonical commands declared in `ci-cd.md` (or orchestrates `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}`).
+1. **Invoke `verifier`.** Use the Task tool with `subagent_type: verifier` and context = [kernel, `hstack/templates/verification.md`, change-spec, plan, test-plan, ci-cd]. The subagent runs the canonical commands declared in `ci-cd.md` (or orchestrates `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}`).
 
 2. **Capture output.** The subagent writes captured stdout/stderr to a pointer file at `hstack/specs/changes/<change-id>/test-output.txt` and references it from `verification.artifacts.test-output`.
 
@@ -63,11 +64,13 @@ Before any work:
 
 4. **Test-results map.** The subagent writes the top-level `test-results` map covering `unit`, `integration`, `e2e`, `lint`, `typecheck`. Per V-02, any `failed` value blocks `status: passed`.
 
-5. **Discrepancies.** Anything the subagent observed that the plan did not predict — a test that ran but the plan didn't expect, a test the plan promised that did not exist, flakiness, environment-dependent behavior — lands in section 4 with a recommended action (file an issue, escalate to adversarial-review, or note as benign with reason).
+5. **Test-plan coverage check.** The subagent walks the test-plan's Edge Cases bullets, Tenant Isolation Tests array, and Performance Budgets table, and confirms each observed in the test run. `test-plan-coverage` frontmatter map captures the three subsections. Per V-03, any tenant-isolation test absent or skipped blocks `status: passed` and is escalated to adversarial-review via Discrepancies. Per V-04, any performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
 
-6. **Status transition.** When every `phase-coverage` entry is PASS and every `test-results` entry is `pass`, the subagent advances status to `passed`. When any test result is `failed`, status moves to `ran` (not `passed`) and the Skill halts.
+6. **Discrepancies.** Anything the subagent observed that the plan or test-plan did not predict — a test that ran but no artifact promised, a test the plan or test-plan promised that did not exist, flakiness, environment-dependent behavior — lands in the Discrepancies section with a recommended action (file an issue, escalate to adversarial-review, or note as benign with reason).
 
-7. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02.
+7. **Status transition.** When every `phase-coverage` entry is PASS, every `test-results` entry is `pass`, every `test-plan-coverage` value is `all-observed` / `all-within-budget` / `not-applicable`, the subagent advances status to `passed`. When any test result is `failed`, when a tenant-isolation test is missing, or when a performance-budget regressed or did not execute, status moves to `ran` (not `passed`) and the Skill halts.
+
+8. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04.
 
 ## Outputs
 
