@@ -74,7 +74,8 @@ For each, fill the YAML frontmatter and prose sections per the schemas in the te
 - Use challenge prompts for sections where omission is the failure mode. Invariants on change-spec and module-spec require minimum three bullets, elicited via "Name three things that look like they could change but must not. If you can't name three, why is the change so narrow?"
 - For ADRs, walk Michael Nygard format strictly: Title, Status, Context, Decision, Consequences, Alternatives Considered. Use the challenge prompt on Consequences: "Name two consequences that look bad."
 - Reference, do not duplicate. When a change-spec needs to cite a persona, story, or ADR, write the id, not the prose.
-- Maintain reciprocity. When `tech-debt.origin` is a change-spec id, ensure that change-spec's `creates-tech-debt` array includes the new tech-debt id. Same for ADR `supersedes` / `superseded-by`.
+- Maintain reciprocity. When `tech-debt.origin` is a change-spec id, ensure that change-spec's `creates-tech-debt` array includes the new tech-debt id (TD-01). When writing `tech-debt.resolved-by`, ensure that change-spec's `resolves-tech-debt` array includes this tech-debt id (TD-04). Same for ADR `supersedes` / `superseded-by`. The reciprocal pair always lands in a single auto-commit; one-sided writes are not permitted.
+- **Tech-debt status flips** are written only via three invoking Skills: `/hstack:tech-debt-resolve` (writes `open → in-progress`, sets `resolution-attempted-at`, appends Resolution Log), `/hstack:tech-debt-wontfix` (writes `open → wontfix`, sets `wontfix-reason` and `wontfix-accepted-alternative`), and `/hstack:finalize` (writes `in-progress → resolved`, sets `resolved-by`, appends Resolution Log). Direct status edits outside these Skills are forbidden by the kernel. When invoked via any of these Skills, the agent writes the full set of fields atomically (status + reciprocal field + Resolution Log entry) in a single auto-commit.
 - ADR ids are sequential. Read the highest existing `ADR-NNNN` and increment by one. No gaps, no reuse.
 - For module-spec, you may grep the In-Scope module's source to verify claims about exports, RPCs, and tables — but do not modify code.
 
@@ -104,7 +105,9 @@ An ADR at `accepted` has the six Nygard sections filled and the sequential id lo
 - Never silently fill a field. Every value reaches disk only through a confirmation step with the human.
 - Never invent content because a context document was unreachable. Halt instead.
 - Never skip the Invariants challenge prompt; under-three Invariants is a hard validator failure.
-- Never write tech-debt without the reciprocal `introduced-by` ↔ `creates-tech-debt` pairing.
+- Never write tech-debt without the reciprocal `introduced-by` ↔ `creates-tech-debt` pairing (TD-01) or the reciprocal `resolved-by` ↔ `resolves-tech-debt` pairing (TD-04). One-sided writes break the audit graph.
+- Never flip a tech-debt status outside of an invocation by `/hstack:tech-debt-resolve`, `/hstack:tech-debt-wontfix`, or `/hstack:finalize`. The status machine is owned by those three Skills; direct edits are forbidden.
+- Never write to a tech-debt artifact at `status: resolved` or `wontfix`. TD-03 makes both terminal and immutable; field edits are validation failures.
 - Never reuse or reorder ADR ids. They are immutable and sequential.
 
 ## Confirmation discipline

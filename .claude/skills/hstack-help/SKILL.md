@@ -74,9 +74,10 @@ No subagents are invoked. Every step is a direct file read or shell call.
      - `status: in-progress` → continue implementing remaining phases; verify after.
      - `status: ready-for-review` and no `verification.md` at passed → "/hstack:verify <id>".
      - `status: ready-for-review` and no `adversarial-review.md` at `findings-resolved` → "/hstack:adversarial-review <id> (FRESH SESSION REQUIRED)".
-     - `status: ready-to-ship` → "/hstack:ship <id>".
+     - `status: ready-to-ship` → "/hstack:ship <id>" (if pr-body not yet produced) or "open/merge the PR, then run /hstack:finalize <id>" (if pr-body exists).
+     - `status: shipped` and `resolves-tech-debt` is non-empty but referenced TDs are still at `in-progress` → "/hstack:finalize <id>" (finalize is incomplete; this is an inconsistent state).
    - Glob `hstack/adr/ADR-*.md`, count those at `status: proposed`. List ids.
-   - Glob `hstack/tech-debt/TD-*.md`, count those at `status: open`. List the top 3 by severity.
+   - Glob `hstack/tech-debt/TD-*.md`. For `status: open`: count and list the top 3 by severity, with the suggested command `/hstack:tech-debt-resolve <td-id>` for each. For `status: in-progress`: list each with its resolving change-spec id (from the Resolution Log) and the change-spec's current status — flag any inconsistency where the change-spec is `shipped` but the TD is still `in-progress` as "run /hstack:finalize <change-id> to complete resolution".
    - Glob `hstack/research/sessions/*.md`, count those within the 30-day retention window. List the most recent 3.
    - Glob `hstack/specs/*/spec.md` and `hstack/context/*.md`, list any at `status: needs-refresh`.
 

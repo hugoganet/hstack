@@ -82,6 +82,8 @@ Before any work:
 - `hstack/tech-debt/TD-NNNN-<slug>.md` at `status: open`.
 - When `--origin` is set: an edit to the originating change-spec's `creates-tech-debt` array.
 
+The tech-debt item lands at `status: open`. To begin resolution work, invoke `/hstack:tech-debt-resolve TD-NNNN`. To close without a fix, invoke `/hstack:tech-debt-wontfix TD-NNNN`. The new fields `resolved-by`, `resolution-attempted-at`, `wontfix-reason`, `wontfix-accepted-alternative` are left as their template defaults (`null`) at creation time — they are written by the corresponding resolution Skill.
+
 ## Auto-commit triggers
 
 - One commit at terminal author-state (`status: open`). When reciprocity writes are involved, both files are included in the commit. Commit message: `tech-debt(TD-NNNN): open` (with the origin change-spec in parentheses when applicable).

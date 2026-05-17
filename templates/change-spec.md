@@ -9,6 +9,7 @@ user-stories: []
 related-spec: <module-spec-id>         # must equal `area`
 related-adrs: []
 creates-tech-debt: []
+resolves-tech-debt: []                 # tech-debt ids this change is intended to fully resolve; reciprocal with tech-debt.resolved-by
 parent-change: null
 children: []
 internal-tooling: false
@@ -68,6 +69,10 @@ _Pointers, not duplicated content._
 ## Related ADRs and Tech-Debt
 
 _Pointers with one-sentence justification each._
+
+## Resolves Tech-Debt
+
+_Required and non-empty when `resolves-tech-debt` frontmatter is non-empty. For each TD-NNNN referenced: a pointer to the tech-debt artifact and a verbatim quote of its Acceptance section. The change-spec's Target Behavior must be a superset of (or exactly) the quoted Acceptance — the adversarial-reviewer checks that the diff actually satisfies it. Partial resolution is not supported in v1: list a TD here only when this change fully closes it; otherwise leave it off and let the next change pick it up._
 
 ## Open Questions
 

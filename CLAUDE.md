@@ -71,6 +71,41 @@ Once a test file exists in the working tree (committed or staged), **no hstack s
 
 ---
 
+## Tech-debt resolution
+
+Tech-debt items are first-class artifacts with their own lifecycle (`open → in-progress → resolved`, or `open → wontfix`). Resolution is **not manual** — the workflow drives every transition through dedicated Skills, with reciprocal frontmatter linkage between the tech-debt and the change-spec that fixes it.
+
+**Reciprocity.** Tech-debt resolution is symmetric with tech-debt creation:
+
+- Creation: `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`. Enforced by TD-01. Written by `spec-author` via `/hstack:tech-debt-new`.
+- Resolution: `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`. Enforced by TD-04. Written by `spec-author` via `/hstack:tech-debt-resolve` (status flip to `in-progress`) and `/hstack:finalize` (status flip to `resolved`).
+
+Both halves of each pair are written together by `spec-author`; the validator refuses one-sided writes.
+
+**Resolution flow.**
+
+1. **Pick the item.** Run `/hstack:tech-debt-resolve TD-NNNN`.
+2. **Pre-conditions check.** The Skill prints the TD's full body and walks each "Pre-conditions for fixing" bullet for engineer confirmation. Any unmet pre-condition halts the Skill with the recommended remediation (wait for ADR, resolve dependent TD, etc.). Pre-conditions are prose in v1; the Skill cannot mechanically verify them, so engineer confirmation is mandatory and is logged into the resulting change-spec.
+3. **Status flip + scaffold.** `spec-author` flips the TD `open → in-progress`, sets `resolution-attempted-at` to today, appends a Resolution Log entry, and scaffolds a resolution change folder with `resolves-tech-debt: [TD-NNNN]` pre-populated. The change-spec's "Resolves Tech-Debt" section quotes the TD's Acceptance section verbatim; the engineer's Target Behavior must satisfy that quote (superset or exact).
+4. **Run the normal workflow.** test-plan → security-review → data-review (when `db` in surfaces) → plan → implement → verify → adversarial-review. The adversarial-reviewer reads each referenced TD's Acceptance section and produces a mandatory Acceptance-satisfied confirmation (AR-07) when `resolves-tech-debt` is non-empty.
+5. **Ship.** `/hstack:ship` checks GT-11: every referenced TD must be at `in-progress` and the adversarial-review must contain the Acceptance-satisfied confirmation. Ship stays read-only.
+6. **Finalize after merge.** `/hstack:finalize <change-id>` is the post-merge cleanup Skill. It verifies the change's branch has been merged into the configured default branch (git log check), then invokes `spec-author` to:
+   - Advance the change-spec `ready-to-ship → shipped`.
+   - For each entry in `resolves-tech-debt`: write `resolved-by: <change-spec-id>`, append a Resolution Log entry, and flip status `in-progress → resolved`. Per TD-03, no further field rewrites are permitted on the tech-debt after this point.
+
+**The wontfix path.** When a tech-debt item is being closed without a fix (the team has decided the cost of fixing exceeds the cost of living with it), use `/hstack:tech-debt-wontfix TD-NNNN`. The Skill runs a two-question interview: "Why won't this be fixed?" and "What are we accepting as the alternative?" Both answers are required and become non-null `wontfix-reason` and `wontfix-accepted-alternative` frontmatter fields (TD-06). `spec-author` writes both fields and flips status `open → wontfix` in a single auto-commit. Wontfix is terminal and immutable per TD-03.
+
+**Partial resolution is not supported in v1.** A change-spec either fully resolves a tech-debt item (listed in `resolves-tech-debt`, satisfies the Acceptance bullets) or it doesn't. If a change addresses only some of the TD's Acceptance bullets, it stays off the `resolves-tech-debt` list and the TD remains at `in-progress` for a follow-up change. This preserves the kernel's "one change-spec, one bounded contract" discipline. Engineers tempted to split a TD into smaller pieces should instead author multiple TDs via `/hstack:tech-debt-new`.
+
+**Forbidden no matter what.**
+
+- Manually editing tech-debt `status`, `resolved-by`, `wontfix-reason`, or `resolution-attempted-at` in frontmatter outside of the resolution Skills. The status machine is owned by `spec-author` via the three Skills (`tech-debt-resolve`, `tech-debt-wontfix`, `finalize`).
+- Marking a tech-debt `resolved` without a corresponding change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal write is the only legal path.
+- Skipping the adversarial-review Acceptance-satisfied confirmation when `resolves-tech-debt` is non-empty. AR-07 makes this a mandatory finding lens.
+- Editing fields on a `resolved` or `wontfix` tech-debt. TD-03 forbids this; the validator compares against git history.
+
+---
+
 ## Frontmatter contract
 
 Every artifact under `hstack/specs/`, `hstack/context/`, `hstack/adr/`, `hstack/tech-debt/`, and `hstack/research/promoted/` carries YAML frontmatter. The shared floor every artifact must include:

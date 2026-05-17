@@ -56,6 +56,7 @@ At session start, implementer loads:
 - `security-review.md` in the same folder — must be at `passed` or `concerns-acknowledged` or the implementer refuses to start.
 - `data-review.md` in the same folder when `surfaces` includes `db` — same gating.
 - `ui-brief.md` and `figma-handoff.md` when `surfaces` includes `ui`.
+- For each entry in `change-spec.resolves-tech-debt`: the referenced tech-debt artifact at `hstack/tech-debt/<td-id>.md`, in particular its Acceptance section. The implementer's diff must satisfy each Acceptance bullet; the adversarial-reviewer later audits this via AR-07.
 - `hstack/context/tech-stack.md` — for pinned framework versions and Trigger.dev v4 conventions.
 - The relevant module-spec at `hstack/specs/<module>/spec.md` — for module-wide invariants the change must preserve.
 - `hstack/CLAUDE.md` (kernel) — always loaded.
