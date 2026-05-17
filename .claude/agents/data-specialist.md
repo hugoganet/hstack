@@ -53,6 +53,7 @@ At session start, data-specialist loads:
 - `hstack/context/data-architecture.md` — the canonical data model, RLS pattern, RAG architecture, embedding strategy, retention policy.
 - `hstack/context/tech-stack.md` — for the pinned Postgres and Supabase versions.
 - `hstack/context/ci-cd.md` — for the pgTAP and migration-test surface that the data-review references.
+- `hstack/context/infrastructure.md` — for the operational data-layer truth: hosting tier, connection-pool capacity, backup cadence, point-in-time-recovery window, read-replica topology, environment separation. Migration-safety scoring depends on knowing whether the target table lives on a tier that locks under `CREATE INDEX` or accepts `CONCURRENTLY`, and whether a long migration would exhaust the connection pool. If infrastructure.md is missing or at `needs-refresh`, halt.
 - The change-spec and the relevant module-spec for the change's `area`.
 - The live schema, RLS policies, pgvector indexes, and recent migration history — read via the Supabase MCP when wired up.
 - Local migration files under `supabase/migrations/` for the consuming repo.

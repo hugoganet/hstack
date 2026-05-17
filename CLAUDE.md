@@ -224,8 +224,9 @@ The product context layer lives at `hstack/context/`:
 - `mvp-scope.md` — in MVP, in v2, deferred.
 - `personas/` — one file per persona, or one row per persona in the configured store.
 - `data-architecture.md` — data model, schema, RAG architecture, embedding strategy.
-- `tech-stack.md` — canonical languages, frameworks, infrastructure.
+- `tech-stack.md` — canonical languages, frameworks, libraries.
 - `ci-cd.md` — CI/CD setup of the consuming repo.
+- `infrastructure.md` — operational truth: hosting, networking, secrets, environments, deploy pipeline, observability, cost, disaster recovery, blast-radius matrix, access control, compliance posture, third-party dependencies. Truth-gathering, not policy — `threat-model.md` and `hardening-checklist.md` carry the policy and score against this file.
 - `threat-model.md` — threats per attack surface, with mitigations.
 - `hardening-checklist.md` — scored items per stack layer.
 - `incident-runbook.md` — kill switches, revocation flows, comms templates.
@@ -237,9 +238,9 @@ Load-at-session-start rules by subagent:
 - `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope.
 - `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present).
 - `ui-ux-briefer`: configured design system docs, change-spec, linked stories.
-- `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd.
-- `data-specialist`: data-architecture, tech-stack, ci-cd, current schema (via MCP).
-- `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack.
+- `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd, infrastructure.
+- `data-specialist`: data-architecture, tech-stack, ci-cd, infrastructure, current schema (via MCP).
+- `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack, infrastructure (when surfaces includes infra).
 - `verifier`: change-spec, plan, test-plan, ci-cd.
 - `adversarial-reviewer`: all change artifacts (including test-plan); explicitly no implementer transcripts.
 - `researcher`: query context plus relevant product-context docs as the query requires.

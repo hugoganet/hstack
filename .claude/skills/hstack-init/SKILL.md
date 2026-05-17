@@ -1,7 +1,7 @@
 ---
 name: hstack-init
 description: |
-  Use this skill when an engineer is adopting hstack on a fresh repository for the first time and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. Until init completes, no other hstack Skill works — every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as five-to-seven mini-sessions of ten-to-fifteen minutes each (one per product-context document) rather than one ninety-minute block, so that an interruption costs at most one in-flight field. Examples:
+  Use this skill when an engineer is adopting hstack on a fresh repository for the first time and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. Until init completes, no other hstack Skill works — every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as six-to-eight mini-sessions of ten-to-fifteen minutes each (one per product-context document) rather than one ninety-minute block, so that an interruption costs at most one in-flight field. Examples:
 
   <example>
   Context: A fresh Moso clone has no `hstack/config.yaml` and no `hstack/context/` content; the engineer wants to bootstrap hstack from scratch.
@@ -86,7 +86,9 @@ Init is split into discrete mini-sessions, each commitable independently. The or
 
 6. **Mini-session 5 — data-architecture, tech-stack, ci-cd.** These three are interview-light because the engineer has often already documented them in `CLAUDE.md`, `package.json`, or `.github/workflows/`. The Skill orchestrates by handing each in turn to `product-manager` (or `spec-author` if the engineer prefers a more code-grounded read) with the relevant existing source plus the canonical template. Output: three files at `current`. Commit after each.
 
-7. **Mini-session 6 — threat-model, hardening-checklist, incident-runbook.** The security-context triplet. Author orchestration is per-document:
+7. **Mini-session 6 — infrastructure.** Invoke `spec-author` via the Task tool with `subagent_type: spec-author` and context = [`hstack/CLAUDE.md`, `hstack/templates/infrastructure.md`, `hstack/context/tech-stack.md`, `hstack/context/ci-cd.md`, `hstack/context/data-architecture.md`, any existing infra source the engineer points to — cloud console screenshots, Terraform / Pulumi / CDK files, GitHub Actions YAML, Dockerfile, supabase config]. The subagent walks every H2 section of the template via interview, biasing toward grounded truth-gathering rather than aspirational design. **For engineers unfamiliar with infrastructure concepts, the subagent is expected to explain each section's intent before asking, and to spawn the `researcher` subagent for unfamiliar terms (e.g., "what is point-in-time recovery?", "what does a CDN actually do?") rather than asking the engineer to guess.** This mini-session is interview-heavy and often the longest of init for pre-prod teams. Output: `hstack/context/infrastructure.md` at `current`. The Blast-Radius Matrix must have at least one row before status advances to `current` (INF-03); the Unknowns section must be present even when empty (INF-02). Honest "we don't have this yet" answers are explicitly preferred over fabricated content; the resulting gaps land as tech-debt items in the Known Gaps section. Commit.
+
+8. **Mini-session 7 — threat-model, hardening-checklist, incident-runbook.** The security-context triplet. By this point `infrastructure.md` is at `current`, so the security-reviewer has the operational ground truth it needs to model threats accurately. Author orchestration is per-document:
    - `threat-model.md` and `hardening-checklist.md` are authored by `security-reviewer` via the Task tool with `subagent_type: security-reviewer`. The same subagent that scores per-change security-reviews at change time also authors the slow-changing policy these reviews score against — different cadence, same security framing (bias toward CONCERNS, challenge-driven prompts). Generalist subagents (spec-author, product-manager) are NOT offered here; the security-specific framing is load-bearing.
    - `incident-runbook.md` is authored by `spec-author` from a founder-style interview — kill switches, revocation flows, comms templates are operational content, not threat-modeling.
 
@@ -101,7 +103,7 @@ The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, upda
 - `hstack/context/glossary.md` at `current`.
 - `hstack/context/mvp-scope.md` at `current`.
 - `hstack/context/personas/<slug>.md` per persona, or sync stubs when the store is Notion / Linear.
-- `hstack/context/data-architecture.md`, `tech-stack.md`, `ci-cd.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
+- `hstack/context/data-architecture.md`, `tech-stack.md`, `ci-cd.md`, `infrastructure.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
 - `hstack/context/incident-runbook.md` at `current` with `git-ignored: true`; corresponding `.gitignore` entry verified.
 - `hstack/context/mcp-status.md` documenting active and degraded MCPs.
 
@@ -112,7 +114,7 @@ Each of the following emits an auto-commit on the active working branch:
 - `hstack/config.yaml` reaches `init-status: minimal-complete` (end of mini-session 0).
 - Each product-context document's status moves to `current` (end of each mini-session).
 - Each persona's status moves to `current` (end of each persona sub-interview).
-- `hstack/config.yaml`'s `init-status` advances to `complete` (end of mini-session 6).
+- `hstack/config.yaml`'s `init-status` advances to `complete` (end of mini-session 7).
 
 The commit message names the mini-session and the artifact. Aside from these, init does not auto-commit.
 
@@ -139,12 +141,12 @@ Beyond the kernel's general stop conditions, this Skill halts when:
 - **Missing kernel or templates.** Halt with a clear message; this is a hstack installation problem, not an init problem.
 - **Subagent unreachable mid-mini-session.** Persist current state; instruct the engineer to retry in a moment.
 - **Notion/Linear/GitHub MCP unreachable but configured as the story store.** Halt and ask the engineer to wire it; do not silently fall back to `hstack/stories/`.
-- **`.gitignore` write refused.** The Skill cannot proceed past mini-session 6's incident-runbook step without it. Halt and surface the issue.
+- **`.gitignore` write refused.** The Skill cannot proceed past mini-session 7's incident-runbook step without it. Halt and surface the issue.
 
 ## Anti-patterns
 
 - Never write `hstack/config.yaml` silently from inferred defaults. Every field passes through the engineer's confirmation gate via the `product-manager` subagent.
-- Never collapse the seven mini-sessions into one long block. The mini-session structure is the resumability contract.
+- Never collapse the eight mini-sessions into one long block. The mini-session structure is the resumability contract.
 - Never advance `init-status: complete` while any required context document is below `current`.
 - Never write `incident-runbook.md` content to the conversation transcript more than necessary; the file's contents are sensitive and should be confirmed in summary form rather than pasted verbatim.
 - Never re-interview a completed mini-session on resume. Read the disk; trust the prior commit.

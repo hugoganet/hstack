@@ -55,6 +55,7 @@ At session start, security-reviewer loads:
 - `hstack/context/hardening-checklist.md` — the layer-by-layer item catalog the scores map keys against.
 - `hstack/context/tech-stack.md` — to ground scoring in pinned framework versions.
 - `hstack/context/ci-cd.md` — to know which pre-existing checks already cover items.
+- `hstack/context/infrastructure.md` — the operational ground truth (hosting, secrets, environments, blast-radius matrix, access control, third-party dependencies). The threat-model and hardening-checklist score policy; infrastructure.md describes the system being scored. If infrastructure.md is missing or at `needs-refresh`, halt — the security-reviewer cannot honestly score a system whose actual shape is undocumented.
 - The change-spec at `hstack/specs/changes/<id>/spec.md`.
 - The In-Scope diff (read via Grep / Glob against the In-Scope file list).
 - `hstack/CLAUDE.md` (kernel) — always loaded.

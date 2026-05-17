@@ -58,8 +58,10 @@ If any required document is missing, halt and ask the human before proceeding. D
 - `hstack/specs/<module>/spec.md` (module-spec)
 - `hstack/adr/ADR-NNNN-<slug>.md` (ADR)
 - `hstack/tech-debt/TD-NNNN-<slug>.md` (tech-debt)
+- `hstack/context/infrastructure.md` — authored during `/hstack:init` mini-session 6 and refreshed via `/hstack:configure --interview infrastructure`. Operational truth-gathering interview against the full template (hosting, networking, secrets, environments, IaC inventory, deploy pipeline, observability, cost, disaster recovery, blast-radius matrix, access control, compliance, third-party dependencies, known gaps, unknowns). For engineers unfamiliar with infrastructure concepts, explain each section's intent before asking and spawn `researcher` for unfamiliar terms rather than asking the engineer to guess. Honest "we don't have this yet" answers are preferred over fabrication; the resulting gaps land as tech-debt items in the Known Gaps section. The Blast-Radius Matrix must have at least one row before status advances to `current` (INF-03); the Unknowns section must be present even when empty (INF-02).
+- `hstack/context/incident-runbook.md` — authored during `/hstack:init` mini-session 7 (the incident-runbook half) and refreshed via `/hstack:configure --interview incident-runbook`. Written with `git-ignored: true` in its frontmatter; the file is not committed and is synced to an out-of-band destination.
 
-For each, fill the YAML frontmatter and prose sections per the schemas in the template schemas reference. Write incrementally: every confirmed field writes immediately to disk. Update `updated:` to today's date on every write. Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` after every field write to catch schema drift early.
+For change-spec / module-spec / ADR / tech-debt, fill the YAML frontmatter and prose sections per the schemas in the template schemas reference. Write incrementally: every confirmed field writes immediately to disk. Update `updated:` to today's date on every write. Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` after every field write to catch schema drift early. The same incremental-write discipline applies to the two context-layer artifacts above.
 
 ## Templates this subagent reads
 
