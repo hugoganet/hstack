@@ -23,17 +23,65 @@ A thin, opinionated layer on top of Claude Code that governs how engineers and A
 
 ## Installation
 
-For v0, vendor `hstack/` into the consuming repo as a directory (copy or git subtree). Submodule and CLI-installer distribution are deferred until the framework has run on real changes.
+hstack vendors into the consuming repo at the path `hstack/` relative to the repo root. Submodule and CLI-installer distribution are deferred until the framework has run on real changes.
 
 From the consuming repo root:
 
 ```
-# vendored copy (v0 recommended)
+# vendor the framework (v0 recommended)
 cp -r /path/to/hstack ./hstack
 git add hstack && git commit -m "vendor hstack v0"
 ```
 
-The framework expects to live at the path `hstack/` relative to the consuming repo's root. Skills and subagents under `.claude/skills/` and `.claude/agents/` should be copied into the consuming repo's `.claude/` directory so Claude Code discovers them.
+### Wire the workflow into the consuming repo's `.claude/`
+
+Claude Code reads agents and skills from `.claude/` at the working directory's root. To make hstack discoverable from a session opened at the consuming repo's root (rather than requiring the engineer to `cd hstack/`), wire them via symlinks. Symlinks keep `hstack/` as the single source of truth and eliminate drift.
+
+From the consuming repo root:
+
+```
+# Dir-level symlink for agents (no non-hstack agents expected at root)
+ln -s hstack/.claude/agents .claude/agents
+
+# Per-skill symlinks for hstack skills (preserves room for non-hstack skills —
+# e.g., notion-write, supabase — as real directories alongside)
+mkdir -p .claude/skills
+for d in hstack/.claude/skills/hstack-*/; do
+  name=$(basename "$d")
+  ln -s "../../hstack/.claude/skills/$name" ".claude/skills/$name"
+done
+
+# Make the kernel rules visible at the repo root by importing them into the
+# consuming repo's CLAUDE.md
+echo '> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/CLAUDE.md.' >> CLAUDE.md
+```
+
+Why agents is dir-level but skills is per-skill: consuming repos may want non-hstack skills (e.g., `lyra`, `notion-write`) alongside hstack ones. A dir-level symlink for `.claude/skills/` would evict them. Agents has no such case in practice, so dir-level is cleaner there.
+
+Copy-based wiring (the older pattern) is also supported — copy `.claude/agents/` and `.claude/skills/hstack-*/` into the consuming repo's `.claude/` directly. The cost is duplication and drift on every hstack update; the symlink pattern is recommended.
+
+### Maintenance — when adding or removing a Skill or subagent
+
+The dir-level symlink for `.claude/agents/` means **new agents added under `hstack/.claude/agents/` need no further action** in the consuming repo — they appear automatically.
+
+The per-skill symlinks for `.claude/skills/hstack-*` mean **new skills require a per-skill symlink** in each consuming repo:
+
+```
+# From the consuming repo root, after the new skill exists at hstack/.claude/skills/hstack-<new>/
+ln -s "../../hstack/.claude/skills/hstack-<new>" ".claude/skills/hstack-<new>"
+git add .claude/skills/hstack-<new>
+```
+
+When **removing** a skill, also remove the consuming repo's symlink (broken symlinks are silently ignored by Claude Code but show as red in `ls`):
+
+```
+rm hstack/.claude/skills/hstack-<old>/   # in the source
+rm .claude/skills/hstack-<old>           # in the consumer
+```
+
+When **renaming** a skill, treat it as a removal + addition in both places.
+
+A future `/hstack:configure --wire` mode will automate this; until then it is a manual step that lands in the same PR as the skill change.
 
 ## First run
 

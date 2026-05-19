@@ -285,6 +285,21 @@ Notion holds product context and decisions; it does not hold operational state. 
 
 ---
 
+## Consuming-repo wiring
+
+Consuming repos that wire hstack via symlinks (the recommended pattern in `README.md`) have a maintenance contract that the kernel surfaces here so any session adding or removing a Skill or subagent is reminded.
+
+- **New Skill added under `.claude/skills/hstack-<name>/`.** Each consuming repo that uses the per-skill symlink pattern must also create a corresponding symlink at `<consumer-root>/.claude/skills/hstack-<name>` pointing at `../../hstack/.claude/skills/hstack-<name>`. The symlink change lands in the same PR that adds the Skill.
+- **Skill removed.** Each consuming repo's matching symlink is removed in the same PR. Orphan symlinks are silent failures.
+- **Skill renamed.** Treat as removal + addition in both source and consumer.
+- **New subagent added under `.claude/agents/<name>.md`.** No consumer-side action when the consuming repo's `.claude/agents/` is a dir-level symlink (the recommended pattern). The new file appears automatically.
+- **Subagent removed.** Same — no consumer-side action under the dir-level symlink pattern.
+- **Copy-based consumers.** Consuming repos that copied `.claude/` instead of symlinking must mirror every add / remove / rename. The drift cost is the point of recommending symlinks; this rule is the fallback path.
+
+When this kernel is loaded in a session that is adding or removing a Skill or subagent, the session is responsible for surfacing the consumer-wiring step before committing. See `README.md` § Maintenance for exact commands.
+
+---
+
 ## References
 
 - Architecture document (long-form companion): https://www.notion.so/360d6791656c813d955af822cb8814d1
