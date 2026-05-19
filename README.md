@@ -81,7 +81,21 @@ rm .claude/skills/hstack-<old>           # in the consumer
 
 When **renaming** a skill, treat it as a removal + addition in both places.
 
-A future `/hstack:configure --wire` mode will automate this; until then it is a manual step that lands in the same PR as the skill change.
+#### Deferred: `/hstack:wire` automation
+
+A dedicated `/hstack:wire` Skill (or `/hstack:configure --wire` mode) will eventually automate the maintenance step above. Scope sketch:
+
+- Walks `hstack/.claude/agents/` and `hstack/.claude/skills/hstack-*/` as the source-of-truth set.
+- For each entry, classifies the consumer's `.claude/` state: `correct-symlink`, `wrong-symlink`, `real-dir-conflict`, `missing`, `orphan` (symlink in consumer with no upstream source).
+- Renders a proposal (add / fix / remove), gates on engineer confirmation, applies idempotently.
+- Verifies `<consumer>/CLAUDE.md` imports `@hstack/CLAUDE.md`; offers to add the line if missing (idempotent — does not duplicate).
+- Refuses to overwrite a real directory where a symlink should go (real-dir-conflict requires `--force-replace` or interactive choice).
+- Pattern-matches `hstack-*` strictly so non-hstack neighbors (`lyra`, `notion-write`, `supabase`, etc.) are never touched.
+- Windows: hard-fails with a clear message in v1 (symlinks need admin/developer mode). Copy-mode fallback is a v2 consideration.
+
+Estimated ~1 day end-to-end if run through the hstack workflow itself (change-spec → test-plan → plan → implement → verify → adversarial-review → ship). The core logic is ~100-150 lines; the rigor surrounding it is most of the cost.
+
+**Recommendation: defer until the manual symlink step has caused real friction at least once.** The kernel's "Consuming-repo wiring" section means Claude surfaces the manual step on every relevant session; the cost of not automating is one symlink command per new skill, which is bearable. Automate when the cost crosses a threshold (e.g., a wave of new skills lands, or a second consuming repo joins).
 
 ## First run
 
