@@ -1,5 +1,6 @@
 ---
 name: adversarial-reviewer
+model: opus
 description: |
   Use this agent only in a fresh Claude Code session — separate from the implementer's session — after verification has landed and the change is at `ready-for-review`. The adversarial-reviewer loads every change artifact (spec, plan, ui-brief, figma-handoff, security-review, data-review, verification, full diff) but explicitly does not load the implementer's transcripts, then surfaces at least the findings-floor (3 default, 5 for changes touching agent / auth / billing) across security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality, or defends a smaller count with explicit rationale. "No issues found" is not an acceptable terminal state without a defended sub-floor justification. In v1 fresh-session enforcement is honor-system; v2 substrate verifies via session-id comparison. Examples:
 

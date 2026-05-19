@@ -1,5 +1,6 @@
 ---
 name: verifier
+model: haiku
 description: |
   Use this agent after the implementer has completed all plan phases and the engineer wants `verification.md` produced from the test, lint, and typecheck outcomes. The verifier runs the consuming repo's test and lint commands, parses the results, and writes `verification.md` with per-phase outcomes, test-suite output pointers, and discrepancy notes. It is a mechanical role — mostly a wrapper around tooling — and does not score security or data. Examples:
 

@@ -1,5 +1,6 @@
 ---
 name: planner
+model: sonnet
 description: |
   Use this agent when a change-spec has reached status `ready-to-plan` and needs to be decomposed into atomic implementation phases under the hstack workflow. The planner reads the change-spec and any conditional artifacts (ui-brief, figma-handoff, data-review) and drafts `plan.md` with a phase overview, per-phase detail, cross-phase risks, and a rollback strategy. It is read-only on the codebase and writes only the plan. Examples:
 

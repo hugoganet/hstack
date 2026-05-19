@@ -9,7 +9,7 @@ updated: <YYYY-MM-DD>
 schema-version: 1
 ---
 
-_Operational truth about how the consuming repo's product runs. Truth-gathering, not policy — `threat-model.md` and `hardening-checklist.md` carry the policy. This file is what `security-reviewer`, `data-specialist`, and any future `infra-specialist` read to ground change-time review in the system's actual shape. Length norm: 600–1500 lines once filled; shorter is honest for pre-prod, longer is a smell. Every H2 below must be present (validator rule INF-01); the Blast-Radius Matrix must list at least one row when status moves to `current` (INF-03); the Unknowns section must be present even when empty (INF-02)._
+_Operational truth about how the consuming repo's product runs. Truth-gathering, not policy — `threat-model.md` and `hardening-checklist.md` carry the policy. This file is what `security-reviewer`, `data-specialist`, and any future `infra-specialist` read to ground change-time review in the system's actual shape. Length norm: 600–1500 lines once filled; shorter is honest for pre-prod, longer is a smell. Every H2 below must be present (validator rule INF-01); the Unknowns section must be present even when empty (INF-02); the Blast-Radius Matrix must list at least one row when status moves to `current` (INF-03); no MCP server may be wired with always-on write capability against prod (INF-04); LLM-driven sessions with a write-capable MCP active must not read user-generated content in the same session (INF-05)._
 
 ## Hosting & Compute
 
@@ -137,6 +137,27 @@ _Who has production console access per provider. MFA enforcement. Audit log loca
 - **Audit log location.**
 - **Audit log retention.**
 - **Access review cadence.**
+
+## MCP Access Policy
+
+_Which MCP servers are wired, where they point, what they can do. MCP access is a security boundary equivalent to the access token it carries — an LLM-driven session with tool access to a project-scoped token has the project's full blast radius. The kernel already forbids `service_role` Supabase keys and `supabase db push` / `db reset` against remote environments; MCP write access against prod is the analogous capability and follows the same rule. One row per MCP server per project it points at._
+
+| MCP server | Wired at | Points at | Access mode | Token storage | Rotation cadence | Notes |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+**Rule (INF-04).** No MCP server may be wired with write capability against the production project. Read-only mode (the server's `--read-only` flag or equivalent) is the floor for any MCP that points at prod. When a write-capable MCP must exist against prod for an operational reason (one-off migration applied through the MCP, e.g.), the row above carries a `--write-justified-by: <change-spec-id or ADR id>` note and the MCP is disabled by default — enabled only inside the named change window, then immediately disabled. Always-on write-capable prod MCPs are forbidden.
+
+**Rule (INF-05).** Any LLM-driven session that has a write-capable MCP tool active must not, in the same session, read user-generated content from a tenant-scoped table. This is the prompt-injection mitigation: prevents stored content (customer support rows, webhook payloads, user-submitted fields) from steering the LLM into destructive tool calls. List each session pattern below — subagent name, Skill, or ad-hoc — and which side of this boundary it sits on.
+
+| Session pattern | Write-capable MCP tools active? | Reads tenant-scoped content? | Compliant? |
+|---|---|---|---|
+| | | | |
+
+**Per-MCP detail.**
+
+- **Supabase MCP.** Dev project, staging project, production project — each on its own row. "Not wired" is an acceptable and often preferred value, especially for production.
+- **Other MCPs** (Notion, GitHub, Linear, Figma, Slack, etc.). Each with its own access scope, token location, rotation. Notion and Slack MCPs in particular often surface external user-generated content into the session — flag them explicitly under INF-05.
 
 ## Compliance & Data Residency
 

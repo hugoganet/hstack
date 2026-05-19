@@ -1,5 +1,6 @@
 ---
 name: test-strategist
+model: opus
 description: |
   Use this agent when a change-spec is at `ready-to-plan` and needs `test-plan.md` produced before the planner can sequence implementation phases. The test-strategist loads the change-spec, the relevant module-spec, the consuming repo's ci-cd and tech-stack docs, then walks the test pyramid (unit / integration / e2e), enumerates edge cases, designs mandatory tenant-isolation tests for db / api / agent surfaces, declares a fixture strategy, sets performance budgets when applicable, and answers three mandatory challenge prompts. In v1 this is an LLM-strategized judgment — not a mutation-tested or coverage-measured artifact. Frame outputs accordingly. Examples:
 

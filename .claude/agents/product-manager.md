@@ -1,5 +1,6 @@
 ---
 name: product-manager
+model: sonnet
 description: |
   Use this agent when an engineer needs to draft or refine a user story under the hstack workflow, or when the team is running the hstack init interview to populate the product-context layer (vision, personas, mvp-scope, glossary). The product-manager runs a conversational interview anchored on personas and jobs-to-be-done, writes stories to the configured story store, and produces canonical product-context artifacts during init. It does not write technical specs and never writes code. Examples:
 
