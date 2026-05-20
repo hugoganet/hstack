@@ -17,7 +17,7 @@ hstack is a spec-driven engineering workflow that ships as Claude Code Skills an
 
 What hstack is not: a methodology framework like BMAD or Spec Kit (we adopted patterns; we are not those frameworks); a project tracker (artifacts in the repo are the tracker); a deployment system (deploys happen outside hstack); or a SOC 2 / GDPR compliance substrate by itself (v1 is good engineering hygiene; v2 covers compliance).
 
-Operating under hstack means every change goes through the workflow, every artifact lives under `hstack/`, every status transition is written by a subagent and auto-committed, every Skill loads its required product context at session start, and the human's job is to answer questions and confirm — not to write.
+Operating under hstack means every change goes through the workflow, every artifact lives under `hstack/`, every status transition is written by a subagent (for interview-driven authoring) or by a Skill running in the main session (for mechanical operations — see the Mechanical operations section) and auto-committed, every Skill loads its required product context at session start, and the human's job is to answer questions and confirm — not to write.
 
 ---
 
@@ -73,36 +73,48 @@ Once a test file exists in the working tree (committed or staged), **no hstack s
 
 ## Tech-debt resolution
 
-Tech-debt items are first-class artifacts with their own lifecycle (`open → in-progress → resolved`, or `open → wontfix`). Resolution is **not manual** — the workflow drives every transition through dedicated Skills, with reciprocal frontmatter linkage between the tech-debt and the change-spec that fixes it.
+Tech-debt items are first-class artifacts with their own lifecycle. Three terminal exit paths exist:
+
+- `open → in-progress → resolved` — the team fixed the underlying problem via a shipped change-spec.
+- `open → wontfix` — the team decided not to fix; the original claim is still observably true but the cost-benefit no longer warrants resolution.
+- `open → stale-no-longer-reproducible` — the original claim has aged out before anyone resolved it. The surrounding code was rewritten, the dependency was upgraded, the bug was fixed incidentally as part of unrelated work, or the system the TD described no longer exists. The team verifies the absence and closes the TD without it ever entering `in-progress`.
+
+Resolution is **not manual** — the workflow drives every transition through dedicated Skills, with reciprocal frontmatter linkage between the tech-debt and the change-spec that fixes it (when applicable).
 
 **Reciprocity.** Tech-debt resolution is symmetric with tech-debt creation:
 
-- Creation: `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`. Enforced by TD-01. Written by `spec-author` via `/hstack:tech-debt-new`.
-- Resolution: `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`. Enforced by TD-04. Written by `spec-author` via `/hstack:tech-debt-resolve` (status flip to `in-progress`) and `/hstack:finalize` (status flip to `resolved`).
+- Creation: `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`. Enforced by TD-01. The TD body (including `introduced-by`) is authored by `spec-author` via `/hstack:tech-debt-new`; the reciprocal `creates-tech-debt` write on the originating change-spec is performed by the Skill directly per the Mechanical operations section.
+- Resolution: `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`. Enforced by TD-04. Both halves are written by Skills directly: `/hstack:tech-debt-resolve` sets `resolves-tech-debt: [TD-NNNN]` on the new change-spec when scaffolding (status flip on the TD to `in-progress`); `/hstack:finalize` writes `resolved-by` on the TD and flips its status to `resolved`.
 
-Both halves of each pair are written together by `spec-author`; the validator refuses one-sided writes.
+Both halves of each pair land in the same auto-commit; the validator refuses one-sided writes.
 
 **Resolution flow.**
 
 1. **Pick the item.** Run `/hstack:tech-debt-resolve TD-NNNN`.
 2. **Pre-conditions check.** The Skill prints the TD's full body and walks each "Pre-conditions for fixing" bullet for engineer confirmation. Any unmet pre-condition halts the Skill with the recommended remediation (wait for ADR, resolve dependent TD, etc.). Pre-conditions are prose in v1; the Skill cannot mechanically verify them, so engineer confirmation is mandatory and is logged into the resulting change-spec.
-3. **Status flip + scaffold.** `spec-author` flips the TD `open → in-progress`, sets `resolution-attempted-at` to today, appends a Resolution Log entry, and scaffolds a resolution change folder with `resolves-tech-debt: [TD-NNNN]` pre-populated. The change-spec's "Resolves Tech-Debt" section quotes the TD's Acceptance section verbatim; the engineer's Target Behavior must satisfy that quote (superset or exact).
+3. **Status flip + scaffold.** The Skill flips the TD `open → in-progress` directly, sets `resolution-attempted-at` to today, appends a Resolution Log entry, and scaffolds a resolution change folder with `resolves-tech-debt: [TD-NNNN]` pre-populated. The change-spec's "Resolves Tech-Debt" section quotes the TD's Acceptance section verbatim; the engineer's Target Behavior must satisfy that quote (superset or exact). Both writes (TD frontmatter and new change-spec frontmatter) land in a single auto-commit so the reciprocal pair is atomic.
 4. **Run the normal workflow.** test-plan → security-review → data-review (when `db` in surfaces) → plan → implement → verify → adversarial-review. The adversarial-reviewer reads each referenced TD's Acceptance section and produces a mandatory Acceptance-satisfied confirmation (AR-07) when `resolves-tech-debt` is non-empty.
 5. **Ship.** `/hstack:ship` checks GT-11: every referenced TD must be at `in-progress` and the adversarial-review must contain the Acceptance-satisfied confirmation. Ship stays read-only.
-6. **Finalize after merge.** `/hstack:finalize <change-id>` is the post-merge cleanup Skill. It verifies the change's branch has been merged into the configured default branch (git log check), then invokes `spec-author` to:
-   - Advance the change-spec `ready-to-ship → shipped`.
-   - For each entry in `resolves-tech-debt`: write `resolved-by: <change-spec-id>`, append a Resolution Log entry, and flip status `in-progress → resolved`. Per TD-03, no further field rewrites are permitted on the tech-debt after this point.
+6. **Finalize after merge.** `/hstack:finalize <change-id>` is the post-merge cleanup Skill. It verifies the change's branch has been merged into the configured default branch (git log check), then writes directly (per the Mechanical operations section, no `spec-author` invocation):
+   - For each entry in `resolves-tech-debt`, in order: write `resolved-by: <change-spec-id>`, append a Resolution Log entry, flip status `in-progress → resolved`. Validate and auto-commit each TD as it lands.
+   - Only after every TD resolution has succeeded: advance the change-spec `ready-to-ship → shipped`. This ordering ensures a mid-finalize failure leaves the change-spec at `ready-to-ship` (recoverable by re-running finalize), never at `shipped` referencing an unresolved TD.
+   - Per TD-03, no further field rewrites are permitted on the tech-debt after this point.
 
-**The wontfix path.** When a tech-debt item is being closed without a fix (the team has decided the cost of fixing exceeds the cost of living with it), use `/hstack:tech-debt-wontfix TD-NNNN`. The Skill runs a two-question interview: "Why won't this be fixed?" and "What are we accepting as the alternative?" Both answers are required and become non-null `wontfix-reason` and `wontfix-accepted-alternative` frontmatter fields (TD-06). `spec-author` writes both fields and flips status `open → wontfix` in a single auto-commit. Wontfix is terminal and immutable per TD-03.
+**The wontfix path.** When a tech-debt item is being closed without a fix (the team has decided the cost of fixing exceeds the cost of living with it), use `/hstack:tech-debt-wontfix TD-NNNN`. The Skill runs a two-question interview: "Why won't this be fixed?" and "What are we accepting as the alternative?" Both answers are required and become non-null `wontfix-reason` and `wontfix-accepted-alternative` frontmatter fields (TD-06). The Skill writes both fields and flips status `open → wontfix` directly in a single auto-commit. Wontfix is terminal and immutable per TD-03.
+
+**The stale-no-longer-reproducible path.** When a tech-debt item's original claim has aged out — the surrounding code was rewritten, the dependency was upgraded, the bug was fixed incidentally, the system the TD described no longer exists — use `/hstack:tech-debt-stale TD-NNNN`. This is distinct from `wontfix`: `wontfix` says "the problem is still real but we choose to live with it"; stale-no-longer-reproducible says "the problem no longer exists, verifiably." Misusing `wontfix` for a stale claim corrupts the audit signal that distinguishes deliberate-deferral from organic-decay.
+
+The Skill runs a one-question structured-elicitation loop: "What evidence shows this TD's claim no longer reproduces?" The engineer's answer becomes the non-null `stale-verification-method` field (TD-07); the current date becomes `stale-verified-at`. The Skill writes both fields and flips status `open → stale-no-longer-reproducible` directly in a single auto-commit. The new status is terminal and immutable per TD-03.
 
 **Partial resolution is not supported in v1.** A change-spec either fully resolves a tech-debt item (listed in `resolves-tech-debt`, satisfies the Acceptance bullets) or it doesn't. If a change addresses only some of the TD's Acceptance bullets, it stays off the `resolves-tech-debt` list and the TD remains at `in-progress` for a follow-up change. This preserves the kernel's "one change-spec, one bounded contract" discipline. Engineers tempted to split a TD into smaller pieces should instead author multiple TDs via `/hstack:tech-debt-new`.
 
 **Forbidden no matter what.**
 
-- Manually editing tech-debt `status`, `resolved-by`, `wontfix-reason`, or `resolution-attempted-at` in frontmatter outside of the resolution Skills. The status machine is owned by `spec-author` via the three Skills (`tech-debt-resolve`, `tech-debt-wontfix`, `finalize`).
-- Marking a tech-debt `resolved` without a corresponding change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal write is the only legal path.
+- Manually editing tech-debt `status`, `resolved-by`, `wontfix-reason`, `wontfix-accepted-alternative`, `stale-verified-at`, `stale-verification-method`, or `resolution-attempted-at` in frontmatter outside of the resolution Skills. The status machine is owned by the four Skills (`tech-debt-resolve`, `tech-debt-wontfix`, `tech-debt-stale`, `finalize`) which perform the writes directly per the Mechanical operations section.
+- Invoking `spec-author` for any of these mechanical writes. The cost is ~25k tokens per call for what is a handful of frontmatter character changes; the kernel's Mechanical operations section forbids it.
+- Marking a tech-debt `resolved` without a corresponding change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal write is the only legal path. *Exception*: during a single `/hstack:finalize` invocation, the TDs are flipped to `resolved` first and the change-spec advances to `shipped` last; this is the documented finalize-in-progress carve-out (see Mechanical operations § Atomicity for reciprocal pairs). The standing-state rule applies once finalize completes; the transient state during a single invocation is intentional and recoverable by re-running finalize.
 - Skipping the adversarial-review Acceptance-satisfied confirmation when `resolves-tech-debt` is non-empty. AR-07 makes this a mandatory finding lens.
-- Editing fields on a `resolved` or `wontfix` tech-debt. TD-03 forbids this; the validator compares against git history.
+- Editing fields on a `resolved`, `wontfix`, or `stale-no-longer-reproducible` tech-debt. TD-03 forbids this; the validator compares against git history.
 
 ---
 
@@ -129,11 +141,16 @@ Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601;
 
 ## Status lifecycle
 
-Status transitions are written by subagents, not humans. Each subagent updates the status field at phase completion as part of its workflow. The engineer never writes status manually.
+Status transitions are written by hstack itself, not by direct human edits to frontmatter. Two legitimate writer-of-record paths exist:
+
+- **Subagents** write status transitions at the end of their interview phases (e.g., `test-strategist` advances `test-plan.md` to `passed` when its work completes; `security-reviewer` advances `security-review.md`).
+- **Skills** write status transitions for mechanical operations per the Mechanical operations section below. The orchestrating Skill running in the main Claude Code session performs the `Edit` directly, runs `validate-spec.ts`, and auto-commits. `/hstack:finalize`, `/hstack:tech-debt-resolve`, and `/hstack:tech-debt-wontfix` follow this path.
+
+The engineer never writes status manually via direct frontmatter edit.
 
 Two rules:
 
-- **Auto-commit at status transition.** Every time a subagent moves an artifact's status to a new value, the change is git-committed to the active working branch. This produces the audit trail and provides the resumability checkpoint.
+- **Auto-commit at status transition.** Every time a subagent or Skill moves an artifact's status to a new value, the change is git-committed to the active working branch. This produces the audit trail and provides the resumability checkpoint.
 - **Upstream must be terminal before downstream advances.** A change-spec reaches `ready-for-implementation` only when test-plan, plan, security-review, data-review (when applicable), and ui-brief / figma-handoff (when applicable) are at correct terminal states. The test-plan is itself upstream of the plan — the `planner` refuses to start until `test-plan.md` is at `passed` or `concerns-acknowledged`. The transition gate is computed from artifact statuses, not asserted by an agent.
 
 Per-type lifecycles live in the template schemas doc.
@@ -160,6 +177,54 @@ Almost every hstack artifact is produced by a subagent through a conversational 
 - Subagents **never** write a field silently. Every artifact field passes through an explicit confirmation gate before disk write.
 - For low-stakes templates (story, ui-brief, vision, glossary, mvp-scope, persona, tech-debt) the interview is confirmation-driven: the agent proposes, the human accepts or revises.
 - For high-stakes templates (security-review, data-review, adversarial-review, threat-model) the templates carry **challenge prompts** that probe for omissions — what the human did not think to mention. This is the v1 mitigation for the known asymmetry that humans miss what's missing. v2 moves the challenge logic into subagent prompts.
+
+**Mechanical operations adapt this contract.** Mechanical writes (per the Mechanical operations section below) do not have field-level interviews because the values are determined by the Skill's preconditions, the engineer's invocation arguments, or a structured-elicitation loop (per-question confirmation, see the Mechanical operations section). The "confirm before write" gate is preserved at the **Skill-invocation level**: before performing the writes, the Skill prints the **proposed diff** (the actual file changes that will be staged) and a Y/n prompt. A precise per-field summary is NOT a sufficient substitute — until `validate-spec.ts` ships as a real script (it is currently a `{{TODO-SCRIPT}}` placeholder), the proposed-diff preview is the only mechanical contract check between the Edit and the auto-commit; the engineer must see exactly what will land. The v1 mitigations are (a) the proposed-diff preview, (b) the precondition checks each Skill performs before any write, (c) idempotency on re-run, and (d) `validate-spec.ts` post-write *once it exists*. Subagent invocations remain field-level confirmation-gated as before. Structured-elicitation loops (Pre-conditions walks, wontfix-reason elicitation) are per-question confirmation-gated by their own y/n prompts; they do NOT replace the final proposed-diff preview before commit.
+
+---
+
+## Mechanical operations
+
+Subagents are expensive. Each fresh subagent invocation pays the cost of its system prompt plus its session-start context loads — typically 15-25k tokens before any work begins. For interview-driven authoring, that cost is appropriate: the subagent is doing genuine judgment work that benefits from full context. For **frontmatter-only mechanical operations**, it is pure overhead.
+
+The kernel rule reading: *"spec-author is the only **subagent** permitted to write under `hstack/specs/`, `hstack/adr/`, and `hstack/tech-debt/`."* The Skill orchestrator running in the main Claude Code session is not a subagent. Skills are therefore permitted to perform mechanical frontmatter writes directly, without invoking a subagent. ADR-0001 documents the decision.
+
+**What counts as a mechanical operation.** Operations where no open-ended interview is required — values are determined by the Skill's preconditions, the engineer's invocation arguments, or a structured-elicitation loop with a fixed question set and bounded answer shape:
+
+- **Status flips** — advancing an artifact's `status` field along the lifecycle. The engineer's invocation of the Skill (and any acknowledgement gate the Skill carries) is the confirmation.
+- **Reciprocal writes** — when an artifact's frontmatter contains a back-reference to another artifact (e.g. `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`, `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`, `ADR.supersedes` ↔ `ADR.superseded-by`), the second half is determined entirely by the first and the validator enforces both.
+- **Resolution Log appends** — a single bounded prose block appended at a known transition (TD `open → in-progress`, `open → wontfix`, `in-progress → resolved`). The prose template is fixed; no field-level interview.
+- **Frontmatter date bumps** — `updated:` to today on every write.
+- **Structured-elicitation loops** — pre-defined finite question sets where the Skill prompts and the engineer answers with a bounded shape (e.g. y/n + one-sentence justification; one-sentence answer ≤ N characters). The output structure is fixed by the Skill, not authored open-endedly. Examples: `/hstack:tech-debt-resolve` Pre-conditions walk (per bullet: y/n + justification, persisted as `(bullet, met, justification)` triples into the resulting change-spec's Open Questions); `/hstack:tech-debt-wontfix` two-question interview (wontfix-reason ≤ 200 chars, wontfix-accepted-alternative ≤ 200 chars); `/hstack:tech-debt-stale` one-question interview (stale-verification-method ≤ 300 chars). The constraint that makes these mechanical rather than authoring: the Skill cannot expand the loop into free-form prose generation, and each prompt is a per-question confirmation gate (the engineer's answer IS the confirmation). Open-ended prose authoring (change-spec Problem, Invariants; module-spec sections; ADR Context/Decision/Consequences; tech-debt Why/Cost/Fix-sketch/Acceptance) is NOT in this category — those remain with `spec-author`.
+
+**Skills that perform mechanical writes directly:**
+
+- `/hstack:change-new` — scaffolds `spec.md` from template (precedent).
+- `/hstack:finalize` — change-spec `ready-to-ship → shipped`; per-TD `resolved-by` write + status flip + Resolution Log append.
+- `/hstack:tech-debt-resolve` — TD `open → in-progress`; `resolution-attempted-at` write; Resolution Log append; resolution change-spec scaffold with reciprocal `resolves-tech-debt` pre-population.
+- `/hstack:tech-debt-wontfix` — TD `open → wontfix`; `wontfix-reason` and `wontfix-accepted-alternative` writes; Resolution Log append.
+- `/hstack:tech-debt-stale` — TD `open → stale-no-longer-reproducible`; `stale-verified-at` and `stale-verification-method` writes; Resolution Log append.
+- `/hstack:tech-debt-new` — reciprocal `creates-tech-debt` write on the originating change-spec after `spec-author` finishes the TD authoring interview.
+
+**Discipline preserved.** Skills doing direct writes still honor:
+
+- **`validate-spec.ts` after every write** — frontmatter schema and reciprocity rules (TD-01, TD-04, ADR supersession) caught at write time. **v1 honesty note**: `hstack/scripts/validate-spec.ts` is currently a `{{TODO-SCRIPT}}` placeholder. Until it ships, the proposed-diff preview before each commit (see AI writes / humans confirm § Mechanical operations adapt this contract) is the only mechanical contract check; the validator-after-every-write language describes the target state, not v1 enforcement. Validator implementation is tracked as the blocker-priority follow-up in ADR-0001.
+- **Auto-commit at every status transition** — the audit trail is identical to subagent-driven commits.
+- **Atomicity for reciprocal pairs** — both halves of a reciprocal write land in the same commit; partial writes are not permitted. *Carve-out for finalize-in-progress*: when `/hstack:finalize` resolves multiple TDs, the change-spec advances to `shipped` only after every TD has landed. During the window between the first TD's `resolved` commit and the change-spec's `shipped` commit, on-disk state shows TDs at `resolved` while the change-spec is still at `ready-to-ship` — this is intentional and recoverable. The Forbidden-no-matter-what bullet "Never flip a tech-debt to resolved without an accompanying change-spec at shipped" applies to **standing** state (post-finalize), not the transient window during a single finalize invocation.
+- **Idempotency** — re-running a Skill detects already-landed transitions and produces no-ops for them.
+
+**Anti-patterns specific to mechanical operations:**
+
+- Never invoke `spec-author` for a status flip, reciprocal write, or Resolution Log append. The cost is ~25k tokens per call for what is two-to-four character changes.
+- Never let a Skill skip `validate-spec.ts` after a direct write *once the validator ships*. While the validator is a `{{TODO-SCRIPT}}` placeholder, the proposed-diff preview before commit is the v1 substitute and Skills must surface it.
+- Never split a reciprocal pair across two commits *outside the finalize-in-progress carve-out above*. Atomicity is the v1 audit-trail guarantee for `<artifact-X>.<field> ↔ <artifact-Y>.<field>` consistency.
+
+**Spec-author retains exclusive ownership of:**
+
+- Authoring interviews — change-spec, module-spec, ADR, tech-debt, infrastructure, incident-runbook (the first creation of any of these).
+- Field-level revisions that require human-confirmed prose — Open Questions edits, Invariant additions mid-flight, ADR Consequences elaboration.
+- Any write to a field whose value is not determined by the Skill's preconditions alone.
+
+The boundary is: **if the Skill knows the value to write before invoking, the Skill writes directly. If the value comes from a conversation with the engineer, spec-author runs the conversation.**
 
 ---
 

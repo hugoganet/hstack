@@ -1,7 +1,7 @@
 ---
 id: TD-<NNNN>-<slug>
 type: tech-debt
-status: open                           # open | in-progress | resolved | wontfix | archived
+status: open                           # open | in-progress | resolved | wontfix | stale-no-longer-reproducible | archived
 owner: <git-handle>
 severity: low                          # critical | high | medium | low
 origin: <change-spec-id-or-found-later>
@@ -14,6 +14,8 @@ resolution-attempted-at: null          # ISO date set when status flips open -> 
 resolved-by: null                      # change-spec id that resolved this debt; reciprocal with change-spec.resolves-tech-debt; required when status: resolved
 wontfix-reason: null                   # one-sentence reason; required when status: wontfix
 wontfix-accepted-alternative: null     # one-sentence note on what we are accepting instead; required when status: wontfix
+stale-verified-at: null                # ISO date the absence of the original claim was verified; required when status: stale-no-longer-reproducible
+stale-verification-method: null        # one-sentence prose evidence; required when status: stale-no-longer-reproducible
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
 schema-version: 1
@@ -53,3 +55,7 @@ _Populated by `spec-author` as the resolution progresses. Section is empty until
 _Alternatively, for the wontfix path:_
 
 - `status: open → wontfix` on `<date>` by `<owner>`. Reason: `<wontfix-reason>`. Accepted alternative: `<wontfix-accepted-alternative>`.
+
+_Alternatively, for the stale-no-longer-reproducible path (the claim aged out before anyone resolved it):_
+
+- `status: open → stale-no-longer-reproducible` on `<stale-verified-at>` by `<owner>`. Verification method: `<stale-verification-method>`.

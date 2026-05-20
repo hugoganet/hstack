@@ -1,7 +1,7 @@
 ---
 name: hstack-tech-debt-resolve
 description: |
-  Use this skill when the engineer wants to start work on resolving a known tech-debt item. The Skill is the canonical entry point into the resolution flow: it prints the tech-debt's full body, walks each Pre-condition for engineer confirmation, halts on any unmet pre-condition, and on confirmation flips the tech-debt to `in-progress` via `spec-author` and scaffolds a resolution change folder with `resolves-tech-debt` pre-populated and the Acceptance section quoted into Target Behavior. Examples:
+  Use this skill when the engineer wants to start work on resolving a known tech-debt item. The Skill is the canonical entry point into the resolution flow: it prints the tech-debt's full body, walks each Pre-condition for engineer confirmation (a structured-elicitation loop per the kernel's Mechanical operations section), halts on any unmet pre-condition, and on confirmation performs direct mechanical writes (per ADR-0001, no spec-author invocation): flips the tech-debt to `in-progress`, scaffolds a resolution change folder with `resolves-tech-debt` pre-populated and the Acceptance section quoted into Target Behavior. Both halves of the reciprocal pair (TD ↔ change-spec) land in a single atomic commit. Examples:
 
   <example>
   Context: The team agreed to live with a hardcoded Tailwind class until the design token system exposed `--warning-yellow-300`. The token landed yesterday; now the team wants to fix TD-0042.
@@ -42,9 +42,9 @@ tools:
 
 ## Purpose
 
-`hstack-tech-debt-resolve` is the canonical entry point for resolving a known tech-debt item. The Skill orchestrates `spec-author` to flip the TD status `open → in-progress`, set `resolution-attempted-at`, append a Resolution Log entry, and scaffold a resolution change-spec under `hstack/specs/changes/<id>/` with `resolves-tech-debt` pre-populated and the TD's Acceptance section quoted into the change-spec's "Resolves Tech-Debt" section. After this Skill, the engineer continues with the normal workflow (`/hstack:test-plan`, etc.).
+`hstack-tech-debt-resolve` is the canonical entry point for resolving a known tech-debt item. The Skill performs direct mechanical writes in the main session (per ADR-0001, no `spec-author` invocation): flips the TD status `open → in-progress`, sets `resolution-attempted-at`, appends a Resolution Log entry, and scaffolds a resolution change-spec under `hstack/specs/changes/<id>/` with `resolves-tech-debt` pre-populated and the TD's Acceptance section quoted into the change-spec's "Resolves Tech-Debt" section. After this Skill, the engineer continues with the normal workflow (`/hstack:test-plan`, etc.).
 
-This Skill exists because manual frontmatter edits to tech-debt status are forbidden by the kernel. The reciprocal `tech-debt.resolved-by ↔ change-spec.resolves-tech-debt` write is enforced by TD-04 and is owned by `spec-author`.
+This Skill exists because manual frontmatter edits to tech-debt status are forbidden by the kernel. The reciprocal `change-spec.resolves-tech-debt: [<td-id>]` write at scaffold time is enforced by TD-04 and lands atomically with the TD status flip in a single auto-commit.
 
 ## When to invoke
 
@@ -83,23 +83,34 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
 
 3. **Confirm proceed.** Print: "TD-NNNN is ready to resolve. Pre-conditions confirmed by `<owner>` on `<date>`. Proceed to scaffold the resolution change folder? (Y/n)". Default Yes.
 
-4. **Determine area and slug.** If `--area` not provided, use TD's `related-modules[0]`. If `related-modules` is empty, ask the engineer. If `--slug` not provided, default to `resolve-<td-slug-suffix>`. Confirm with engineer.
+4. **Determine area, slug, and change-id.** If `--area` not provided, use TD's `related-modules[0]`. If `related-modules` is empty, ask the engineer. If `--slug` not provided, default to `resolve-<td-slug-suffix>`. Confirm with engineer. Compute the change-spec id as `<YYYY-MM>-<area>-<slug>`. Verify the area has a current module-spec; verify the derived change folder does not already exist. The id is now known and will be referenced by both writes below.
 
-5. **Invoke `spec-author` for the TD status flip.** Use the Task tool with `subagent_type: spec-author` and instructions: flip `hstack/tech-debt/<td-id>.md` frontmatter `status: open → in-progress`, set `resolution-attempted-at: <today>`, append a Resolution Log entry naming the resolving change-spec id (computed in step 6). Auto-commit at the status transition per the kernel's auto-commit rule.
+5. **Preview proposed writes (confirmation gate).** Per the kernel's AI writes / humans confirm contract for mechanical operations, print the proposed diff to the engineer:
+   - TD frontmatter changes: `status: open → in-progress`, `resolution-attempted-at: <today>`, `updated: <today>`.
+   - TD Resolution Log entry to append: `status: open → in-progress on <today> by <owner>. Resolution change-spec: <change-id>.`
+   - New change-spec frontmatter (will be seeded in step 7).
 
-6. **Scaffold the resolution change folder.** Compute the change-spec id (`<YYYY-MM>-<area>-<slug>`). Invoke the scaffold flow inline (do not call `/hstack:change-new` to avoid duplicate interview prompts):
-   - Verify the area has a current module-spec.
+   Ask "Proceed with these writes? (Y/n)". Default Yes. On `n`, halt.
+
+6. **Write the TD (direct write + immediate validation).** Edit `hstack/tech-debt/<td-id>.md`:
+   - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs authored before the template included this section), append `\n## Resolution Log\n` to the end of the file first.
+   - Edit frontmatter: `status: open → in-progress`, `resolution-attempted-at: <today>`, `updated: <today>`.
+   - Append the Resolution Log entry: `status: open → in-progress on <today> by <owner>. Resolution change-spec: <change-id>.`
+   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. On validation failure, halt — do NOT proceed to step 7. Unstaged changes can be reverted via `git checkout -- <td-file>`.
+
+7. **Scaffold the resolution change folder.** (Do not call `/hstack:change-new` to avoid duplicate interview prompts.)
    - Create `hstack/specs/changes/<change-id>/`.
    - Seed `spec.md` from `hstack/templates/change-spec.md` with frontmatter populated: `id`, `type: change-spec`, `status: draft`, `owner` (from `git config user.name`), `area`, `related-spec: <area>`, `resolves-tech-debt: [<td-id>]`, `created` and `updated` to today, `schema-version: 1`.
    - Pre-populate the "Resolves Tech-Debt" prose section: a pointer to `../../tech-debt/<td-id>.md` followed by the TD's Acceptance section quoted verbatim under the heading "Acceptance from TD-NNNN".
    - Pre-populate the Open Questions section with the Pre-conditions confirmation log from step 2 (the `(bullet, met, justification)` triples), so the adversarial-reviewer can later verify the team did not rationalize away an unmet pre-condition.
    - Pre-populate Problem section opener: "Resolves [<td-id>](../../tech-debt/<td-id>.md): <TD Title>. The TD was introduced by <introduced-by> and has been at `open` since <created>."
+   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the seeded change-spec. On validation failure, halt — the TD write from step 6 must be reverted manually via `git checkout -- <td-file>` before re-running the Skill.
 
-7. **Offer branch creation.** Mirror `/hstack:change-new`'s branch hygiene step: offer to create `change/<change-id>` from the current branch. Default Yes.
+8. **Offer branch creation.** Mirror `/hstack:change-new`'s branch hygiene step: offer to create `change/<change-id>` from the current branch. Default Yes.
 
-8. **Auto-commit.** Single commit at scaffold completion. Commit message: `chore(tech-debt-resolve): scaffold <change-id> resolving <td-id>`.
+9. **Auto-commit (single atomic commit).** `git add` both the TD and the new change-spec, commit with message `chore(tech-debt-resolve): scaffold <change-id> resolving <td-id>`. The reciprocal pair (TD `in-progress` ↔ change-spec `resolves-tech-debt: [<td-id>]`) lands in this single commit, preserving the kernel's atomicity rule.
 
-9. **Direct engineer to next step.** Print: "Resolution change scaffolded at `hstack/specs/changes/<change-id>/`. Continue with `/hstack:test-plan <change-id>` when ready. The TD is now at `in-progress` and will be flipped to `resolved` by `/hstack:finalize` after the resolving change is merged."
+10. **Direct engineer to next step.** Print: "Resolution change scaffolded at `hstack/specs/changes/<change-id>/`. Continue with `/hstack:test-plan <change-id>` when ready. The TD is now at `in-progress` and will be flipped to `resolved` by `/hstack:finalize` after the resolving change is merged."
 
 ## Outputs
 
@@ -116,7 +127,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
 
 - Re-running on a TD already at `in-progress`: the Skill reads the TD's Resolution Log to find the existing resolving change-spec id, verifies the change folder exists, and reports its current state ("Resolution in progress at `<change-id>`; current change-spec status: `<status>`. Continue with `<next-skill>`."). No new scaffold is created.
 - Re-running mid-interview after a halt: the Skill reads `hstack/.session-state/td-resolve-<td-id>.yaml` and resumes at the next un-confirmed Pre-condition.
-- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency for manual reconciliation via `spec-author`.
+- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency. Reconciliation is manual: either (a) `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state if the inconsistency came from an interrupted finalize, or (b) directly edit the TD frontmatter to set `resolved-by: null` and re-run `validate-spec.ts`. Do not invoke `spec-author` for this reconciliation — the kernel forbids it for reciprocal-back-reference writes.
 
 ## Stop conditions
 
@@ -135,11 +146,11 @@ Beyond the kernel's general stop conditions:
 
 - **TD's Acceptance is too vague to satisfy mechanically.** The Skill scaffolds anyway but flags in the change-spec's Open Questions that the adversarial-reviewer will need to interpret. The engineer is reminded that AR-07 makes Acceptance-satisfied a mandatory finding lens.
 - **Pre-condition confirmation session interrupted.** Resumable via the session-state file; engineer continues from the next un-confirmed bullet.
-- **Spec-author write fails mid-scaffold.** Halt; the TD's status flip and the change-spec scaffold must land in the same commit to preserve reciprocity. If only the TD flipped, manual reconciliation is required.
+- **A direct write fails mid-scaffold.** Halt before any commit. Per the new ordering (step 6 writes TD, step 7 writes change-spec, step 9 commits both atomically), no partial commit is possible — the failure leaves both files unstaged for the engineer to inspect or discard via `git checkout -- <file>`.
 
 ## Anti-patterns
 
-- Never flip a tech-debt status without invoking `spec-author`. The kernel forbids direct frontmatter writes to tech-debt by any other agent.
+- Never invoke `spec-author` for the TD status flip. Per the kernel's Mechanical operations section (ADR-0001), this Skill performs the flip directly via the `Edit` tool. The kernel's "spec-author is the only subagent permitted to write" rule applies to subagents; this Skill runs in the main session.
 - Never accept blanket "all pre-conditions are met" confirmations. Each bullet must be individually confirmed with a one-sentence justification.
 - Never silently downgrade a mechanical halt to a soft warning. Mechanical halts represent upstream state that must actually change.
 - Never scaffold without quoting the TD's Acceptance into the change-spec's Resolves Tech-Debt section. The quote is what AR-07 checks against.
