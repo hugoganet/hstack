@@ -28,6 +28,7 @@ tools:
   - Glob
   - Bash
   - Task
+  - SendMessage
   - "{{TODO-TOOL: RepoMix — packs the module slice (paths from hstack/config.yaml) into a single context bundle for spec-author}}"
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates module-spec frontmatter and MS-01/MS-02/MS-03}}"
 ---
@@ -58,7 +59,21 @@ Before any work:
 
 1. **Pack the module slice.** Run `{{TODO-TOOL: RepoMix}}` over the module's `paths` globs and write the packed bundle to a temporary location. If RepoMix is unavailable, fall back to having `spec-author` grep the paths directly; flag the degraded read in the conversation.
 
-2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/module-spec.md`, glossary, tech-stack, packed module bundle, existing module-spec instance if refresh]. The subagent reads the bundle, walks the seven module-spec sections — Purpose, Public Surface, Data Owned, External Dependencies, Invariants, Known Tech-Debt and ADRs, Refresh Policy — with confirmation gates per field.
+2. **Invoke or resume `spec-author`.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when a previous `spec-author` session for THIS module is still resumable in the current Claude Code session — the RepoMix bundle plus the seven-section template caches at ~40-80k tokens depending on module size, so resume savings here are the largest of any Skill.
+
+   - **State file path:** `hstack/.session-state/module-spec-<module>.yaml`. Shape:
+     ```yaml
+     artifact-type: module-spec
+     artifact-id: <module>
+     agent-uuid: <agentId returned by Agent(...)>
+     last-section-confirmed: <section name or null>
+     last-resume-at: <ISO 8601 timestamp>
+     ```
+   - **Resume path** — if the state file exists and contains a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <resume-brief>)` where `<resume-brief>` MUST include: (a) an instruction to re-read `hstack/specs/<module>/spec.md` (the partial draft from the prior interview, since `spec-author` writes confirmed fields to disk and the on-disk file may have advanced beyond the agent's working memory), (b) the first unconfirmed section to resume from (which the orchestrator computes by inspecting the partial draft's sections vs. the template), (c) a one-line restatement of the Invariants challenge (≥ 3 bullets) and MS-01/MS-02/MS-03 constraints. On `success: true`, the agent resumes — proceed to step 3 and wait for completion. On `success: false` (transcript expired, agent unknown, or a different Claude Code session), drop through to the spawn path.
+   - **Spawn path** — call `Agent(subagent_type: spec-author, prompt: <full session-start brief>)` with context = [kernel, `hstack/templates/module-spec.md`, glossary, tech-stack, packed module bundle, existing module-spec instance if refresh]. The subagent reads the bundle, walks the seven module-spec sections — Purpose, Public Surface, Data Owned, External Dependencies, Invariants, Known Tech-Debt and ADRs, Refresh Policy — with confirmation gates per field. On return, capture the `agentId` and **write/overwrite** the state file with `artifact-type: module-spec`, `artifact-id: <module>`, `agent-uuid: <agentId>`, `last-section-confirmed: <last section the agent advanced past>`, `last-resume-at: <now>`. Create `hstack/.session-state/` if missing.
+   - **Loading discipline (both paths).** The resume payload does NOT relax the Invariants challenge or any MS rule — it explicitly restates them, because the resumed agent's system prompt is cached but the per-resume instructions are new. The on-disk partial draft is the source of truth, not the agent's working memory.
+   - **Why this is safe.** The fallback to fresh spawn means worst case is current behavior (one fresh spawn paying ~40-80k cache-create per resume). Best case is ~12× cheaper on the prefix per resume. No new failure modes: if SendMessage fails for any reason, the spawn path runs and the state file is overwritten.
+   - **When the resume saving matters most.** A long module-spec interview (large RepoMix bundle, seven sections) interrupted by a session pause and resumed later in the SAME Claude Code session. Cross-CC-session resume is not load-bearing — the transcript is gone with the session — and the spawn path handles it correctly.
 
 3. **Exercise the Invariants challenge prompt.** Per the `spec-author` contract and MS-03, the Invariants section requires a minimum of three bullets, elicited via the challenge "What would a careless refactor in this module break that the tests would not catch?" The Skill does not bypass this even on refresh.
 

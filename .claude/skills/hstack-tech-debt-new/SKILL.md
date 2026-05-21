@@ -28,6 +28,7 @@ tools:
   - Glob
   - Bash
   - Task
+  - SendMessage
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates tech-debt frontmatter and TD-01..TD-03}}"
 ---
 
@@ -61,7 +62,21 @@ Before any work:
 
 1. **Compute the next id.** `TD-NNNN-<slug>`.
 
-2. **Invoke `spec-author` with explicit deferred-commit instruction.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/tech-debt.md`, glossary, the originating change-spec when `--origin`]. The subagent walks the six sections — Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions for fixing, Acceptance — with confirmation gates. **Critical instruction to spec-author**: do NOT auto-commit at terminal author-state (`status: open`) when invoked under `/hstack:tech-debt-new`. The Skill will perform the atomic commit after the reciprocal change-spec write in step 7. Spec-author should leave the new TD file staged-but-uncommitted (or unstaged) so the Skill can include both halves of the reciprocal pair in a single commit. This deviation from spec-author's normal auto-commit-at-status-transition behavior is mandated by the kernel's atomicity rule for reciprocal pairs.
+2. **Invoke or resume `spec-author` with explicit deferred-commit instruction.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when a previous `spec-author` session for THIS tech-debt id is still resumable in the current Claude Code session — useful when a six-section interview was interrupted mid-flow.
+
+   - **State file path:** `hstack/.session-state/tech-debt-<id>.yaml` (where `<id>` is the computed `TD-NNNN-<slug>` from step 1). Shape:
+     ```yaml
+     artifact-type: tech-debt
+     artifact-id: <TD-NNNN-<slug>>
+     agent-uuid: <agentId returned by Agent(...)>
+     last-section-confirmed: <section name or null>
+     deferred-commit: true
+     last-resume-at: <ISO 8601 timestamp>
+     ```
+   - **Resume path** — if the state file exists and contains a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <resume-brief>)` where `<resume-brief>` MUST include: (a) an instruction to re-read `hstack/tech-debt/<TD-id>.md` (the partial draft from the prior interview), (b) the first unconfirmed section to resume from (orchestrator computes by inspecting the partial draft), (c) **the deferred-commit instruction restated verbatim**: "do NOT auto-commit at terminal author-state; leave the file staged-but-uncommitted so this Skill can include both halves of the reciprocal pair (TD ↔ change-spec.creates-tech-debt) in a single atomic commit per the kernel's atomicity rule," (d) a reminder that `introduced-by: <change-spec-id>` must be on the frontmatter when `--origin` is set. On `success: true`, the agent resumes — proceed to step 3 and wait for completion. On `success: false` (transcript expired, agent unknown, different Claude Code session), drop through to the spawn path.
+   - **Spawn path** — call `Agent(subagent_type: spec-author, prompt: <full session-start brief>)` with context = [kernel, `hstack/templates/tech-debt.md`, glossary, the originating change-spec when `--origin`]. The subagent walks the six sections — Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions for fixing, Acceptance — with confirmation gates. **Critical instruction to spec-author (both paths)**: do NOT auto-commit at terminal author-state (`status: open`) when invoked under `/hstack:tech-debt-new`. The Skill will perform the atomic commit after the reciprocal change-spec write in step 7. Spec-author should leave the new TD file staged-but-uncommitted (or unstaged) so the Skill can include both halves of the reciprocal pair in a single commit. This deviation from spec-author's normal auto-commit-at-status-transition behavior is mandated by the kernel's atomicity rule for reciprocal pairs. On return, capture the `agentId` and **write/overwrite** the state file with `deferred-commit: true` set so any subsequent resume preserves the instruction.
+   - **Why the deferred-commit instruction is load-bearing on resume.** If the resume payload omits it, the resumed agent — whose system prompt and original instructions are cached — may fall back to its default auto-commit behavior at terminal status, splitting the reciprocal pair across two commits and breaking TD-01 atomicity. The resume-brief MUST restate the instruction; cached context is not authoritative for per-invocation directives.
+   - **Loading discipline (both paths).** The on-disk partial draft is the source of truth, not the agent's working memory. The resumed agent re-reads `hstack/tech-debt/<TD-id>.md` before continuing.
 
 3. **Severity.** The subagent elicits severity (critical | high | medium | low). For `severity: critical`, a `target-resolve-by` date is required per TD-02 (this is a future field — surface in the conversation that v1 does not yet enforce it via the validator).
 

@@ -28,6 +28,7 @@ tools:
   - Glob
   - Bash
   - Task
+  - SendMessage
   - WebSearch
   - WebFetch
   - "{{TODO-MCP: Notion MCP — optional; useful when research must include prior team decisions in Notion}}"
@@ -68,7 +69,21 @@ Before any work:
 
 ### Default mode
 
-1. **Invoke `researcher`.** Use the Task tool with `subagent_type: researcher` and context = [kernel, query, mode-relevant context docs per the researcher's contract — tech-stack for API/documentation modes, vision/mvp-scope for competitive/AI-native modes, threat-model/hardening-checklist for security-CVE mode]. The subagent classifies the query, applies the mode's source bias, and writes findings incrementally.
+1. **Invoke or resume `researcher`.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when the engineer is running follow-up queries within ONE investigation in the same Claude Code session. The researcher's session-start context (kernel + mode-relevant docs) is the heavy cached prefix; follow-up queries cost only the new query token spend on top.
+
+   - **State file path:** `hstack/.session-state/research-<session-id>.yaml` (where `<session-id>` is the `YYYY-MM-DD-<topic-slug>` of the session being authored — first query establishes the id; follow-up queries within the same investigation reuse it). Shape:
+     ```yaml
+     artifact-type: research-session
+     artifact-id: <YYYY-MM-DD-<topic-slug>>
+     agent-uuid: <agentId returned by Agent(...)>
+     query-count: <integer, increments per follow-up>
+     last-mode: <api-lookup | competitive-scan | documentation | security-cve | ai-native>
+     last-resume-at: <ISO 8601 timestamp>
+     ```
+   - **Resume path** — if the engineer invokes `/hstack:research` with `--continue <session-id>` (or implicitly when the current investigation is still open and the new query is a follow-up), and the state file exists with a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <follow-up-query-brief>)` where the brief includes: (a) the new query, (b) an instruction to re-read the current session file at `hstack/research/sessions/<session-id>.md` (the agent's findings-so-far may be out of sync if other turns wrote to it), (c) a reminder of the active mode's source-bias rules (e.g., "canonical vendor docs over tutorials, 12-month recency window" for API-lookup) — cached context is not authoritative for per-invocation source discipline. On `success: true`, the agent processes the follow-up. On `success: false` (transcript expired, agent unknown, different Claude Code session, or this is a genuinely new investigation), drop through to the spawn path.
+   - **Spawn path** — call `Agent(subagent_type: researcher, prompt: <full session-start brief>)` with context = [kernel, query, mode-relevant context docs per the researcher's contract — tech-stack for API/documentation modes, vision/mvp-scope for competitive/AI-native modes, threat-model/hardening-checklist for security-CVE mode]. The subagent classifies the query, applies the mode's source bias, and writes findings incrementally. On return, capture the `agentId` and write/overwrite the state file with `query-count: 1` and the classified mode.
+   - **Why follow-up resume matters here.** Researcher investigations commonly have an arc — initial broad query, then drill-down queries on the most interesting finding. Resume preserves the agent's working memory of what's been searched and what sources have already been cited, AND saves the ~10-15k cache-create cost on the kernel + context prefix per follow-up. Cold spawn for an unrelated investigation is correct.
+   - **Never resume across investigations.** A researcher instance for one `<session-id>` is NOT eligible to be resumed for a different session — the on-disk findings and confidence markers belong to a specific session artifact. Each investigation keys its own state file.
 
 2. **Source discipline.** Per the `researcher` contract:
    - API-lookup: canonical vendor docs over tutorials; 12-month recency window.

@@ -37,6 +37,7 @@ tools:
   - Glob
   - Bash
   - Task
+  - SendMessage
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan.steps-completed updates against PL-03/PL-04/PL-05}}"
   - "{{TODO-OTHER: in-scope-enforcement guard — runtime check at every Edit/Write that refuses paths outside change-spec.in-scope; v1 implemented inside the implementer subagent's prompt; v2 substrate moves to a subagent-runtime hook}}"
 ---
@@ -87,7 +88,20 @@ If the named phase appears to require any of the above, halt before invoking —
 
 1. **Re-verify gates.** Run the precondition checks above. Any failure halts the Skill with a precise message naming the failing artifact and field.
 
-2. **Invoke `implementer`.** Use the Task tool with `subagent_type: implementer` and context = [kernel, change-spec, plan, test-plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel.
+2. **Invoke or resume `implementer`.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when a previous implementer for this change is still resumable in the current Claude Code session.
+
+   - **State file path:** `hstack/.session-state/implement-<change-id>.yaml`. Shape:
+     ```yaml
+     change-id: <change-id>
+     agent-uuid: <agentId returned by Agent(...)>
+     last-phase: <task-id>
+     last-resume-at: <ISO 8601 timestamp>
+     ```
+   - **Resume path** — if the state file exists and contains a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <phase-brief>)` where `<phase-brief>` MUST include: (a) the `<task-id>` and its `Files Touched` from `plan.md`, (b) an explicit instruction to re-read `plan.md` and `spec.md` before starting (because `steps-completed` advanced last phase and the agent's working memory is stale on those files), (c) a one-line restatement of the in-scope constraint, (d) the kernel's forbidden-tool list reminder. On `success: true`, the agent took the task — proceed to step 3 and wait for completion. On `success: false` (any reason — transcript expired, agent unknown, different Claude Code session), drop through to the spawn path.
+   - **Spawn path** — call `Agent(subagent_type: implementer, prompt: <full session-start brief + phase brief>)` with context = [kernel, change-spec, plan, test-plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. On return, capture the `agentId` from the result and **write/overwrite** the state file with `change-id`, `agent-uuid: <agentId>`, `last-phase: <task-id>`, `last-resume-at: <now>`. Create `hstack/.session-state/` if missing.
+   - **Loading discipline (both paths).** The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel. The resume payload does NOT relax this — it explicitly restates the constraint, because the resumed agent's system prompt is cached but the per-phase instructions are new.
+   - **Why this is safe.** The fallback to fresh spawn means worst case is current behavior (one fresh ~28k cache-create per phase). Best case is ~12× cheaper per resume on the prefix. No new failure modes: if SendMessage fails for any reason, the spawn path runs and the state file is overwritten with the new UUID.
+   - **Single-shot subagents do NOT use this pattern.** `test-strategist`, `planner`, `security-reviewer`, `data-specialist`, `ui-ux-briefer`, `verifier`, `adversarial-reviewer` — one invocation per change, nothing to resume.
 
 3. **Phase execution.** The subagent executes one phase per invocation. It writes the code diff scoped to the phase's Files Touched, updates `plan.steps-completed` to include `<task-id>` when the phase completes, and writes the tests named in the test-plan sections the phase's Test Strategy references. Test names, file paths, and assertion shape come from the test-plan; the implementer does not rename or omit tests.
 
