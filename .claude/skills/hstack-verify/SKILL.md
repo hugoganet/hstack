@@ -70,23 +70,28 @@ Before any work:
 
 7. **Status transition.** When every `phase-coverage` entry is PASS, every `test-results` entry is `pass`, every `test-plan-coverage` value is `all-observed` / `all-within-budget` / `not-applicable`, the subagent advances status to `passed`. When any test result is `failed`, when a tenant-isolation test is missing, or when a performance-budget regressed or did not execute, status moves to `ran` (not `passed`) and the Skill halts.
 
-8. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04.
+8. **Change-spec advance (mechanical, only on `passed`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `verification.md` at `status: passed`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-implementation`, print a proposed-diff preview of the change-spec edit (`status: ready-for-implementation → ready-for-review`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-for-review`. This is a separate commit from the `verification(<change-id>): passed` commit — one commit per status transition, matching the finalize precedent. If the change-spec is already at `ready-for-review` or any downstream status, this step is a no-op (idempotent on re-runs). When verification status is `ran` or `failed`, this step does not run — the change-spec remains at `ready-for-implementation` until a subsequent re-run lands `passed`. Do NOT invoke `spec-author` for this write; per the kernel's Mechanical operations section, the value to write is fully determined by the verification postcondition and the change-spec's current status, so the Skill writes directly.
+
+9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04.
 
 ## Outputs
 
 - `hstack/specs/changes/<change-id>/verification.md` at `status: passed`, `ran`, or `failed`.
 - `hstack/specs/changes/<change-id>/test-output.txt` capturing the canonical commands' output.
+- When `verification.md` lands at `passed` and the change-spec was at `ready-for-implementation`: an edit to `hstack/specs/changes/<change-id>/spec.md` advancing `status: ready-for-implementation → ready-for-review` and bumping `updated:` (per ADR-0002).
 
 ## Auto-commit triggers
 
 - Status transition to `ran` after the commands execute.
 - Status transition to `passed` (or `failed`). Commit message: `verification(<change-id>): passed` / `failed`.
+- **Change-spec status transition `ready-for-implementation → ready-for-review`** (per ADR-0002). Lands as a separate commit after the `verification(<change-id>): passed` commit. Commit message: `change-spec(<change-id>): ready-for-review`. Skipped when verification status is not `passed`, or when the change-spec was already at `ready-for-review` or any downstream status.
 
 ## Idempotency contract
 
 - Re-running on a `passed` verification: the subagent re-runs the canonical commands; identical outcomes produce a no-op aside from `updated` timestamps; different outcomes (newly failing test on a flake) update the artifact accordingly.
 - Re-running after a `failed`: same — the subagent re-runs and updates.
 - The verifier does not write a PASS to avoid re-running. The canonical commands run on every invocation.
+- The change-spec advance step (step 8) is idempotent: a re-run against a change-spec already at `ready-for-review` (or any downstream status) produces a no-op for that step. The Skill does not re-advance a change-spec past `ready-for-review` and does not regress one if a later phase has moved it forward.
 
 ## Stop conditions
 

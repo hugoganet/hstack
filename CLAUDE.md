@@ -144,7 +144,7 @@ Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601;
 Status transitions are written by hstack itself, not by direct human edits to frontmatter. Two legitimate writer-of-record paths exist:
 
 - **Subagents** write status transitions at the end of their interview phases (e.g., `test-strategist` advances `test-plan.md` to `passed` when its work completes; `security-reviewer` advances `security-review.md`).
-- **Skills** write status transitions for mechanical operations per the Mechanical operations section below. The orchestrating Skill running in the main Claude Code session performs the `Edit` directly, runs `validate-spec.ts`, and auto-commits. `/hstack:finalize`, `/hstack:tech-debt-resolve`, and `/hstack:tech-debt-wontfix` follow this path.
+- **Skills** write status transitions for mechanical operations per the Mechanical operations section below. The orchestrating Skill running in the main Claude Code session performs the `Edit` directly, runs `validate-spec.ts`, and auto-commits. `/hstack:verify` (change-spec `ready-for-implementation → ready-for-review` when `verification.md` lands at `passed`, per ADR-0002), `/hstack:finalize`, `/hstack:tech-debt-resolve`, and `/hstack:tech-debt-wontfix` follow this path.
 
 The engineer never writes status manually via direct frontmatter edit.
 
@@ -199,6 +199,7 @@ The kernel rule reading: *"spec-author is the only **subagent** permitted to wri
 **Skills that perform mechanical writes directly:**
 
 - `/hstack:change-new` — scaffolds `spec.md` from template (precedent).
+- `/hstack:verify` — change-spec `ready-for-implementation → ready-for-review` when `verification.md` lands at `passed` (per ADR-0002). The `verifier` subagent retains its mechanical-verification lane and writes only `verification.md`; the Skill orchestrator performs the cross-artifact change-spec advance directly via `Edit` after the subagent returns.
 - `/hstack:finalize` — change-spec `ready-to-ship → shipped`; per-TD `resolved-by` write + status flip + Resolution Log append.
 - `/hstack:tech-debt-resolve` — TD `open → in-progress`; `resolution-attempted-at` write; Resolution Log append; resolution change-spec scaffold with reciprocal `resolves-tech-debt` pre-population.
 - `/hstack:tech-debt-wontfix` — TD `open → wontfix`; `wontfix-reason` and `wontfix-accepted-alternative` writes; Resolution Log append.
