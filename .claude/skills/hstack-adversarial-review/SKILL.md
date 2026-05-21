@@ -91,9 +91,12 @@ Before any work:
 
 9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — AR-01 through AR-06.
 
+10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. Do NOT invoke `spec-author` and do NOT delegate the write to the `adversarial-reviewer` subagent; per the kernel's Mechanical operations section and ADR-0002, the value to write is fully determined by the adversarial-review postcondition and the change-spec's current status, so the Skill orchestrator writes directly. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`.
+
 ## Outputs
 
 - `hstack/specs/changes/<change-id>/adversarial-review.md` at `status: findings-resolved`.
+- When `adversarial-review.md` lands at `findings-resolved` and the change-spec was at `ready-for-review`: an edit to `hstack/specs/changes/<change-id>/spec.md` advancing `status: ready-for-review → ready-to-ship` and bumping `updated:` (per ADR-0002, written by the Skill orchestrator).
 - Optional new tech-debt artifacts produced via `hstack-tech-debt-new` invocations when findings route to `tech-debt:<id>`.
 - Optional new commits on the change's branch when findings route to `commit:<hash>` and the implementer is re-invoked (separately, via `hstack-implement`) to make the fix.
 
@@ -104,12 +107,13 @@ Before any work:
 - Status transition to `findings-resolved` when every finding has `status: resolved`.
 - Edits to the `findings` array.
 - Edits to any finding's `resolution`.
-- **Change-spec status transition `ready-for-review` → `ready-to-ship`.** When `adversarial-review.md` reaches `findings-resolved`, the `adversarial-reviewer` subagent writes the corresponding change-spec status advance as the phase-completion gate flip. This is the kernel's "subagents write transitions at phase completion" rule: the change-spec becomes eligible for `hstack-ship` only after the adversarial-review terminates cleanly. `hstack-ship` itself remains read-only across artifact statuses — it reads the already-written `ready-to-ship` and computes the merge-readiness scorecard.
+- **Change-spec status transition `ready-for-review` → `ready-to-ship`** (per ADR-0002, Skill-orchestrator write). When `adversarial-review.md` reaches `findings-resolved`, the Skill orchestrator performs the change-spec advance directly via `Edit` (orchestration step 10), in a separate auto-commit with message `change-spec(<change-id>): ready-to-ship`. The change-spec becomes eligible for `hstack-ship` only after this commit lands. `hstack-ship` itself remains read-only across artifact statuses — it reads the already-written `ready-to-ship` and computes the merge-readiness scorecard. The `adversarial-reviewer` subagent does not write this transition; it stays in its critique-only lane.
 
 ## Idempotency contract
 
 - Re-running on a `findings-resolved` review: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps, unless new code or artifacts have landed since the prior run (in which case new findings may be generated and the status drops back to `findings-open`).
 - Re-running mid-resolution after a halt: the subagent reads the partial artifact and resumes with the first finding still at `status: open`.
+- The change-spec advance step (step 10) is idempotent: a re-run against a change-spec already at `ready-to-ship` (or `shipped`, `archived`) produces a no-op for that step. The Skill does not re-advance and does not regress.
 
 ## Stop conditions
 
