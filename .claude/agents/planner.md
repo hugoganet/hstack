@@ -28,6 +28,7 @@ tools:
   - Glob
   - Write
   - Edit
+  - Bash
   - "{{TODO-SKILL: /hstack:change-plan — invokes planner against a ready-to-plan change-spec}}"
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan.md frontmatter and phase coverage}}"
 ---
