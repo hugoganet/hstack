@@ -51,7 +51,9 @@ The Skill is the only path that flips a tech-debt to `resolved`, mirroring how `
 
 ## When to invoke
 
-Invoke once the change's branch (`change/<change-id>`) has been merged into the configured default branch and the engineer is closing out the change. Idempotent: re-running on a change-spec already at `shipped` is a no-op aside from informing the engineer.
+Invoke once the change's branch (`change/<change-id>`) has been merged into the configured default branch and the engineer is closing out the change. **Run finalize on the default branch itself, not on the (now-merged) change branch.** The Skill writes auto-commits as part of its work; those commits must land on the default branch so the audit trail (change-spec at `shipped`, TDs at `resolved`) is visible to everyone reading `main`. Running on the merged change branch strands the finalize commits — they're committed cleanly but never reach the default branch.
+
+Workflow: merge the PR → `git checkout <default-branch>` → `git pull` → `/hstack:finalize <change-id>` → `git push`. Idempotent: re-running on a change-spec already at `shipped` is a no-op aside from informing the engineer.
 
 ## Inputs
 
@@ -61,6 +63,7 @@ Invoke once the change's branch (`change/<change-id>`) has been merged into the 
 
 Before any work:
 
+- **Verify the current branch is the configured default branch and is up-to-date with its remote.** Read the default branch from `hstack/config.yaml` (fallback `main`). Run `git rev-parse --abbrev-ref HEAD` and confirm it equals the default branch. Run `git fetch <remote>` (default `origin`) then `git rev-list --left-right --count <default-branch>...<remote>/<default-branch>` and confirm both sides are `0` (local is neither ahead nor behind remote). If the current branch is not the default branch, halt with: "finalize must run on `<default-branch>`. You're on `<current-branch>`. Run `git checkout <default-branch> && git pull`, then re-invoke." If the local default is behind or ahead of remote, halt with the specific divergence and recommended `git pull` / push action. This precondition is load-bearing: the Skill's auto-commits land on whatever branch is checked out, and stranding them on a merged change branch defeats the audit-trail purpose of finalize.
 - Verify `hstack/specs/changes/<change-id>/spec.md` exists. Read `status` and `resolves-tech-debt`.
 - Verify `status: ready-to-ship`. If at `ready-for-review` (ship hasn't run yet), halt and direct the engineer to `/hstack:ship` first. If at `shipped` or `archived`, halt as a no-op with the terminal status named.
 - **Verify the merge landed.** Run `git log <default-branch> --grep="<change-id>"` and `git log <default-branch> --merges --oneline` and check that the change's branch merge commit exists on the default branch. Multiple verification heuristics are acceptable: (a) a merge commit whose message references the change-id; (b) the change-spec's auto-commit history appearing in the default branch's log via `git log <default-branch> -- hstack/specs/changes/<change-id>/`; (c) the change branch's tip being an ancestor of the default branch's tip (`git merge-base --is-ancestor`). If none of these is true, halt — finalize is post-merge cleanup, never pre-merge.
@@ -115,6 +118,7 @@ The state "change-spec at `shipped` with a TD still at `in-progress`" is not rea
 
 Beyond the kernel's general stop conditions:
 
+- The current branch is not the configured default branch, or the local default branch is not in sync with its remote. Direct the engineer to `git checkout <default-branch> && git pull` (and `git push` if local is ahead) before re-invoking.
 - The change-spec is not at `ready-to-ship`. Direct the engineer to either `/hstack:ship` (if at `ready-for-review`) or surface the existing terminal status.
 - The merge cannot be verified via any of the heuristics. Hard halt — finalize is strictly post-merge.
 - Any referenced tech-debt is not at `in-progress` or already has a non-null `resolved-by`. Halt; the audit trail is inconsistent.
@@ -130,6 +134,7 @@ Beyond the kernel's general stop conditions:
 
 - Never flip a tech-debt to `resolved` without an accompanying change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal-write pair is the only legal path.
 - Never run finalize pre-merge. The merge-verification check is mandatory.
+- Never run finalize on the (now-merged) change branch. The Skill's auto-commits land on the current branch; running on a merged change branch strands the `shipped` and `resolved` commits where the default branch never sees them. The default-branch precondition enforces this.
 - Never overwrite a non-null `resolved-by` field. Per TD-03, a resolved tech-debt is immutable.
 - Never invoke `spec-author` for these writes. They are mechanical operations per the kernel's Mechanical operations section; the Skill performs them directly via the `Edit` tool. Invoking `spec-author` costs ~25k tokens per call for what is a handful of frontmatter character changes.
 - Never skip TD-04/TD-05 post-write validation. The reciprocity check is the v1 substitute for the v2 substrate's mechanical cross-graph validator.
