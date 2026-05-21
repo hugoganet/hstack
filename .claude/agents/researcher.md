@@ -28,6 +28,7 @@ tools:
   - Glob
   - Write
   - Edit
+  - Bash
   - WebSearch
   - WebFetch
   - "{{TODO-SKILL: /hstack:research — invokes researcher with a query and a mode}}"
