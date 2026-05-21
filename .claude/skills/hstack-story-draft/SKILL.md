@@ -28,7 +28,6 @@ tools:
   - Glob
   - Bash
   - Task
-  - SendMessage
   - "{{TODO-MCP: Notion MCP — required when configured story store is Notion}}"
   - "{{TODO-MCP: Linear MCP — required when configured story store is Linear}}"
   - "{{TODO-MCP: GitHub MCP — required when configured story store is GitHub Issues}}"
@@ -64,20 +63,7 @@ Before any work:
 
 1. **Determine mode.** Draft a new story (no `--story` argument) or refine an existing one (`--story <id>` argument). Read the existing story when refining.
 
-2. **Invoke or resume `product-manager`.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when a previous `product-manager` session for THIS story id is still resumable in the current Claude Code session — useful when a five-section interview was interrupted, or when the engineer returns later in the same session to refine the same story.
-
-   - **State file path:** `hstack/.session-state/story-<story-id>.yaml`. Shape:
-     ```yaml
-     artifact-type: story
-     artifact-id: <story-id>
-     agent-uuid: <agentId returned by Agent(...)>
-     last-section-confirmed: <section name or null>
-     mode: <draft | refine>
-     last-resume-at: <ISO 8601 timestamp>
-     ```
-   - **Resume path** — if the state file exists and contains a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <resume-brief>)` where `<resume-brief>` MUST include: (a) an instruction to re-read the partial story (from `hstack/stories/<id>.md` or the configured store), (b) the first unconfirmed section to resume from, (c) **the Edge Cases challenge restated verbatim**: "What does the user notice if this ships but is slightly broken?" with ≥ 2 bullets required (cached context is not authoritative for per-invocation challenge prompts), (d) the persona-anchor reminder (ST-01: `persona` field must reference an existing persona at `current`). On `success: true`, the agent resumes. On `success: false`, drop through to the spawn path.
-   - **Spawn path** — call `Agent(subagent_type: product-manager, prompt: <full session-start brief>)` with context = [kernel, `hstack/templates/story.md`, vision, mvp-scope, personas store, parent change-spec when known, existing story when refining]. The subagent runs the five-section interview — Who and Why, What Shipping Looks Like, Success Metric, Edge Cases the User Cares About, Out of Scope for This Story — with confirmation gates. On return, capture the `agentId` and write/overwrite the state file.
-   - **Loading discipline (both paths).** The on-disk partial story (or existing story in refine mode) is the source of truth, not the agent's working memory. The resume payload does NOT relax the Edge Cases challenge.
+2. **Invoke `product-manager`.** Use the Task tool with `subagent_type: product-manager` and context = [kernel, `hstack/templates/story.md`, vision, mvp-scope, personas store, parent change-spec when known, existing story when refining]. The subagent runs the five-section interview — Who and Why, What Shipping Looks Like, Success Metric, Edge Cases the User Cares About, Out of Scope for This Story — with confirmation gates.
 
 3. **Verify the persona anchor exists.** Per ST-01, the story's `persona` field must reference an existing persona at `current`. If the engineer names a persona that does not exist, `product-manager` halts and runs a sub-interview to author it first (or the engineer chooses an existing one).
 

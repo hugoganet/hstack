@@ -28,7 +28,6 @@ tools:
   - Glob
   - Bash
   - Task
-  - SendMessage
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates ADR frontmatter and AD-01..AD-04}}"
 ---
 
@@ -60,20 +59,7 @@ Before any work:
 
 1. **Compute the next id.** `ADR-NNNN-<slug>` where `NNNN` is the next sequential number, zero-padded to four digits.
 
-2. **Invoke or resume `spec-author`.** Per the kernel's *Subagent transcript resume* contract (Resumability section), prefer cache-read resume over fresh spawn when a previous `spec-author` session for THIS ADR id is still resumable in the current Claude Code session.
-
-   - **State file path:** `hstack/.session-state/adr-<id>.yaml` (where `<id>` is the computed `ADR-NNNN-<slug>` from step 1). Shape:
-     ```yaml
-     artifact-type: adr
-     artifact-id: <ADR-NNNN-<slug>>
-     agent-uuid: <agentId returned by Agent(...)>
-     last-section-confirmed: <Nygard section name or null>
-     last-resume-at: <ISO 8601 timestamp>
-     ```
-   - **Resume path** — if the state file exists and contains a non-empty `agent-uuid`, call `SendMessage(to: <agent-uuid>, message: <resume-brief>)` where `<resume-brief>` MUST include: (a) an instruction to re-read `hstack/adr/<ADR-id>.md` (the partial draft from the prior interview), (b) the first unconfirmed section to resume from (Title / Status / Context / Decision / Consequences / Alternatives Considered — orchestrator computes by inspecting the partial draft), (c) **the Consequences challenge restated verbatim**: "Name two consequences that look bad. If you can't, what alternative would have made them visible?" (cached context is not authoritative for per-invocation challenge prompts), (d) when `--supersedes` is set, a reminder that AD-02 reciprocity requires writing `superseded-by: <new-adr-id>` on the prior ADR and `supersedes: <prior-adr-id>` on the new one. On `success: true`, the agent resumes — proceed to step 3 and wait for completion. On `success: false` (transcript expired, agent unknown, different Claude Code session), drop through to the spawn path.
-   - **Spawn path** — call `Agent(subagent_type: spec-author, prompt: <full session-start brief>)` with context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, the superseded ADR when `--supersedes`, the research session when `--from-research`]. The subagent walks the six Nygard sections. On return, capture the `agentId` and **write/overwrite** the state file with `last-section-confirmed` set to whatever section the agent last advanced past.
-   - **Why restating the Consequences challenge matters on resume.** The challenge prompt is the v1 mitigation for the predictable failure mode of design decisions (understating trade-offs). The cached agent prompt knows the challenge exists, but the per-invocation framing — "exercise it NOW on the Consequences section as you resume" — must come fresh in the resume payload, because cached context is not authoritative for per-invocation directives.
-   - **Loading discipline (both paths).** The on-disk partial draft is the source of truth, not the agent's working memory.
+2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, the superseded ADR when `--supersedes`, the research session when `--from-research`]. The subagent walks the six Nygard sections.
 
 3. **Interview discipline.** Per the `spec-author` contract:
    - Title — short noun phrase. One field, one confirmation.

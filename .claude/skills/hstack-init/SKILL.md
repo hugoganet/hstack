@@ -28,7 +28,6 @@ tools:
   - Glob
   - Bash
   - Task
-  - SendMessage
   - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator run after every confirmed field write}}"
   - "{{TODO-SCRIPT: hstack/scripts/init-detect-mcps.sh — probes the consuming repo's Claude Code config for available MCPs and writes hstack/context/mcp-status.md}}"
 ---
@@ -96,25 +95,6 @@ Init is split into discrete mini-sessions, each commitable independently. The or
    `incident-runbook.md` is written with `git-ignored: true` in its frontmatter; the Skill verifies an entry exists in the repo's `.gitignore` before proceeding (creating the entry with confirmation if absent). The Skill warns the engineer at the start of this mini-session that incident-runbook content will not be committed to git and will need an out-of-band sync target named in `hstack/config.yaml`. Commit each context file as it lands.
 
 The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, updating after every confirmed field write. The state file captures which mini-session is in progress, which fields within it are confirmed, and what the next prompt should be.
-
-### Subagent transcript resume (per mini-session)
-
-Per the kernel's *Subagent transcript resume* contract (Resumability section), every mini-session that invokes a subagent (mini-sessions 1 through 7) follows the resume-or-spawn protocol. Init is unusual because each mini-session authors a different artifact, so resume across mini-sessions is NEVER valid — only resume *within* one interrupted mini-session is.
-
-- **State file path per mini-session:** `hstack/.session-state/init-mini-<N>-<doc-name>.yaml` (e.g., `init-mini-6-infrastructure.yaml`, `init-mini-1-vision.yaml`). Shape:
-  ```yaml
-  artifact-type: <vision | glossary | mvp-scope | persona | data-architecture | tech-stack | ci-cd | infrastructure | threat-model | hardening-checklist | incident-runbook>
-  artifact-id: <doc-name>
-  mini-session: <N>
-  subagent-type: <product-manager | spec-author | security-reviewer>
-  agent-uuid: <agentId returned by Agent(...)>
-  last-section-confirmed: <section name or null>
-  last-resume-at: <ISO 8601 timestamp>
-  ```
-- **Resume path** — when a mini-session is re-entered (engineer re-runs `/hstack:init` mid-interview) and the matching state file exists with a non-empty `agent-uuid`, attempt `SendMessage(to: <agent-uuid>, message: <resume-brief>)`. The resume brief MUST include: (a) an instruction to re-read the partial draft at `hstack/context/<doc-name>.md` from disk (working memory may lag), (b) the first unconfirmed section to resume from, (c) the template's challenge prompts restated verbatim (e.g., the persona "What is this persona explicitly not?" challenge in mini-session 4 — challenge prompts are per-invocation directives and must NOT rely on cached context). On `success: true`, resume proceeds. On `success: false` (different Claude Code session, transcript expired, agent unknown), drop through to the spawn path.
-- **Spawn path** — invoke the appropriate subagent with the existing mini-session context (as documented in the mini-session's step above), capture the returned `agentId`, write/overwrite the per-mini-session state file.
-- **Never resume across mini-sessions.** A `spec-author` instance authored for `infrastructure.md` is NOT eligible to be resumed for `incident-runbook.md`. The cached context (template + reference docs) differs per artifact; cross-artifact resume would carry stale context. Each mini-session keys its own state file independently.
-- **Saving target.** Mini-session 6 (infrastructure) is typically the largest, with spec-author loading kernel + infrastructure template + tech-stack + ci-cd + data-architecture + engineer-supplied infra sources. Resume after interruption saves the cache-create cost on that prefix; spawn handles cold start correctly.
 
 ## Outputs
 
