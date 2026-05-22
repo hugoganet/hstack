@@ -1,14 +1,14 @@
 ---
 name: hstack-story-draft
 description: |
-  Use this skill when a user-facing change needs a story drafted or refined, anchored on an existing persona, with a concrete success metric and the user-visible edge cases enumerated. The Skill orchestrates the `product-manager` subagent and is conditional — it does not run when the parent change-spec has `internal-tooling: true`. Examples:
+  Use this skill when a user-facing change needs a story drafted or refined, anchored on an existing persona, with a concrete success metric and the user-visible edge cases enumerated. The Skill orchestrates the `product-manager` subagent and is conditional — it does not run when the parent change-spec is Category A (`internal-tooling: true`) or Category B (`enables` non-empty), since both carve-outs satisfy SP-09 without a story. Examples:
 
   <example>
   Context: The engineer just scaffolded a billing-overage change-spec and needs a linked user story before SP-09 lets the spec advance past draft.
   user: "Draft a story for the billing overage warning, anchored on the growth-marketer persona."
   assistant: "I'll invoke product-manager to walk the five story sections with the growth-marketer persona as the anchor. The story id will land in the configured story store; the change-spec's user-stories array updates reciprocally."
   <commentary>
-  Stories are gated by SP-09 (`user-stories` non-empty unless `internal-tooling: true`). The Skill produces the story before the change-spec can advance, and writes the reciprocal `linked-change-specs` entry on the story.
+  Stories are gated by SP-09 (`user-stories` non-empty UNLESS `internal-tooling: true` UNLESS `enables` non-empty). The Skill produces the story before the change-spec can advance, and writes the reciprocal `linked-change-specs` entry on the story.
   </commentary>
   </example>
 
@@ -36,7 +36,7 @@ tools:
 
 ## Purpose
 
-`hstack-story-draft` produces or refines one user story by orchestrating the `product-manager` subagent. It maintains the reciprocal `user-stories` ↔ `linked-change-specs` linkage between the story and its parent change-spec. It is conditional — skipped automatically for changes marked `internal-tooling: true`.
+`hstack-story-draft` produces or refines one user story by orchestrating the `product-manager` subagent. It maintains the reciprocal `user-stories` ↔ `linked-change-specs` linkage between the story and its parent change-spec. It is conditional — skipped automatically for changes marked Category A (`internal-tooling: true`) or Category B (`enables` non-empty). For Category B, the user value lives in the downstream change-spec(s) named in `enables`; the story (if any) is drafted against that downstream spec, not this one.
 
 ## When to invoke
 
@@ -56,7 +56,9 @@ Before any work:
 - Verify the parent change-spec exists when `--change` is provided or when context implies it.
 - Verify `hstack/context/personas/` (or the configured personas store) contains at least one persona at `status: current`.
 - Verify the configured story store's MCP is reachable when the store is Notion / Linear / GitHub. If unreachable, halt — the kernel forbids silent fallback to a different store.
-- If the parent change-spec carries `internal-tooling: true`, halt and surface a "story not required" message.
+- If the parent change-spec carries `internal-tooling: true`, halt and surface: "Story not required — change is Category A (internal tooling, never on a user path)."
+- If the parent change-spec carries `enables` non-empty, halt and surface: "Story not required — change is Category B (foundational prerequisite; user value lives in <enables-ids>). Draft a story against the downstream spec instead."
+- If the parent change-spec carries BOTH `internal-tooling: true` AND `enables` non-empty, halt with SP-13 violation: "Categories A and B are mutually exclusive. Pick one via `spec-author`."
 - Read `hstack/context/vision.md`, `mvp-scope.md`, and the personas index (required by `product-manager`'s session-start protocol).
 
 ## Orchestration steps
@@ -104,7 +106,7 @@ Beyond the kernel's general stop conditions:
 
 ## Failure modes
 
-- **Parent change-spec is `internal-tooling: true`.** Halt early; the story is unnecessary.
+- **Parent change-spec is `internal-tooling: true` (Category A) or `enables` non-empty (Category B).** Halt early; the story is unnecessary. For Category B, redirect the engineer to draft a story against the downstream change-spec named in `enables`.
 - **Reciprocal write to the parent change-spec would advance its status.** It should not — the reciprocal write only touches the `user-stories` array. If the validator detects a status change, halt and ask.
 - **Validator fails.** Halt and surface; the engineer rewords the failing field.
 

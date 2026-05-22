@@ -47,7 +47,7 @@ tools:
 
 ## When to invoke
 
-Invoke once the change-spec is at `status: ready-for-implementation` (which means every upstream gate is terminal: test-plan at `passed` or `concerns-acknowledged`, plan at `ready`, security-review at `passed` or `concerns-acknowledged`, data-review at `passed` or `concerns-acknowledged` when applicable, ui-brief at `drafted` and figma-handoff at `ready` when applicable, user-stories non-empty unless internal-tooling). One invocation per phase. Re-invoke for each subsequent phase.
+Invoke once the change-spec is at `status: ready-for-implementation` (which means every upstream gate is terminal: test-plan at `passed` or `concerns-acknowledged`, plan at `ready`, security-review at `passed` or `concerns-acknowledged`, data-review at `passed` or `concerns-acknowledged` when applicable, ui-brief at `drafted` and figma-handoff at `ready` when applicable, user-stories non-empty UNLESS `internal-tooling: true` UNLESS `enables` non-empty). One invocation per phase. Re-invoke for each subsequent phase.
 
 ## Inputs
 
@@ -64,7 +64,7 @@ Before any work — the Skill re-checks every gate even when the change-spec car
 - Security-review at `status: passed` or `concerns-acknowledged`.
 - Data-review at `status: passed` or `concerns-acknowledged` when `surfaces` includes `db`.
 - ui-brief at `status: drafted` and figma-handoff at `status: ready` when `surfaces` includes `ui`.
-- User-stories non-empty unless `internal-tooling: true`.
+- User-stories non-empty UNLESS `internal-tooling: true` (Category A — engineering-only) UNLESS `enables` non-empty (Category B — foundational prerequisite; user value lives in the named downstream change-spec). SP-13: `internal-tooling: true` and `enables` non-empty are mutually exclusive; if both are set, halt with an SP-13 violation message and direct the engineer to `spec-author` to pick one.
 - The relevant module-spec at `status: current`.
 - **Branch state.** Run `git branch --show-current`. If the current branch is `main` (or the configured default) AND `change-spec.trivial` is not `true`, HARD HALT with: "Refusing to implement on `main` — change-spec `<id>` is not marked trivial. Check out `change/<id>` first, or run `/hstack:branch <id>` to create-and-switch." Trivial changes (`trivial: true`) may proceed on main per the kernel's trivial-changes carve-out. This check enforces the kernel's branch-hygiene contract at the last moment before code lands.
 

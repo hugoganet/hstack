@@ -13,7 +13,9 @@ resolves-tech-debt: []                 # tech-debt ids this change is intended t
 parent-change: null
 children: []
 revisits-change: []                    # change-spec ids this change is filed to repair (defects, regressions, missed findings). Informational, not gating.
-internal-tooling: false
+internal-tooling: false                 # Category A — engineering-only, never on a user path
+enables: []                              # Category B — downstream change-spec ids that realize user value from this change
+enabled-by: []                           # reciprocal of upstream specs' `enables` arrays; written by /hstack:change-new at scaffold time
 trivial: false
 in-scope: []                           # repo-relative globs; must be non-empty
 out-of-scope: []                       # required, may be empty
