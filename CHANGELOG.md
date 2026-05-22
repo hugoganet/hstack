@@ -2,15 +2,26 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [Unreleased] — 0.1.0
 
 ### Added
-- npm package scaffolding (`package.json`, `tsconfig.json`, `src/cli.ts`).
-- `template/` directory now holds framework files shipped to consumers (`CLAUDE.md`, `templates/`, `.claude/`, `scripts/telemetry/`).
+- **CLI installer.** Three commands shipped on the `hstack` npm package:
+  - `hstack init` — copies `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md`, adds `**/.telemetry/` to `<consumer>/.gitignore`, stamps `<consumer>/hstack/VERSION`. Flags: `--yes`, `--force`, `--dry-run`.
+  - `hstack update` — diffs `template/` vs `<consumer>/hstack/` at file granularity, surfaces an add/overwrite/remove/symlink-delta plan, prompts for confirmation, then executes. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Flags: `--yes`, `--force`, `--dry-run`, `--verbose`.
+  - `hstack doctor` — read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines. Exits 1 on findings.
+- `template/` directory holds framework files distributed to consumers (`CLAUDE.md`, `templates/`, `.claude/agents/`, `.claude/skills/`, `scripts/telemetry/`).
+- `src/manifest.ts` is the canonical framework-vs-user-content boundary.
 - `VERSION` and `CHANGELOG.md` at repo root.
+- macOS and Linux supported; Windows is hard-failed at `hstack init` until v2.
 
 ### Changed
 - Framework files relocated from repo root into `template/`. Consumer-facing layout is unchanged — consumers still see `hstack/CLAUDE.md`, `hstack/templates/`, etc. after install.
+- README installation section: `npx hstack init` is now the documented path; manual `cp -r` is the legacy fallback.
+
+### Known limitations (v0.1)
+- No local-edit detection: `hstack update` overwrites consumer hand-edits without warning; the diff preview is the only signal. Hash-manifest mode is planned for v0.2.
+- No CI for the CLI itself; coverage is manual smoke tests across happy / negative paths plus one real consumer (moso-app).
+- No migration scripts: template schema changes between versions need CHANGELOG-driven manual action.
 
 ## [0.1.0] - 2026-05-22
 
