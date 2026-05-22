@@ -137,6 +137,8 @@ Per-type fields extend this floor. The full per-type schema is authoritative in 
 
 Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601; controlled enums are case-sensitive; arrays are YAML arrays, never comma-separated strings.
 
+**Change-spec carries an optional `revisits-change` array.** When a new change-spec is filed to fix a defect, regression, or missed adversarial-review finding from a prior shipped change, the engineer populates `revisits-change: [<predecessor-change-id>]` so post-merge defect correlation is computable (`/hstack:telemetry` § QO-6 when promoted from watch-list to dashboard). Default empty. The field is informational, not gating — no Skill refuses to advance because the array is empty or non-empty.
+
 ---
 
 ## Status lifecycle
@@ -214,6 +216,7 @@ The kernel rule reading: *"spec-author is the only **subagent** permitted to wri
 - **Auto-commit at every status transition** — the audit trail is identical to subagent-driven commits.
 - **Atomicity for reciprocal pairs** — both halves of a reciprocal write land in the same commit; partial writes are not permitted. *Carve-out for finalize-in-progress*: when `/hstack:finalize` resolves multiple TDs, the change-spec advances to `shipped` only after every TD has landed. During the window between the first TD's `resolved` commit and the change-spec's `shipped` commit, on-disk state shows TDs at `resolved` while the change-spec is still at `ready-to-ship` — this is intentional and recoverable. The Forbidden-no-matter-what bullet "Never flip a tech-debt to resolved without an accompanying change-spec at shipped" applies to **standing** state (post-finalize), not the transient window during a single finalize invocation.
 - **Idempotency** — re-running a Skill detects already-landed transitions and produces no-ops for them.
+- **Telemetry sidecars (when emitted) ride the same commit.** Five Skills (`hstack-test-plan`, `hstack-implement`, `hstack-verify`, `hstack-adversarial-review`, `hstack-finalize`) write a small JSON sidecar to `hstack/specs/changes/<id>/.telemetry/<skill>-<event>.json` at the same `git add && git commit` as their canonical artifact write. The sidecar is **derivative** of git + frontmatter — re-runnable from source, never authoritative. The kernel's "no parallel tracker" rule is preserved by this derivative property. `.telemetry/` is git-ignored in the consuming repo; the sidecar is a cache, not a source. Schema and rules live in `hstack/templates/telemetry-sidecar.md`. The five emissions cover the full per-change lifecycle's high-signal events: test discipline up front, scope-locked per-phase execution, promised-vs-observed verification, gate-firing critique, lifecycle close. The other 22 Skills do not emit sidecars in v1; adding a sixth is a follow-up change-spec, not a unilateral Skill edit.
 
 **Anti-patterns specific to mechanical operations:**
 
@@ -342,6 +345,18 @@ A Skill or subagent must halt and ask the human when:
 - The agent is asked to write a field for which the human has not provided an answer.
 
 Halting is not failure. It is the correct response when preconditions are not met.
+
+### Halt sentinel
+
+When a Skill or subagent halts at any of the stop conditions above, it emits one line into its conversation output:
+
+```
+HSTACK-HALT: reason=<enum>
+```
+
+Where `<enum>` is one of: `scope-amendment | upstream-non-terminal | mcp-unreachable | forbidden-tool | test-immutability-protocol | missing-context | ambiguous-spec | environment-misconfig | branch-mismatch | other`.
+
+The sentinel is a single line, costs zero LLM tokens to emit, and makes post-hoc halt-frequency analysis cheap (see `/hstack:telemetry` § WS-6). The sentinel is appended to the auto-commit body when a halt coincides with a status-flip commit; otherwise it appears in the conversation alone (the telemetry parser reads both transcript text and commit bodies). Halting still includes the prose explanation of the situation — the sentinel does not replace the human-readable reason, it complements it.
 
 ---
 

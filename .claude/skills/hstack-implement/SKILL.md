@@ -117,6 +117,28 @@ The change-spec is never written by the implementer or by this Skill (architectu
 - One commit when the phase completes and `steps-completed` advances. Commit message: `implement(<change-id>) <task-id>`.
 - An additional commit when `plan.status` advances to `completed` after the final phase.
 
+## Telemetry sidecar
+
+At the phase-completion auto-commit above, write `hstack/specs/changes/<change-id>/.telemetry/implement-<task-id>.json` in the same `git add && git commit` as the canonical phase commit. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "skill": "hstack-implement",
+  "change_id": "<change-id>",
+  "phase_id": "<task-id>",
+  "started_at": "<ISO-8601, session start of this phase>",
+  "completed_at": "<ISO-8601, now>",
+  "files_touched_count": <int>,
+  "tests_written_count": <int, new test files only>,
+  "scope_amendment_emitted": <bool>,
+  "halt_reasons": [<kernel halt-sentinel enum values, if any>],
+  "test_immutability_authorizations": [<canonical phrase strings, if any>]
+}
+```
+
+`.telemetry/` is git-ignored in the consuming repo. The sidecar write must not introduce any new LLM turn or confirmation gate — it is a deterministic write bundled with the existing commit. If the sidecar write fails, log and continue; the canonical commit must still land.
+
 ## Idempotency contract
 
 - Re-running with the same `<task-id>` after the phase already landed: the subagent reads `steps-completed`, recognizes the phase as done, and produces a no-op diff. Re-running on a partially applied phase: the subagent reads current file state and applies only the remaining diff.

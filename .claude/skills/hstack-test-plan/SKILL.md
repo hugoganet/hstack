@@ -112,6 +112,34 @@ Before any work:
 - Edits to `tenant-isolation-tests` (because TS-03's gating depends on it).
 - Edits to `concerns-acknowledged-by` (because it gates the partial-layer path).
 
+## Telemetry sidecar
+
+At the terminal-status auto-commit above (`test-plan(<change-id>): passed` or `concerns-acknowledged`), write `hstack/specs/changes/<change-id>/.telemetry/test-plan.json` in the same `git add && git commit` as the canonical write. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "skill": "hstack-test-plan",
+  "change_id": "<change-id>",
+  "completed_at": "<ISO-8601, when terminal status reached>",
+  "status": "passed | concerns-acknowledged",
+  "coverage_layers": {<mirror of frontmatter coverage-layers map>},
+  "tenant_isolation_tests_count": <int, length of tenant-isolation-tests array>,
+  "tenant_isolation_required": <bool, true when surfaces includes db/api/agent>,
+  "performance_budgets_required": <bool>,
+  "performance_budgets_count": <int, rows in the Budgets table>,
+  "challenge_prompts_answered": <int, frontmatter field; must be 3 at terminal>,
+  "invariants_mapped_count": <int, length of invariants-mapped array>,
+  "invariants_declared_count": <int, count of bullets in change-spec Invariants>,
+  "edge_cases_count": <int, bullets in Edge Cases section>,
+  "test_files_named_count": <int, distinct test file paths referenced>,
+  "fixture_strategy_declared": <bool>,
+  "halt_reasons": [<kernel halt-sentinel enum values, if any>]
+}
+```
+
+Reason this sidecar matters: it makes the test-strategist's rubber-stamp signal cheap. A `passed` test-plan with `tenant_isolation_tests_count: 0` despite `tenant_isolation_required: true`, or `challenge_prompts_answered: 3` paired with zero invariants-mapped diff against declared, are the cases the telemetry layer's WS-2 and QO-1 metrics exist to surface. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
 ## Idempotency contract
 
 - Re-running on a terminal test-plan without spec changes: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps.
