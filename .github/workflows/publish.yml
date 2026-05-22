@@ -1,0 +1,41 @@
+name: publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME (-> $tag_version) does not match package.json version $pkg_version"
+            exit 1
+          fi
+          if [ "$tag_version" != "$file_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME (-> $tag_version) does not match VERSION file ($file_version)"
+            exit 1
+          fi
+
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
