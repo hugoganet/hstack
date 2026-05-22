@@ -4,9 +4,9 @@ description: |
   Use this skill when the engineer has decided that an `acknowledged` (or `open`) kernel-fit finding warrants a kernel change captured as an ADR. The Skill seeds the finding's Evidence + Kernel surface + Proposed direction into an ADR Context section and routes through `/hstack:adr-new --from-kernel-fit <id> --slug <slug>`, where `spec-author` runs the normal Nygard interview — the human gate the kernel's "AI writes, humans confirm" contract requires at the kernel-modification layer. After the ADR lands, the Skill writes the reciprocal `promoted-to` back-reference on the finding and flips it to `status: promoted`. Two commits in v1 — the ADR commit (from `adr-new`) and the back-reference commit (from this Skill); see Failure modes for the recoverable-two-commit carve-out (analogous to the `/hstack:finalize` in-progress carve-out). Examples:
 
   <example>
-  Context: The engineer reviewed KF-0001 (KF-P1, internal-tooling flag conflation), acknowledged it via triage last week, and now wants to land an ADR splitting the flag.
-  user: "/hstack:kernel-fit-promote KF-0001 --slug internal-tooling-split-foundational-prerequisite"
-  assistant: "I'll read KF-0001, verify status (open or acknowledged), construct the ADR Context seed from Evidence + Kernel surface + Proposed direction, and invoke `/hstack:adr-new --from-kernel-fit KF-0001 --slug internal-tooling-split-foundational-prerequisite`. spec-author runs the Nygard interview — Title, Status, Context (seeded), Decision, Consequences (with the challenge prompt), Alternatives Considered. After the ADR lands at terminal status, I'll write `promoted-to: adr:ADR-NNNN-...` on KF-0001, flip status to `promoted`, append a Triage Log entry, and commit. The ADR commit and the back-reference commit are separate — see Failure modes for the recoverable carve-out."
+  Context: The engineer reviewed KF-0001 (KF-P1, Category-A claim spans production paths), acknowledged it via triage last week, and now wants to land an ADR tightening the SP-13 guidance.
+  user: "/hstack:kernel-fit-promote KF-0001 --slug sp-13-prose-guidance-tightening"
+  assistant: "I'll read KF-0001, verify status (open or acknowledged), construct the ADR Context seed from Evidence + Kernel surface + Proposed direction, and invoke `/hstack:adr-new --from-kernel-fit KF-0001 --slug sp-13-prose-guidance-tightening`. spec-author runs the Nygard interview — Title, Status, Context (seeded), Decision, Consequences (with the challenge prompt), Alternatives Considered. After the ADR lands at terminal status, I'll write `promoted-to: adr:ADR-NNNN-...` on KF-0001, flip status to `promoted`, append a Triage Log entry, and commit. The ADR commit and the back-reference commit are separate — see Failure modes for the recoverable carve-out."
   <commentary>
   The promote Skill is the only path that elevates a kernel-fit finding to an ADR. The kernel's "AI writes, humans confirm" contract is preserved because `/hstack:adr-new`'s spec-author interview is the human gate; the engineer reviews and confirms every Nygard section before the ADR lands. The promote Skill itself performs no field-level interview — it is a mechanical wrapper plus a reciprocal back-reference write per ADR-0001.
   </commentary>
@@ -62,7 +62,7 @@ Do NOT invoke when:
 
 ## Inputs
 
-- `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-internal-tooling-flag-conflation` or the short form `KF-0001`.
+- `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-category-a-claim-spans-production` or the short form `KF-0001`.
 - `--slug <text>` (required): kebab-case slug for the destination artifact. Passed through to the authoring Skill (`/hstack:adr-new --slug <text>` or `/hstack:tech-debt-new --slug <text>`).
 - `--target <adr | tech-debt>` (optional, default `adr`): destination artifact type. ADR is the primary path; tech-debt is the secondary path for findings that name a gap but do not yet have a defensible Decision section.
 
@@ -155,7 +155,7 @@ Beyond the kernel's general stop conditions:
 
 ## Anti-patterns
 
-- Never auto-promote without engineer invocation. The contract is non-negotiable per ADR-0003.
+- Never auto-promote without engineer invocation. The contract is non-negotiable per ADR-0004.
 - Never promote a finding at `low` confidence without a real reason. The analyst encoded a signal by setting confidence; ignoring it is a smell.
 - Never edit the finding's body (Evidence, Kernel surface, Proposed direction, Counter-explanations, Confidence rationale) during promote. Those are the analyst's domain and are immutable from this Skill's perspective. The Triage Log append and the four frontmatter changes (status, promoted-to, owner, updated) are the only writes permitted.
 - Never write the ADR or TD body. That is `spec-author`'s job, routed via the authoring Skill. Even pre-filling the Decision section based on the finding's Proposed direction is forbidden — the engineer's Decision must engage with the kernel-change question fresh.

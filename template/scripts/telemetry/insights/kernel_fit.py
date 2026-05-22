@@ -4,15 +4,18 @@ This module is the detection layer of the kernel-fit closed-loop system. It
 pattern-matches across shipped artifacts and emits evidence rows; an LLM
 subagent (`kernel-fit-analyst`) then synthesizes findings from these rows.
 
-See ADR-0003 for the full design rationale and `template/CLAUDE.md` § How
+See ADR-0004 for the full design rationale and `template/CLAUDE.md` § How
 hstack improves itself for the loop contract.
 
 Three starter patterns:
 
-- KF-P1 — `internal-tooling-conflates-categories`: changes with
-  `internal-tooling: true` whose in-scope spans production-code paths and
-  whose later consumers (other change-specs, commits) reveal user-value flow
-  the flag did not capture.
+- KF-P1 — `category-a-claim-spans-production-paths`: changes flagged
+  `internal-tooling: true` (Category A — engineering-only) whose `in-scope`
+  touches production-code paths AND whose `enables` array is empty.
+  Under the post-PR-#5 schema (`enables` ↔ `enabled-by`, SP-13/SP-14),
+  this is the engineer mis-classifying what should be Category B
+  (foundational prerequisite) as Category A. The in-scope-overlap
+  heuristic surfaces candidate downstream consumers as evidence.
 - KF-P2 — `halt-reason-cluster-uncovered-by-enum`: halt sentinels with
   `reason=other` whose surrounding prose clusters above the Jaccard
   threshold, suggesting the enum is missing a case.
@@ -83,7 +86,7 @@ def compute(commits: list[dict], changes: dict, tech_debt: list[dict],
     existing = _load_existing_findings(findings_dir)
     return {
         "existing_open_findings_by_pattern": existing,
-        "kf_p1_internal_tooling_conflates_categories": _kf_p1(changes, commits),
+        "kf_p1_category_a_claim_spans_production_paths": _kf_p1(changes, commits),
         "kf_p2_halt_reason_cluster_uncovered_by_enum": _kf_p2(commits, session_rows),
         "kf_p3_skill_precondition_violated_and_recoverable": _kf_p3(changes, commits),
     }
@@ -129,7 +132,7 @@ def _classify_inscope_paths(in_scope: list) -> tuple[list[str], list[str]]:
         if not path:
             continue
         # Normalize leading "./" and any glob suffixes for prefix checking.
-        normalized = path.lstrip("./")
+        normalized = path[2:] if path.startswith("./") else path
         if any(normalized.startswith(p) for p in INTERNAL_ONLY_PREFIXES):
             internal_only.append(path)
         else:
@@ -147,7 +150,7 @@ def _forward_consumers(this_change_id: str, this_in_scope: list[str],
     # each in-scope entry as a prefix; this is forgiving (catches edits inside
     # subdirs) and matches what `internal-tooling: true` plumbing changes
     # typically introduce (a dir of new types or a new module).
-    prefixes = {p.lstrip("./").rstrip("/*") for p in this_in_scope}
+    prefixes = {(p[2:] if p.startswith("./") else p).rstrip("/*") for p in this_in_scope}
 
     consumers: set[str] = set()
 
@@ -162,7 +165,7 @@ def _forward_consumers(this_change_id: str, this_in_scope: list[str],
         for entry in other_in_scope:
             if not isinstance(entry, str):
                 continue
-            normalized = entry.lstrip("./")
+            normalized = entry[2:] if entry.startswith("./") else entry
             if any(normalized.startswith(p) for p in prefixes):
                 consumers.add(other_id)
                 break
@@ -174,7 +177,7 @@ def _forward_consumers(this_change_id: str, this_in_scope: list[str],
         if not cid or cid == this_change_id:
             continue
         for f in c.get("files", []):
-            normalized = f.lstrip("./")
+            normalized = f[2:] if f.startswith("./") else f
             if any(normalized.startswith(p) for p in prefixes):
                 consumers.add(cid)
                 break
@@ -183,9 +186,13 @@ def _forward_consumers(this_change_id: str, this_in_scope: list[str],
 
 
 def _kf_p1(changes: dict, commits: list[dict]) -> dict:
-    """KF-P1 — internal-tooling flag may conflate Category A (true internal
-    tooling) and Category B (foundational prerequisite with deferred user
-    value). Fires on >= KF_P1_MIN_ROWS candidate Category-B rows.
+    """KF-P1 — Category A (`internal-tooling: true`) claims whose `in-scope`
+    spans production-code paths AND whose `enables` array is empty. Under
+    the post-PR-#5 schema, this is the engineer mis-classifying what should
+    be Category B (foundational prerequisite) as Category A. SP-13 makes
+    A and B mutually exclusive at the validator level; KF-P1 catches the
+    case the validator cannot — claiming A when the in-scope reveals B.
+    Fires on >= KF_P1_MIN_ROWS candidate rows.
     """
     rows: list[dict] = []
     for cid, arts in changes.items():
@@ -198,45 +205,49 @@ def _kf_p1(changes: dict, commits: list[dict]) -> dict:
         if not fm.get("internal-tooling"):
             continue
         in_scope = fm.get("in-scope") or []
-        user_stories = fm.get("user-stories") or []
+        enables = fm.get("enables") or []
         internal_paths, production_paths = _classify_inscope_paths(in_scope)
-        # Classification heuristic:
-        # - no production paths              → "true-internal-tooling" (Cat A)
-        # - has production paths, no stories → "foundational-prerequisite" (Cat B candidate)
-        # - has production paths, has stories → "ambiguous" (rare; flag for review)
+        # Classification (post-PR-#5 schema; SP-13 enforces mutual exclusivity):
+        # - no production paths → "true-category-a" (correctly classified)
+        # - has production paths AND enables empty → "category-b-misclassified" (bug)
+        # - has production paths AND enables non-empty → impossible under SP-13;
+        #   if observed the validator failed and the analyst surfaces it separately
         if not production_paths:
-            classification = "true-internal-tooling"
-        elif not user_stories:
-            classification = "foundational-prerequisite"
+            classification = "true-category-a"
+        elif not enables:
+            classification = "category-b-misclassified"
         else:
-            classification = "ambiguous"
+            # SP-13 violation should not reach here in a validated repo; flag
+            # explicitly so the analyst can route to a validator-bug finding.
+            classification = "sp-13-violation"
         consumers: list[str] = []
-        if classification != "true-internal-tooling":
+        if classification == "category-b-misclassified":
             consumers = _forward_consumers(cid, production_paths or in_scope, changes, commits)
         rows.append({
             "change": cid,
             "internal_only_paths_count": len(internal_paths),
             "production_paths_count": len(production_paths),
-            "user_stories_count": len(user_stories),
+            "enables_count": len(enables),
             "downstream_consumers": consumers,
             "classification_candidate": classification,
         })
 
     candidate_rows = [r for r in rows
-                      if r["classification_candidate"] == "foundational-prerequisite"]
+                      if r["classification_candidate"] == "category-b-misclassified"]
     fired = len(candidate_rows) >= KF_P1_MIN_ROWS
     return {
         "pattern_id": "KF-P1",
-        "pattern_name": "internal-tooling-conflates-categories",
+        "pattern_name": "category-a-claim-spans-production-paths",
         "fired": fired,
         "evidence_row_count": len(candidate_rows),
         "min_rows_for_firing": KF_P1_MIN_ROWS,
         "all_rows": rows,
         "evidence_rows": candidate_rows,
-        "note": ("Changes with internal-tooling: true whose in-scope spans production paths "
-                 "and which lack a user story. Category B (foundational prerequisite) "
-                 "candidates suggest the kernel's internal-tooling flag conflates two "
-                 "semantically distinct cases."),
+        "note": ("Changes flagged `internal-tooling: true` (Category A) whose in-scope "
+                 "spans production-code paths AND whose `enables` array is empty. Under "
+                 "the post-PR-#5 schema (Category A vs Category B with `enables`/`enabled-by`), "
+                 "this is the engineer mis-classifying what should be Category B as Category A. "
+                 "SP-13 catches the both-set case; KF-P1 catches the claim-A-while-looking-like-B case."),
     }
 
 

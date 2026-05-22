@@ -277,7 +277,7 @@ def _render_kernel_fit(lines: list[str], kf: dict) -> None:
     _p(lines, "Patterns suggesting the kernel itself (CLAUDE.md, templates, validators, Skill "
               "flows) may need revision. Each fired pattern is also written as a durable finding "
               "by `/hstack:kernel-fit-scan` at `hstack/kernel-fit/findings/KF-NNNN-*.md`. The "
-              "table below is a rollup; the findings are the canonical artifact. See ADR-0003.")
+              "table below is a rollup; the findings are the canonical artifact. See ADR-0004.")
 
     existing = kf.get("existing_open_findings_by_pattern", {})
     if existing:
@@ -286,7 +286,7 @@ def _render_kernel_fit(lines: list[str], kf: dict) -> None:
                   + "(" + ", ".join(f"{p}: {len(ids)}" for p, ids in sorted(existing.items())) + ")")
 
     patterns = [
-        ("kf_p1_internal_tooling_conflates_categories", "KF-P1 — internal-tooling-conflates-categories"),
+        ("kf_p1_category_a_claim_spans_production_paths", "KF-P1 — category-a-claim-spans-production-paths"),
         ("kf_p2_halt_reason_cluster_uncovered_by_enum", "KF-P2 — halt-reason-cluster-uncovered-by-enum"),
         ("kf_p3_skill_precondition_violated_and_recoverable", "KF-P3 — skill-precondition-violated-and-recoverable"),
     ]
@@ -302,12 +302,12 @@ def _render_kernel_fit(lines: list[str], kf: dict) -> None:
             _p(lines, f"_(not fired — {rc} evidence row(s); threshold not met)_")
 
         # Per-pattern row rendering.
-        if key == "kf_p1_internal_tooling_conflates_categories":
+        if key == "kf_p1_category_a_claim_spans_production_paths":
             rows = block.get("evidence_rows", [])
             _table(
                 lines,
-                ["change", "production paths", "user stories", "downstream consumers", "classification"],
-                [[r["change"], r["production_paths_count"], r["user_stories_count"],
+                ["change", "production paths", "enables", "downstream consumers", "classification"],
+                [[r["change"], r["production_paths_count"], r["enables_count"],
                   ", ".join(r["downstream_consumers"][:3]) + ("…" if len(r["downstream_consumers"]) > 3 else ""),
                   r["classification_candidate"]]
                  for r in rows[:10]],
@@ -366,7 +366,7 @@ def _render_watch_list(lines: list[str], metrics: dict) -> None:
     # Kernel-fit fired patterns
     kf = metrics.get("kernel_fit", {})
     for key, label in (
-        ("kf_p1_internal_tooling_conflates_categories", "KF-P1"),
+        ("kf_p1_category_a_claim_spans_production_paths", "KF-P1"),
         ("kf_p2_halt_reason_cluster_uncovered_by_enum", "KF-P2"),
         ("kf_p3_skill_precondition_violated_and_recoverable", "KF-P3"),
     ):

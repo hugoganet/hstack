@@ -20,7 +20,7 @@ schema-version: 1
 
 ## Title
 
-_Short noun phrase naming the kernel-fit gap. Example: "internal-tooling flag conflates two categories."_
+_Short noun phrase naming the kernel-fit gap. Example: "Category-A claim spans production paths — engineer likely meant Category B."_
 
 ## Pattern fired
 

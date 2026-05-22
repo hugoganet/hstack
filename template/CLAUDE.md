@@ -405,7 +405,7 @@ hstack ships a closed-loop system for detecting when the kernel itself — this 
 
 - **The analyst never writes ADRs, change-specs, or edits existing findings** (one carve-out: it may set `status: superseded` on a prior finding when restating it more cleanly). Promotion is engineer-initiated and routes through the established authoring Skills. Auto-creation of ADRs is forbidden — the kernel's "AI writes, humans confirm" contract applies most forcefully at the kernel-modification layer, where the cost of a bad ADR cascades through every subsequent change.
 
-The loop is the smallest expression of the kernel reasoning about itself without auto-modifying itself. v1 honesty: the analyst's output is an LLM-strategized judgment, not measured truth; the counter-explanation challenge is the false-positive mitigation. Same framing rule as `test-strategist` and `security-reviewer`. See ADR-0003 for the rationale; see `template/templates/kernel-fit-finding.md` for the artifact schema.
+The loop is the smallest expression of the kernel reasoning about itself without auto-modifying itself. v1 honesty: the analyst's output is an LLM-strategized judgment, not measured truth; the counter-explanation challenge is the false-positive mitigation. Same framing rule as `test-strategist` and `security-reviewer`. See ADR-0004 for the rationale; see `template/templates/kernel-fit-finding.md` for the artifact schema.
 
 ---
 

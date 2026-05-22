@@ -1,7 +1,7 @@
 ---
 name: hstack-kernel-fit-scan
 description: |
-  Use this skill when the engineer wants to scan for kernel-fit gaps — patterns in shipped practice suggesting the kernel itself (CLAUDE.md, templates, validators, Skill flows) needs revision. The Skill runs the detection layer (`scripts/telemetry/run_kernel_fit.py`), invokes the `kernel-fit-analyst` subagent to synthesize one finding file per fired pattern, then nudges Slack on `high`/`medium` confidence findings with a 14-day dedup gate. Findings land at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`; the disk artifact is canonical, Slack is a side-channel pointer with graceful degradation when MCP is unwired. Promotion to a kernel change is human-gated via `/hstack:kernel-fit-promote`. See ADR-0003.
+  Use this skill when the engineer wants to scan for kernel-fit gaps — patterns in shipped practice suggesting the kernel itself (CLAUDE.md, templates, validators, Skill flows) needs revision. The Skill runs the detection layer (`scripts/telemetry/run_kernel_fit.py`), invokes the `kernel-fit-analyst` subagent to synthesize one finding file per fired pattern, then nudges Slack on `high`/`medium` confidence findings with a 14-day dedup gate. Findings land at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`; the disk artifact is canonical, Slack is a side-channel pointer with graceful degradation when MCP is unwired. Promotion to a kernel change is human-gated via `/hstack:kernel-fit-promote`. See ADR-0004.
 
   <example>
   Context: The engineer wants a weekly kernel-fit scan after shipping several changes.
@@ -173,7 +173,7 @@ What you do NOT need to do: no code to write, no hook to install. The Skill is p
 ## Anti-patterns
 
 - Never invoke the `kernel-fit-analyst` subagent when no patterns fired. Empty invocations waste tokens and produce nothing.
-- Never auto-promote a finding to an ADR. Promotion is a separate, human-invoked Skill (`/hstack:kernel-fit-promote`). The contract is non-negotiable per ADR-0003.
+- Never auto-promote a finding to an ADR. Promotion is a separate, human-invoked Skill (`/hstack:kernel-fit-promote`). The contract is non-negotiable per ADR-0004.
 - Never silently retry Slack on transient failure. The disk artifact is canonical; the engineer's `/hstack:help` covers the missed-notification case.
 - Never write outside `hstack/kernel-fit/findings/` or modify any artifact not produced by the analyst this run. This Skill orchestrates; it does not author.
 - Never claim the analyst's output is measured truth. Frame every finding as LLM-strategized judgment per the kernel's v1 / v2 split rule.

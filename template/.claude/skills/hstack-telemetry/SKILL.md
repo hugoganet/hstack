@@ -38,7 +38,7 @@ The report covers six buckets:
 3. **Quality outcomes** — QO-2 severity × resolution-type mix, QO-3 test-immutability audit, QO-4 verifier observed-vs-promised.
 4. **Overengineering** — OE-1 artifact tokens per diff line, OE-3 subagent invocations × host cost, OE-5 trivial-eligible changes that ran the full gauntlet.
 5. **Contract drift** — module-spec staleness × recent commit activity, ADR supersession lag, tech-debt half-life by exit path.
-6. **Kernel-fit candidates** — KF-P1 internal-tooling flag conflation, KF-P2 halt-reason cluster, KF-P3 missed-gate recovery. Detection-only rollup; the canonical findings live at `hstack/kernel-fit/findings/` and are produced by `/hstack:kernel-fit-scan`. See ADR-0003.
+6. **Kernel-fit candidates** — KF-P1 Category-A claim spans production paths (post-PR-#5 misclassification), KF-P2 halt-reason cluster, KF-P3 missed-gate recovery. Detection-only rollup; the canonical findings live at `hstack/kernel-fit/findings/` and are produced by `/hstack:kernel-fit-scan`. See ADR-0004.
 
 A watch-list at the report bottom surfaces anomalies (low cache-hit Skills, high-severity findings resolved as `justified-in-prose`, candidate test-immutability violations, scope-amendment rate above 30%, module drift, fired kernel-fit patterns).
 

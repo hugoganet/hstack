@@ -4,7 +4,7 @@ description: |
   Use this skill when the engineer wants to triage an open kernel-fit finding — either acknowledge it (intent to act, not yet promoted) or dismiss it (won't pursue). The Skill is mechanical per ADR-0001: structured-elicitation loop, proposed-diff preview, Y/n confirmation, direct `Edit` writes, one atomic commit. No subagent invoked. Promotion to an ADR is a separate Skill (`/hstack:kernel-fit-promote`); this Skill never touches ADRs or change-specs. Examples:
 
   <example>
-  Context: The engineer received a Slack nudge about KF-0001 (KF-P1, internal-tooling flag conflation) and wants to acknowledge it for later promotion.
+  Context: The engineer received a Slack nudge about KF-0001 (KF-P1, Category-A claim with production paths) and wants to acknowledge it for later promotion.
   user: "/hstack:kernel-fit-triage KF-0001 --action acknowledge"
   assistant: "I'll read KF-0001, print it in full, show the proposed-diff (status: open → acknowledged; owner: <git-handle>; updated: today; Triage Log entry appended), wait for Y/n, then Edit + commit `kernel-fit(KF-0001): acknowledge`. No reason is required for acknowledge. If you later decide to promote, run `/hstack:kernel-fit-promote KF-0001 --slug <adr-slug>`."
   <commentary>
@@ -57,7 +57,7 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
 ## Inputs
 
-- `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-internal-tooling-flag-conflation` or the short form `KF-0001` (the Skill resolves the latter to the matching file via glob).
+- `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-category-a-claim-spans-production` or the short form `KF-0001` (the Skill resolves the latter to the matching file via glob).
 - `--action <acknowledge | dismiss>` (required): the triage action.
 - `--reason <text>` (required when `--action dismiss`; forbidden when `--action acknowledge`): the dismissal rationale. Must be ≥50 characters per KF-05.
 
