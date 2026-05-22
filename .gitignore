@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 .session-state/
 **/.telemetry/
+
+# npm package build artifacts
+node_modules/
+dist/
+*.tsbuildinfo

@@ -23,92 +23,62 @@ A thin, opinionated layer on top of Claude Code that governs how engineers and A
 
 ## Installation
 
-hstack vendors into the consuming repo at the path `hstack/` relative to the repo root. Submodule and CLI-installer distribution are deferred until the framework has run on real changes.
-
-From the consuming repo root:
+hstack installs into the consuming repo at the path `hstack/` relative to the repo root via an npm-distributed CLI.
 
 ```
-# vendor the framework (v0 recommended)
-cp -r /path/to/hstack ./hstack
-git add hstack && git commit -m "vendor hstack v0"
+# from the consuming repo root (must be a git repo with a clean working tree)
+npx hstack@latest init
 ```
 
-### Wire the workflow into the consuming repo's `.claude/`
+`hstack init` copies the framework files under `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md`, and adds `**/.telemetry/` to `<consumer>/.gitignore`. Use `--dry-run` to preview the plan, `--yes` to skip the confirmation prompt, `--force` to override the dirty-working-tree check.
 
-Claude Code reads agents and skills from `.claude/` at the working directory's root. To make hstack discoverable from a session opened at the consuming repo's root (rather than requiring the engineer to `cd hstack/`), wire them via symlinks. Symlinks keep `hstack/` as the single source of truth and eliminate drift.
+The CLI ships three commands:
 
-From the consuming repo root:
+| Command | What it does |
+| --- | --- |
+| `npx hstack init` | First-time install. Halts if `<consumer>/hstack/` already exists. |
+| `npx hstack update` | Sync framework files to the package version. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Surfaces a diff plan before writing. |
+| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines. Exits 1 on any finding. |
+
+The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/CLAUDE.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/VERSION`. **What they never touch**: anything under the user-content paths above.
+
+### Manual install (legacy)
+
+If you prefer to vendor without the CLI — e.g., to pin to a specific git ref or develop against a fork — copy `template/` into the consuming repo and wire `.claude/` symlinks by hand:
 
 ```
-# Dir-level symlink for agents (no non-hstack agents expected at root)
-ln -s hstack/.claude/agents .claude/agents
-
-# Per-skill symlinks for hstack skills (preserves room for non-hstack skills —
-# e.g., notion-write, supabase — as real directories alongside)
+# from the consuming repo root
+cp -r /path/to/hstack/template ./hstack
+ln -s ../hstack/.claude/agents .claude/agents
 mkdir -p .claude/skills
 for d in hstack/.claude/skills/hstack-*/; do
   name=$(basename "$d")
   ln -s "../../hstack/.claude/skills/$name" ".claude/skills/$name"
 done
-
-# Make the kernel rules visible at the repo root by importing them into the
-# consuming repo's CLAUDE.md
 echo '> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/CLAUDE.md.' >> CLAUDE.md
+echo '**/.telemetry/' >> .gitignore
+git add hstack .claude CLAUDE.md .gitignore && git commit -m "vendor hstack"
 ```
+
+`hstack doctor` works against manually-vendored installs too. It will flag the missing `hstack/VERSION` marker as a warning until you run `hstack update --force` to stamp it.
 
 Why agents is dir-level but skills is per-skill: consuming repos may want non-hstack skills (e.g., `lyra`, `notion-write`) alongside hstack ones. A dir-level symlink for `.claude/skills/` would evict them. Agents has no such case in practice, so dir-level is cleaner there.
 
-Copy-based wiring (the older pattern) is also supported — copy `.claude/agents/` and `.claude/skills/hstack-*/` into the consuming repo's `.claude/` directly. The cost is duplication and drift on every hstack update; the symlink pattern is recommended.
+### Maintenance — keeping a consumer in sync
 
-### Maintenance — when adding or removing a Skill or subagent
+Run `npx hstack@latest update` whenever you want to pull the latest framework version. It diffs `template/` against the consumer's `hstack/`, prints a plan (added / modified / removed files plus symlink delta), prompts for confirmation, then executes. The agents dir-level symlink picks up new agents automatically; per-skill symlinks for `.claude/skills/hstack-*` are added or removed by `update` to match the framework state.
 
-The dir-level symlink for `.claude/agents/` means **new agents added under `hstack/.claude/agents/` need no further action** in the consuming repo — they appear automatically.
-
-The per-skill symlinks for `.claude/skills/hstack-*` mean **new skills require a per-skill symlink** in each consuming repo:
-
-```
-# From the consuming repo root, after the new skill exists at hstack/.claude/skills/hstack-<new>/
-ln -s "../../hstack/.claude/skills/hstack-<new>" ".claude/skills/hstack-<new>"
-git add .claude/skills/hstack-<new>
-```
-
-When **removing** a skill, also remove the consuming repo's symlink (broken symlinks are silently ignored by Claude Code but show as red in `ls`):
-
-```
-rm hstack/.claude/skills/hstack-<old>/   # in the source
-rm .claude/skills/hstack-<old>           # in the consumer
-```
-
-When **renaming** a skill, treat it as a removal + addition in both places.
+Run `npx hstack doctor` to audit health without making changes — useful for CI checks, audits before opening a PR against the consumer repo, or onboarding a new contributor.
 
 #### Telemetry
 
-`hstack/scripts/telemetry/` ships with the template and is picked up automatically by the symlink pattern (`hstack/` is a single tree under the consuming repo). The `/hstack:telemetry` Skill shells out to `python3 hstack/scripts/telemetry/report.py --window 30`, generating a markdown report at `hstack/telemetry/reports/<YYYY-MM-DD>.md`. The reports directory is git-tracked.
+`hstack/scripts/telemetry/` ships with the framework and is installed by `hstack init` automatically. The `/hstack:telemetry` Skill shells out to `python3 hstack/scripts/telemetry/report.py --window 30`, generating a markdown report at `hstack/telemetry/reports/<YYYY-MM-DD>.md`. The reports directory is git-tracked; per-change `.telemetry/` sidecar dirs are git-ignored (`hstack init` adds the `**/.telemetry/` line for you).
 
-Five Skills (`hstack-test-plan`, `hstack-implement`, `hstack-verify`, `hstack-adversarial-review`, `hstack-finalize`) emit small JSON sidecars at their existing terminal commits — schema in `hstack/templates/telemetry-sidecar.md`. The sidecar directory `hstack/specs/changes/<id>/.telemetry/` should be git-ignored in the consuming repo:
+Five Skills (`hstack-test-plan`, `hstack-implement`, `hstack-verify`, `hstack-adversarial-review`, `hstack-finalize`) emit small JSON sidecars at their existing terminal commits — schema in `hstack/templates/telemetry-sidecar.md`. The sidecars are derivative — re-runnable from git + frontmatter + transcripts — and exist only to make per-change attribution cheap. Deleting them is harmless.
 
-```
-echo '**/.telemetry/' >> .gitignore
-git add .gitignore && git commit -m "gitignore: hstack telemetry sidecars"
-```
+#### Platform support
 
-The sidecars are derivative — re-runnable from git + frontmatter + transcripts — and exist only to make per-change attribution cheap. Deleting them is harmless.
-
-#### Deferred: `/hstack:wire` automation
-
-A dedicated `/hstack:wire` Skill (or `/hstack:configure --wire` mode) will eventually automate the maintenance step above. Scope sketch:
-
-- Walks `hstack/.claude/agents/` and `hstack/.claude/skills/hstack-*/` as the source-of-truth set.
-- For each entry, classifies the consumer's `.claude/` state: `correct-symlink`, `wrong-symlink`, `real-dir-conflict`, `missing`, `orphan` (symlink in consumer with no upstream source).
-- Renders a proposal (add / fix / remove), gates on engineer confirmation, applies idempotently.
-- Verifies `<consumer>/CLAUDE.md` imports `@hstack/CLAUDE.md`; offers to add the line if missing (idempotent — does not duplicate).
-- Refuses to overwrite a real directory where a symlink should go (real-dir-conflict requires `--force-replace` or interactive choice).
-- Pattern-matches `hstack-*` strictly so non-hstack neighbors (`lyra`, `notion-write`, `supabase`, etc.) are never touched.
-- Windows: hard-fails with a clear message in v1 (symlinks need admin/developer mode). Copy-mode fallback is a v2 consideration.
-
-Estimated ~1 day end-to-end if run through the hstack workflow itself (change-spec → test-plan → plan → implement → verify → adversarial-review → ship). The core logic is ~100-150 lines; the rigor surrounding it is most of the cost.
-
-**Recommendation: defer until the manual symlink step has caused real friction at least once.** The kernel's "Consuming-repo wiring" section means Claude surfaces the manual step on every relevant session; the cost of not automating is one symlink command per new skill, which is bearable. Automate when the cost crosses a threshold (e.g., a wave of new skills lands, or a second consuming repo joins).
+macOS and Linux only in v0.1. Windows is hard-failed at `hstack init` — the dir-level + per-skill symlink wiring needs admin or developer-mode on Windows, and copy-mode fallback is a v2 consideration.
 
 ## First run
 

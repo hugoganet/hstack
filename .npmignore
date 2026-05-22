@@ -1,0 +1,23 @@
+# Source files — only ship dist/
+src/
+tsconfig.json
+*.tsbuildinfo
+
+# Dev artifacts
+node_modules/
+.session-state/
+**/.telemetry/
+
+# hstack's own engineering artifacts (NOT shipped to consumers)
+adr/
+scripts/audit-token-usage.py
+.context/
+
+# Standard
+.git/
+.gitignore
+.github/
+template/**/__pycache__
+template/**/__pycache__/**
+template/**/*.pyc
+**/.DS_Store
