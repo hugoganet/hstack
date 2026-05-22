@@ -35,6 +35,7 @@ export const USER_CONTENT_PATHS = [
   "tech-debt/",
   "research/",
   "telemetry/reports/",
+  "kernel-fit/",
 ] as const;
 
 /**

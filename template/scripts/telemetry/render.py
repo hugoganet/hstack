@@ -23,6 +23,7 @@ def render_report(metrics: dict, repo_name: str, window_days: int | None) -> str
     _render_quality_outcomes(lines, metrics.get("quality_outcomes", {}))
     _render_overengineering(lines, metrics.get("overengineering", {}))
     _render_contract_drift(lines, metrics.get("contract_drift", {}))
+    _render_kernel_fit(lines, metrics.get("kernel_fit", {}))
 
     _render_watch_list(lines, metrics)
 
@@ -271,6 +272,65 @@ def _render_contract_drift(lines: list[str], cd: dict) -> None:
     )
 
 
+def _render_kernel_fit(lines: list[str], kf: dict) -> None:
+    _h(lines, 2, "Kernel-fit candidates")
+    _p(lines, "Patterns suggesting the kernel itself (CLAUDE.md, templates, validators, Skill "
+              "flows) may need revision. Each fired pattern is also written as a durable finding "
+              "by `/hstack:kernel-fit-scan` at `hstack/kernel-fit/findings/KF-NNNN-*.md`. The "
+              "table below is a rollup; the findings are the canonical artifact. See ADR-0003.")
+
+    existing = kf.get("existing_open_findings_by_pattern", {})
+    if existing:
+        total_open = sum(len(v) for v in existing.values())
+        _p(lines, f"**Currently open findings:** {total_open} "
+                  + "(" + ", ".join(f"{p}: {len(ids)}" for p, ids in sorted(existing.items())) + ")")
+
+    patterns = [
+        ("kf_p1_internal_tooling_conflates_categories", "KF-P1 — internal-tooling-conflates-categories"),
+        ("kf_p2_halt_reason_cluster_uncovered_by_enum", "KF-P2 — halt-reason-cluster-uncovered-by-enum"),
+        ("kf_p3_skill_precondition_violated_and_recoverable", "KF-P3 — skill-precondition-violated-and-recoverable"),
+    ]
+    for key, heading in patterns:
+        block = kf.get(key, {})
+        _h(lines, 3, heading)
+        _p(lines, block.get("note", ""))
+        fired = block.get("fired", False)
+        rc = block.get("evidence_row_count", 0)
+        if fired:
+            _p(lines, f"**Fired** — {rc} evidence row(s).")
+        else:
+            _p(lines, f"_(not fired — {rc} evidence row(s); threshold not met)_")
+
+        # Per-pattern row rendering.
+        if key == "kf_p1_internal_tooling_conflates_categories":
+            rows = block.get("evidence_rows", [])
+            _table(
+                lines,
+                ["change", "production paths", "user stories", "downstream consumers", "classification"],
+                [[r["change"], r["production_paths_count"], r["user_stories_count"],
+                  ", ".join(r["downstream_consumers"][:3]) + ("…" if len(r["downstream_consumers"]) > 3 else ""),
+                  r["classification_candidate"]]
+                 for r in rows[:10]],
+            )
+        elif key == "kf_p2_halt_reason_cluster_uncovered_by_enum":
+            rows = block.get("evidence_rows", [])
+            _table(
+                lines,
+                ["cluster", "size", "representative context (truncated)"],
+                [[r["cluster_id"], r["size"], r["representative_context"][:120]]
+                 for r in rows[:10]],
+            )
+        elif key == "kf_p3_skill_precondition_violated_and_recoverable":
+            rows = block.get("evidence_rows", [])
+            _table(
+                lines,
+                ["change", "finding", "matched keywords", "commit subject (truncated)"],
+                [[r["change"], r["finding_id"], ", ".join(r["matched_keywords"]),
+                  (r["commit_subject"] or "-")[:80]]
+                 for r in rows[:10]],
+            )
+
+
 def _render_watch_list(lines: list[str], metrics: dict) -> None:
     _h(lines, 2, "Watch list")
     items = []
@@ -302,6 +362,19 @@ def _render_watch_list(lines: list[str], metrics: dict) -> None:
     for r in ms:
         if r["drift_flag"]:
             items.append(f"Module-spec drift: `{r['module']}` is `needs-refresh` with {r['recent_commits_touching_module']} recent commits.")
+
+    # Kernel-fit fired patterns
+    kf = metrics.get("kernel_fit", {})
+    for key, label in (
+        ("kf_p1_internal_tooling_conflates_categories", "KF-P1"),
+        ("kf_p2_halt_reason_cluster_uncovered_by_enum", "KF-P2"),
+        ("kf_p3_skill_precondition_violated_and_recoverable", "KF-P3"),
+    ):
+        block = kf.get(key, {})
+        if block.get("fired"):
+            rc = block.get("evidence_row_count", 0)
+            items.append(f"Kernel-fit {label} fired with {rc} evidence row(s) — "
+                         f"run `/hstack:kernel-fit-scan` to synthesize findings.")
 
     if not items:
         _p(lines, "_Nothing flagged. Either everything is healthy, or the metrics need tuning._")

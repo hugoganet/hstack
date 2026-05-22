@@ -8,9 +8,10 @@ supersedes: null                       # ADR id when this ADR replaces another
 superseded-by: null                    # ADR id when this ADR has been replaced; reciprocal with supersedes
 related-change-specs: []
 related-modules: []
+promoted-from-kernel-fit: []           # KF-NNNN ids that motivated this ADR; reciprocal with kernel-fit-finding.promoted-to (KF-04)
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
-schema-version: 1
+schema-version: 2
 ---
 
 ## Title

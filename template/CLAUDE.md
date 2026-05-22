@@ -314,6 +314,7 @@ Load-at-session-start rules by subagent:
 - `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack, infrastructure (when surfaces includes infra).
 - `verifier`: change-spec, plan, test-plan, ci-cd.
 - `adversarial-reviewer`: all change artifacts (including test-plan); explicitly no implementer transcripts.
+- `kernel-fit-analyst`: hstack/CLAUDE.md (the artifact under analysis), the latest hstack/telemetry/reports/<date>.md, every prior finding at hstack/kernel-fit/findings/, all change-specs at status: shipped (full bodies), all ADRs, all tech-debt, all module-specs; explicitly no implementer transcripts and no scratchpads from in-flight authoring sessions.
 - `researcher`: query context plus relevant product-context docs as the query requires.
 
 A subagent that cannot reach a required context document halts and asks the human, rather than proceeding without it.
@@ -380,6 +381,24 @@ Consuming repos that wire hstack via symlinks (the recommended pattern in `READM
 - **Copy-based consumers.** Consuming repos that copied `.claude/` instead of symlinking must mirror every add / remove / rename. The drift cost is the point of recommending symlinks; this rule is the fallback path.
 
 When this kernel is loaded in a session that is adding or removing a Skill or subagent, the session is responsible for surfacing the consumer-wiring step before committing. See `README.md` § Maintenance for exact commands.
+
+---
+
+## How hstack improves itself
+
+hstack ships a closed-loop system for detecting when the kernel itself — this file, the templates, the validators, the Skill flows — is misaligned with how engineers and AI agents actually use it. The loop has five layers and one non-negotiable contract: **the human gates promotion to a kernel change.** Detection and synthesis can be automated; the decision to amend the kernel cannot.
+
+- **Detection is post-hoc and derivative.** `hstack/scripts/telemetry/insights/kernel_fit.py` pattern-matches across shipped change-specs, ADRs, tech-debt, halt sentinels, and adversarial-review findings. Every detection is reconstructible from git + frontmatter; the no-parallel-tracker rule is preserved because the detector reads, never writes.
+
+- **Synthesis is delegated to the `kernel-fit-analyst` subagent.** Model `opus`, loads the kernel and all shipped artifacts and every prior finding, explicitly *not* implementer transcripts (same session-isolation rule as `adversarial-reviewer`). The analyst produces one finding file per pattern at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`, with a mandatory two-bullet counter-explanation challenge prompt that defends against false-positives. Findings carry a `confidence` enum and a `status` lifecycle (`open → acknowledged → promoted` for actionable findings; `open → dismissed` for non-actionable; `open → superseded` for restated findings).
+
+- **Three Skills drive the lifecycle.** `/hstack:kernel-fit-scan` runs detection + synthesis + Slack nudge. `/hstack:kernel-fit-triage <id> --action acknowledge|dismiss --reason <text>` is a mechanical status flip per ADR-0001. `/hstack:kernel-fit-promote <id> --slug <adr-slug>` routes to `/hstack:adr-new --from-kernel-fit <id>`, mirroring the `--from-research` pattern already in use by `/hstack:research --promote`. The ADR's Context section is seeded from the finding's Evidence + Kernel Surface + Proposed Direction; `spec-author` runs the normal Nygard interview — this is the human gate. The reciprocal `promoted-to` write on the finding lands atomically with the ADR commit per the kernel's reciprocal-pair atomicity rule.
+
+- **Notification is best-effort via Slack MCP.** Threshold-gated (notify on `high` and `medium` confidence only; `low` lands silently on disk) and de-duplicated (no re-notification on an open pattern within a 14-day window). Graceful degradation: if the Slack MCP is unreachable or unwired, findings still land on disk; the Skill logs to stderr and exits 0. This is a deliberate carve-out from the kernel's general MCP-unreachable stop condition — the disk write is load-bearing, Slack is a side-channel pointer, not authoritative state.
+
+- **The analyst never writes ADRs, change-specs, or edits existing findings** (one carve-out: it may set `status: superseded` on a prior finding when restating it more cleanly). Promotion is engineer-initiated and routes through the established authoring Skills. Auto-creation of ADRs is forbidden — the kernel's "AI writes, humans confirm" contract applies most forcefully at the kernel-modification layer, where the cost of a bad ADR cascades through every subsequent change.
+
+The loop is the smallest expression of the kernel reasoning about itself without auto-modifying itself. v1 honesty: the analyst's output is an LLM-strategized judgment, not measured truth; the counter-explanation challenge is the false-positive mitigation. Same framing rule as `test-strategist` and `security-reviewer`. See ADR-0003 for the rationale; see `template/templates/kernel-fit-finding.md` for the artifact schema.
 
 ---
 
