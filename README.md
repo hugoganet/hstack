@@ -23,15 +23,26 @@ A thin, opinionated layer on top of Claude Code that governs how engineers and A
 
 ## Installation
 
-hstack vendors into the consuming repo at the path `hstack/` relative to the repo root. Submodule and CLI-installer distribution are deferred until the framework has run on real changes.
+hstack installs into the consuming repo at the path `hstack/` relative to the repo root.
 
-From the consuming repo root:
+> **CLI installer (`npx hstack init`) is in progress.** Until `init`, `update`, and `doctor` ship, the manual vendoring path below is the supported install. See `CHANGELOG.md` for status.
+
+**Manual install (current):**
 
 ```
-# vendor the framework (v0 recommended)
-cp -r /path/to/hstack ./hstack
+# from the consuming repo root
+cp -r /path/to/hstack/template ./hstack
 git add hstack && git commit -m "vendor hstack v0"
 ```
+
+**Future install (forthcoming, do not use yet):**
+
+```
+# from the consuming repo root
+npx hstack@latest init
+```
+
+The npm package ships its framework files under `template/` inside the package. `hstack init` will copy that tree into `<consumer>/hstack/`, wire `.claude/` symlinks, and add the kernel-import line to the consumer's `CLAUDE.md`. `hstack update` re-syncs framework paths while preserving user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). The boundary is canonical in `src/manifest.ts`.
 
 ### Wire the workflow into the consuming repo's `.claude/`
 
