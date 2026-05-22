@@ -12,6 +12,7 @@ creates-tech-debt: []
 resolves-tech-debt: []                 # tech-debt ids this change is intended to fully resolve; reciprocal with tech-debt.resolved-by
 parent-change: null
 children: []
+revisits-change: []                    # change-spec ids this change is filed to repair (defects, regressions, missed findings). Informational, not gating.
 internal-tooling: false
 trivial: false
 in-scope: []                           # repo-relative globs; must be non-empty

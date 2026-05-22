@@ -86,6 +86,26 @@ Before any work:
 - Status transition to `passed` (or `failed`). Commit message: `verification(<change-id>): passed` / `failed`.
 - **Change-spec status transition `ready-for-implementation → ready-for-review`** (per ADR-0002). Lands as a separate commit after the `verification(<change-id>): passed` commit. Commit message: `change-spec(<change-id>): ready-for-review`. Skipped when verification status is not `passed`, or when the change-spec was already at `ready-for-review` or any downstream status.
 
+## Telemetry sidecar
+
+At the change-spec advance commit (only when verification status is `passed`), write `hstack/specs/changes/<change-id>/.telemetry/verify.json` in the same `git add && git commit` as the change-spec advance. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "skill": "hstack-verify",
+  "change_id": "<change-id>",
+  "ran_at": "<ISO-8601, when canonical commands started>",
+  "test_suite_runtime_s": <float seconds, wall clock across canonical commands>,
+  "phase_coverage": {<mirror of verification.md frontmatter>},
+  "test_plan_coverage": {<mirror of verification.md frontmatter>},
+  "discrepancies_count": <int, bullet count under verification.md § Discrepancies>,
+  "status": "passed"
+}
+```
+
+When verification ends at `ran` or `failed`, the sidecar still lands with `status` reflecting the canonical artifact status; the change-spec advance commit does not happen, so the sidecar piggybacks on the `verification(<change-id>): ran` (or `failed`) commit instead. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
 ## Idempotency contract
 
 - Re-running on a `passed` verification: the subagent re-runs the canonical commands; identical outcomes produce a no-op aside from `updated` timestamps; different outcomes (newly failing test on a flake) update the artifact accordingly.

@@ -81,6 +81,19 @@ rm .claude/skills/hstack-<old>           # in the consumer
 
 When **renaming** a skill, treat it as a removal + addition in both places.
 
+#### Telemetry
+
+`hstack/scripts/telemetry/` ships with the template and is picked up automatically by the symlink pattern (`hstack/` is a single tree under the consuming repo). The `/hstack:telemetry` Skill shells out to `python3 hstack/scripts/telemetry/report.py --window 30`, generating a markdown report at `hstack/telemetry/reports/<YYYY-MM-DD>.md`. The reports directory is git-tracked.
+
+Five Skills (`hstack-test-plan`, `hstack-implement`, `hstack-verify`, `hstack-adversarial-review`, `hstack-finalize`) emit small JSON sidecars at their existing terminal commits — schema in `hstack/templates/telemetry-sidecar.md`. The sidecar directory `hstack/specs/changes/<id>/.telemetry/` should be git-ignored in the consuming repo:
+
+```
+echo '**/.telemetry/' >> .gitignore
+git add .gitignore && git commit -m "gitignore: hstack telemetry sidecars"
+```
+
+The sidecars are derivative — re-runnable from git + frontmatter + transcripts — and exist only to make per-change attribution cheap. Deleting them is harmless.
+
 #### Deferred: `/hstack:wire` automation
 
 A dedicated `/hstack:wire` Skill (or `/hstack:configure --wire` mode) will eventually automate the maintenance step above. Scope sketch:

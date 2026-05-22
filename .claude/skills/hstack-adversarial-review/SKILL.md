@@ -109,6 +109,45 @@ Before any work:
 - Edits to any finding's `resolution`.
 - **Change-spec status transition `ready-for-review` → `ready-to-ship`** (per ADR-0002, Skill-orchestrator write). When `adversarial-review.md` reaches `findings-resolved`, the Skill orchestrator performs the change-spec advance directly via `Edit` (orchestration step 10), in a separate auto-commit with message `change-spec(<change-id>): ready-to-ship`. The change-spec becomes eligible for `hstack-ship` only after this commit lands. `hstack-ship` itself remains read-only across artifact statuses — it reads the already-written `ready-to-ship` and computes the merge-readiness scorecard. The `adversarial-reviewer` subagent does not write this transition; it stays in its critique-only lane.
 
+## Telemetry sidecar
+
+At the change-spec advance commit (only when adversarial-review status is `findings-resolved`), write `hstack/specs/changes/<change-id>/.telemetry/adversarial-review.json` in the same `git add && git commit` as the change-spec advance. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "skill": "hstack-adversarial-review",
+  "change_id": "<change-id>",
+  "reviewed_at": "<ISO-8601, when status reached findings-resolved>",
+  "findings_floor": <int, 3 or 5 per AR-06>,
+  "findings_count": <int, length of frontmatter findings array>,
+  "findings_fewer_than_floor": <bool>,
+  "category_counts": {
+    "security": <int>,
+    "scope-drift": <int>,
+    "invariant-breach": <int>,
+    "spec-compliance": <int>,
+    "data-integrity": <int>,
+    "code-quality": <int>
+  },
+  "severity_counts": {
+    "critical": <int>,
+    "high": <int>,
+    "medium": <int>,
+    "low": <int>
+  },
+  "resolution_mix": {
+    "commit": <int>,
+    "tech-debt": <int>,
+    "justified-in-prose": <int>
+  },
+  "fresh_session_attestation": "<verbatim copy of frontmatter field>",
+  "halt_reasons": [<kernel halt-sentinel enum values, if any>]
+}
+```
+
+When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. This is the most directly Goodhart-resistant of the five v1 sidecars — `category_counts` + `severity_counts` + `resolution_mix` jointly surface findings-quota-gaming patterns no single field could detect.
+
 ## Idempotency contract
 
 - Re-running on a `findings-resolved` review: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps, unless new code or artifacts have landed since the prior run (in which case new findings may be generated and the status drops back to `findings-open`).

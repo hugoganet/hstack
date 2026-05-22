@@ -104,6 +104,24 @@ Before any work:
 - One commit when the change-spec advances to `shipped`.
 - One commit per tech-debt resolution. Each commit's body cites the resolving change-spec id for cross-reference.
 
+## Telemetry sidecar
+
+At the change-spec `shipped` commit (the final write in the finalize sequence), write `hstack/specs/changes/<change-id>/.telemetry/finalize.json` in the same `git add && git commit` as the change-spec advance. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
+
+```json
+{
+  "schema_version": 1,
+  "skill": "hstack-finalize",
+  "change_id": "<change-id>",
+  "shipped_at": "<ISO-8601, now>",
+  "merge_commit_sha": "<full SHA of the merge commit verified in preconditions>",
+  "change_duration_days": <int, change-spec.created -> merge author date>,
+  "tds_resolved": [<TD ids that were resolved this finalize run>]
+}
+```
+
+The finalize sidecar is the most valuable of the three — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
 ## Idempotency contract
 
 Under the TDs-first-then-change-spec ordering, the legitimate resume cases are:
