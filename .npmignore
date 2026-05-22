@@ -17,6 +17,7 @@ scripts/audit-token-usage.py
 .git/
 .gitignore
 .github/
-__pycache__/
-*.pyc
-.DS_Store
+template/**/__pycache__
+template/**/__pycache__/**
+template/**/*.pyc
+**/.DS_Store

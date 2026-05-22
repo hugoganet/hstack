@@ -30,6 +30,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli.ts",
+    "clean:pyc": "find template -type d -name __pycache__ -prune -exec rm -rf {} + ; find template -name '*.pyc' -delete",
+    "prepack": "npm run build && npm run clean:pyc",
     "prepublishOnly": "npm run build"
   },
   "engines": {

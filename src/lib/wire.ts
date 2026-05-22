@@ -16,7 +16,20 @@ export type Action =
   | { kind: "remove-file"; to: string; relpath: string }
   | { kind: "symlink"; from: string; to: string }
   | { kind: "remove-symlink"; to: string }
-  | { kind: "append-line"; file: string; line: string; createIfMissing: boolean }
+  | {
+      kind: "append-line";
+      file: string;
+      line: string;
+      createIfMissing: boolean;
+      /**
+       * Substring used for idempotency check. If the file already contains this
+       * substring, the action is a no-op. If undefined, falls back to checking
+       * for `line` itself. Use this for lines whose prose may legitimately vary
+       * across consumers (e.g., the kernel-import line), where we want to detect
+       * presence without requiring exact wording.
+       */
+      matchOn?: string;
+    }
   | { kind: "write-version"; to: string; version: string };
 
 /**
@@ -42,7 +55,7 @@ export async function planInit(
   // 2. Symlink <consumer>/.claude/agents -> hstack/.claude/agents
   actions.push({
     kind: "symlink",
-    from: "hstack/.claude/agents",
+    from: "../hstack/.claude/agents",
     to: resolve(consumerRoot, ".claude", "agents"),
   });
 
@@ -64,6 +77,7 @@ export async function planInit(
     file: resolve(consumerRoot, "CLAUDE.md"),
     line: KERNEL_IMPORT_LINE,
     createIfMissing: true,
+    matchOn: "@hstack/CLAUDE.md",
   });
 
   // 5. Append telemetry gitignore line (create if missing)
@@ -138,7 +152,7 @@ export async function planUpdate(
   // 3. Agents dir symlink — idempotent (symlink action skips if already correct).
   actions.push({
     kind: "symlink",
-    from: "hstack/.claude/agents",
+    from: "../hstack/.claude/agents",
     to: resolve(consumerRoot, ".claude", "agents"),
   });
 
@@ -148,6 +162,7 @@ export async function planUpdate(
     file: resolve(consumerRoot, "CLAUDE.md"),
     line: KERNEL_IMPORT_LINE,
     createIfMissing: true,
+    matchOn: "@hstack/CLAUDE.md",
   });
 
   // 5. .gitignore telemetry line — idempotent re-check.
@@ -192,7 +207,8 @@ export async function pruneNoopActions(
       const exists = await fs.pathExists(a.file);
       if (exists) {
         const content = await fs.readFile(a.file, "utf8");
-        if (content.includes(a.line)) continue;
+        const probe = a.matchOn ?? a.line;
+        if (content.includes(probe)) continue;
       }
     } else if (a.kind === "write-version") {
       const exists = await fs.pathExists(a.to);
@@ -336,7 +352,7 @@ export async function executePlan(actions: Action[]): Promise<void> {
         break;
       }
       case "append-line":
-        await appendLineIdempotent(a.file, a.line, a.createIfMissing);
+        await appendLineIdempotent(a.file, a.line, a.createIfMissing, a.matchOn);
         break;
       case "write-version":
         await fs.ensureDir(dirname(a.to));
@@ -350,11 +366,13 @@ async function appendLineIdempotent(
   file: string,
   line: string,
   createIfMissing: boolean,
+  matchOn?: string,
 ): Promise<void> {
   const exists = await fs.pathExists(file);
   if (!exists && !createIfMissing) return;
   const existing = exists ? await fs.readFile(file, "utf8") : "";
-  if (existing.includes(line)) return;
+  const probe = matchOn ?? line;
+  if (existing.includes(probe)) return;
   const sep = existing.length > 0 && !existing.endsWith("\n") ? "\n" : "";
   await fs.writeFile(file, existing + sep + line + "\n");
 }
