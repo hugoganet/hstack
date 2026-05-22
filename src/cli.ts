@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import pc from "picocolors";
 import { runInit } from "./commands/init.js";
 import { runUpdate } from "./commands/update.js";
+import { runDoctor } from "./commands/doctor.js";
 import { packageVersionFile } from "./lib/paths.js";
 
 function readVersion(): string {
@@ -53,10 +54,11 @@ program
 
 program
   .command("doctor")
-  .description("Verify installation health (forthcoming)")
-  .action(() => {
-    console.error(pc.yellow("hstack doctor is not yet implemented."));
-    process.exit(2);
+  .description("Verify hstack installation health (read-only)")
+  .option("--verbose", "list every affected file in the report")
+  .action(async (opts: { verbose?: boolean }) => {
+    const code = await runDoctor(opts);
+    process.exit(code);
   });
 
 program.parseAsync(process.argv).catch((err: unknown) => {
