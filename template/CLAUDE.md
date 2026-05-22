@@ -139,6 +139,13 @@ Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601;
 
 **Change-spec carries an optional `revisits-change` array.** When a new change-spec is filed to fix a defect, regression, or missed adversarial-review finding from a prior shipped change, the engineer populates `revisits-change: [<predecessor-change-id>]` so post-merge defect correlation is computable (`/hstack:telemetry` § QO-6 when promoted from watch-list to dashboard). Default empty. The field is informational, not gating — no Skill refuses to advance because the array is empty or non-empty.
 
+**Change-spec carries `internal-tooling` (Category A) and `enables` (Category B) as the two no-story carve-outs.** A change-spec with no driving user story must declare one of two categories before status advances past `draft` (SP-09):
+
+- **Category A — `internal-tooling: true`.** Engineering-only code that never ships on a user path: CI tooling, dev scripts, repo automation, internal dashboards. No `enables` linkage exists because no downstream user-facing change is teed up.
+- **Category B — `enables: [<downstream-change-spec-id>, ...]`.** Production code that ships, but user value is realized by a named downstream change-spec that consumes this one's output. Typical case: schema or plumbing landed ahead of the UI that surfaces it. The reciprocal field `enabled-by: []` on the downstream spec is written atomically with `enables`.
+
+The two flags are mutually exclusive (SP-13): a change is Category A *or* Category B, never both. If neither applies, `user-stories` must be non-empty. The audit query *"what's the user value of this change?"* follows the `enables` chain until it hits a spec with `user-stories` non-empty (the user-value realization point) or a dead end. Forward references are permitted at authoring time — if `enables` names a not-yet-scaffolded id, `/hstack:change-new` reconciles the reciprocal `enabled-by` when the downstream spec is later scaffolded. Reciprocity (`change-spec.enables ↔ change-spec.enabled-by`) is enforced by SP-14 and lands in a single atomic commit, matching the kernel's other reciprocal-pair rules.
+
 ---
 
 ## Status lifecycle

@@ -66,7 +66,12 @@ No subagents are invoked. Every step is a direct file read or shell call.
 
 1. **Section 1 — Where you are.**
    - Read `hstack/config.yaml` for `init-status` and the active MCP set.
-   - Glob `hstack/specs/changes/*/spec.md`. For each, read frontmatter (`id`, `status`, `surfaces`, `owner`, `internal-tooling`, `trivial`, `parent-change`). Filter to non-terminal status (anything before `shipped`, `archived`).
+   - Glob `hstack/specs/changes/*/spec.md`. For each, read frontmatter (`id`, `status`, `surfaces`, `owner`, `internal-tooling`, `enables`, `enabled-by`, `trivial`, `parent-change`). Filter to non-terminal status (anything before `shipped`, `archived`).
+   - For each in-flight change, classify and surface the no-story carve-out when present:
+     - Category A (`internal-tooling: true`) → annotate "[Category A — internal tooling]".
+     - Category B (`enables` non-empty) → annotate "[Category B — enables → <comma-separated downstream ids>]". For each downstream id, also note its on-disk status (or "not yet scaffolded" — informational, not a blocker; reconciliation happens at downstream `/hstack:change-new` time).
+     - `enabled-by` non-empty → annotate "[Realizes ← <comma-separated upstream ids>]" so the reverse direction of the chain is visible.
+     - SP-13 violation (both `internal-tooling: true` AND `enables` non-empty) → flag explicitly as an error.
    - For each in-flight change, compute the **next blocking action**:
      - `status: draft` → "Author via `spec-author` directly (or run `/hstack:story-draft` first if user-facing)."
      - `status: ready-to-plan` and missing conditional artifacts → name them; suggest the appropriate Skill (`/hstack:test-plan` first if missing — it gates the planner, `/hstack:security-review`, `/hstack:data-review` if db, `/hstack:ui-brief` if ui, `/hstack:change-plan`).
