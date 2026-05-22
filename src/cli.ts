@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import pc from "picocolors";
 import { runInit } from "./commands/init.js";
+import { runUpdate } from "./commands/update.js";
 import { packageVersionFile } from "./lib/paths.js";
 
 function readVersion(): string {
@@ -35,10 +36,19 @@ program
 
 program
   .command("update")
-  .description("Sync framework files to the latest version (forthcoming)")
-  .action(() => {
-    console.error(pc.yellow("hstack update is not yet implemented."));
-    process.exit(2);
+  .description("Sync framework files to the latest version, preserving user content")
+  .option("-y, --yes", "skip the confirmation prompt")
+  .option("--force", "proceed even if the working tree is dirty")
+  .option("--dry-run", "print the plan without making changes")
+  .option("--verbose", "list every file action in the plan")
+  .action(async (opts: {
+    yes?: boolean;
+    force?: boolean;
+    dryRun?: boolean;
+    verbose?: boolean;
+  }) => {
+    const code = await runUpdate(opts);
+    process.exit(code);
   });
 
 program

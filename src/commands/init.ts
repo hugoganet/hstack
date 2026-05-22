@@ -1,13 +1,18 @@
 import pc from "picocolors";
 import prompts from "prompts";
+import { readFileSync } from "node:fs";
 import { findGitRoot, isWorkingTreeClean } from "../lib/git.js";
-import { packageTemplateDir } from "../lib/paths.js";
+import { packageTemplateDir, packageVersionFile } from "../lib/paths.js";
 import {
   planInit,
   renderPlan,
   validatePlan,
   executePlan,
 } from "../lib/wire.js";
+
+function readPackageVersion(): string {
+  return readFileSync(packageVersionFile(), "utf8").trim();
+}
 
 export interface InitOptions {
   yes?: boolean;
@@ -59,7 +64,8 @@ export async function runInit(opts: InitOptions): Promise<number> {
 
   // 3. Compute plan
   const templateDir = packageTemplateDir();
-  const actions = await planInit(gitRoot, templateDir);
+  const version = readPackageVersion();
+  const actions = await planInit(gitRoot, templateDir, version);
 
   // 4. Validate
   const blockers = await validatePlan(actions);
