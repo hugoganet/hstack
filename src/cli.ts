@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 import pc from "picocolors";
+import { runInit } from "./commands/init.js";
+import { packageVersionFile } from "./lib/paths.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// VERSION ships at the package root, one level up from dist/
 function readVersion(): string {
   try {
-    return readFileSync(resolve(__dirname, "..", "VERSION"), "utf8").trim();
+    return readFileSync(packageVersionFile(), "utf8").trim();
   } catch {
     return "unknown";
   }
@@ -27,15 +24,13 @@ program
 
 program
   .command("init")
-  .description("Install hstack into the current repo (forthcoming)")
-  .action(() => {
-    console.error(pc.yellow("hstack init is not yet implemented."));
-    console.error(
-      pc.dim(
-        "Tracked in CHANGELOG. For now, vendor the framework manually — see README.md.",
-      ),
-    );
-    process.exit(2);
+  .description("Install hstack into the current repo")
+  .option("-y, --yes", "skip the confirmation prompt")
+  .option("--force", "proceed even if the working tree is dirty")
+  .option("--dry-run", "print the plan without making changes")
+  .action(async (opts: { yes?: boolean; force?: boolean; dryRun?: boolean }) => {
+    const code = await runInit(opts);
+    process.exit(code);
   });
 
 program
