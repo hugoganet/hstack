@@ -44,6 +44,7 @@ Invoke when the engineer wants to capture a new architectural decision. Common t
 - `<slug>` (required, positional): kebab-case slug for the ADR. Examples: `pgvector-over-pinecone`, `trigger-dev-v4-only`, `per-tenant-encryption-keys`.
 - `--supersedes <ADR-NNNN>` (optional): id of the ADR being superseded. The Skill enforces reciprocity per AD-02.
 - `--from-research <session-id>` (optional): set when invoked via `hstack-research --promote`. The named research session is seeded into the Context section.
+- `--from-kernel-fit <finding-id>` (optional): set when invoked via `hstack-kernel-fit-promote`. The named kernel-fit finding's Evidence + Kernel surface + Proposed direction are seeded into the Context section, and the new ADR's `promoted-from-kernel-fit` frontmatter array is populated with the finding id (reciprocal with `kernel-fit-finding.promoted-to`; KF-04). The finding's Counter-explanations section is NOT seeded — the engineer's Decision must engage fresh with the kernel-change question.
 
 ## Preconditions
 
@@ -54,12 +55,13 @@ Before any work:
 - Verify the `<slug>` matches `^[a-z][a-z0-9-]*$` and is not already used in any existing ADR id.
 - When `--supersedes` is provided: verify the referenced ADR exists at `status: accepted`.
 - When `--from-research` is provided: verify the research session file exists at `hstack/research/sessions/<session-id>.md`.
+- When `--from-kernel-fit` is provided: verify the finding file exists at `hstack/kernel-fit/findings/<finding-id>*.md` and is at `status: open` or `acknowledged`.
 
 ## Orchestration steps
 
 1. **Compute the next id.** `ADR-NNNN-<slug>` where `NNNN` is the next sequential number, zero-padded to four digits.
 
-2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, the superseded ADR when `--supersedes`, the research session when `--from-research`]. The subagent walks the six Nygard sections.
+2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, the superseded ADR when `--supersedes`, the research session when `--from-research`, the kernel-fit finding when `--from-kernel-fit` (Evidence + Kernel surface + Proposed direction extracted as Context seed; Counter-explanations excluded)]. The subagent walks the six Nygard sections.
 
 3. **Interview discipline.** Per the `spec-author` contract:
    - Title — short noun phrase. One field, one confirmation.
@@ -70,6 +72,8 @@ Before any work:
    - Alternatives Considered — one paragraph per alternative.
 
 4. **Supersession reciprocity.** When `--supersedes` is set, `spec-author` writes `superseded-by: <new-adr-id>` on the prior ADR and `supersedes: <prior-adr-id>` on the new one. AD-02 enforces reciprocity.
+
+   **Kernel-fit reciprocity.** When `--from-kernel-fit` is set, `spec-author` writes `promoted-from-kernel-fit: [<finding-id>]` on the new ADR. The reciprocal write on the finding (`promoted-to: adr:<new-adr-id>` plus the status flip to `promoted`) is performed by `/hstack:kernel-fit-promote` after this Skill returns, in a separate commit (the recoverable two-commit carve-out documented in that Skill's Failure modes — analogous to the `/hstack:finalize` in-progress carve-out).
 
 5. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — AD-01 (sequential id), AD-02 (reciprocal supersession), AD-03 (fixed section structure), AD-04 (`superseded` requires `superseded-by`).
 
@@ -100,6 +104,7 @@ Beyond the kernel's general stop conditions:
 - The `<slug>` collides with an existing ADR.
 - A `--supersedes` target does not exist at `status: accepted`.
 - A `--from-research` session does not exist on disk.
+- A `--from-kernel-fit` finding does not exist on disk or is at a status other than `open` / `acknowledged`.
 - The Consequences challenge prompt cannot produce two consequences that look bad; the engineer either thinks harder or accepts that this might not be ADR-worthy after all.
 
 ## Failure modes

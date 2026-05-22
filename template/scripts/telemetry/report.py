@@ -39,7 +39,7 @@ if str(_SCRIPTS) not in sys.path:
 from telemetry.parsers import frontmatter, commits, transcripts  # noqa: E402
 from telemetry.insights import (  # noqa: E402
     token_economics, workflow_shape, quality_outcomes,
-    overengineering, contract_drift,
+    overengineering, contract_drift, kernel_fit,
 )
 from telemetry import render  # noqa: E402
 
@@ -85,12 +85,15 @@ def main(argv: list[str] | None = None) -> int:
     session_rows = transcripts.collect_session_rows([repo], since=since_dt)
     print(f"telemetry: {len(session_rows)} sessions in window", file=sys.stderr)
 
+    findings_dir = hstack_root / "kernel-fit" / "findings"
     metrics = {
         "token_economics": token_economics.compute(session_rows, changes),
         "workflow_shape": workflow_shape.compute(git_commits, changes, session_rows),
         "quality_outcomes": quality_outcomes.compute(git_commits, changes),
         "overengineering": overengineering.compute(git_commits, changes, session_rows, repo),
         "contract_drift": contract_drift.compute(git_commits, changes, tech_debt, adrs, module_specs),
+        "kernel_fit": kernel_fit.compute(git_commits, changes, tech_debt, adrs, module_specs,
+                                         session_rows, findings_dir),
     }
 
     report_md = render.render_report(metrics, repo_name=repo.name, window_days=window_days)
