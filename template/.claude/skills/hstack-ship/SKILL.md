@@ -47,7 +47,7 @@ Invoke when every per-change artifact is at terminal status and the engineer is 
 Before any work:
 
 - Verify the change folder `hstack/specs/changes/<change-id>/` exists.
-- Verify the change-spec exists. Read its `surfaces`, `internal-tooling`, `trivial` flags to know which conditional gates apply.
+- Verify the change-spec exists. Read its `surfaces`, `internal-tooling`, `enables`, `enabled-by`, `trivial` flags to know which conditional gates apply.
 
 The Skill does not pre-halt on artifact non-terminal status — that is what the scorecard reports. It halts only on missing artifacts or unreadable frontmatter.
 
@@ -55,7 +55,7 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
 
 1. **Read every change artifact.** Read `spec.md`, `plan.md`, `test-plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md`. Capture each artifact's `status` and key gating fields.
 
-2. **Compute the eleven-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
+2. **Compute the twelve-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
    - GT-01: spec presence — change folder exists with non-draft change-spec, or PR carries `trivial: true`.
    - GT-02: diff within scope — every file in the PR diff (against the merge target) is a subset of `change-spec.in-scope`.
    - GT-03: pattern lints — every `hstack/lints/*.yaml` rule passes (the Skill runs `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}` for this and reads the exit code).
@@ -63,10 +63,11 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
    - GT-05: security-review at `passed` or `concerns-acknowledged`.
    - GT-06: data-review at `passed` or `concerns-acknowledged` (when applicable).
    - GT-07: ui-brief at `drafted` and figma-handoff at `ready` (when applicable).
-   - GT-08: `user-stories` non-empty (unless `internal-tooling: true`).
+   - GT-08: `user-stories` non-empty UNLESS `internal-tooling: true` (Category A) UNLESS `enables` non-empty (Category B). The audit-chain assumption: a Category-B spec's user value lives in one of the change-specs named in `enables`; this gate does not transitively verify that downstream spec has `user-stories` non-empty — that's the downstream's GT-08 check, run at its own ship time.
    - GT-09: every cross-reference rule (CG-01..CG-04) passes.
    - GT-10: test-plan at `passed` or `concerns-acknowledged`, and `verification.test-plan-coverage` shows no missing tenant-isolation tests and no out-of-budget performance assertions.
    - GT-11: When `change-spec.resolves-tech-debt` is non-empty: (a) every referenced tech-debt must exist and be at `status: in-progress` with `resolution-attempted-at` set; (b) the adversarial-review must contain the AR-07 Acceptance-satisfied confirmation enumerating each TD's Acceptance bullets against the diff; (c) no referenced tech-debt may have a non-null `resolved-by` already (that would indicate a double-resolution attempt). When `resolves-tech-debt` is empty, GT-11 is `not-applicable`.
+   - GT-12 (SP-13 mutual exclusion): `internal-tooling: true` AND `enables` non-empty is forbidden. Hard FAIL. Reciprocity (SP-14): for every id in `enables`, the named downstream spec must exist on disk and must list this change-id in its `enabled-by` array. Missing downstream specs are a FAIL (forward references are only legal at authoring time — by ship time, the downstream must be scaffolded so reciprocity holds). The reverse direction (`enabled-by` entries that point at non-existent or non-listing upstream specs) is also FAIL.
 
 3. **Frontmatter validation.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` across every artifact. Any FM-* or per-type validation failure blocks ship.
 
@@ -78,7 +79,7 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
    - Tech-debt created: pointers from `change-spec.creates-tech-debt`.
    - Test plan: pulled from `test-plan.md` — pyramid summary, tenant-isolation tests, and performance budgets — cross-referenced with `verification.test-plan-coverage` to show observed-vs-promised.
    - Tech-debt resolved: pointers from `change-spec.resolves-tech-debt` with each TD's Title and Acceptance summary. When non-empty, the body explicitly notes that `/hstack:finalize <change-id>` must be run post-merge to flip each TD to `resolved`.
-   - Scorecard summary: the eleven-gate table from step 2.
+   - Scorecard summary: the twelve-gate table from step 2.
 
    The pr-body.md is for the engineer to copy into the actual PR description — the Skill does not call `gh pr create` or otherwise open the PR.
 
@@ -122,7 +123,7 @@ Beyond the kernel's general stop conditions:
 - Never write status transitions on any artifact from this Skill. Ship is read-only across the artifact set.
 - Never call `gh pr create` or perform the merge. The engineer opens the PR.
 - Never silently pass a gate. Every FAIL names the artifact and field.
-- Never collapse the eleven gates into a single PASS / FAIL. The scorecard is per-gate.
+- Never collapse the twelve gates into a single PASS / FAIL. The scorecard is per-gate.
 - Never flip a tech-debt status from this Skill. That is `/hstack:finalize`'s job and only runs post-merge. Ship surfaces the directive; it does not perform the write.
 - Never extend `change-spec.in-scope` to make GT-02 pass — the scope amendment goes through `spec-author`, not this Skill.
 - Never overwrite `pr-body.md` content the engineer has hand-edited without confirmation. If the file exists with edits beyond the template, surface a diff and ask before rewriting.
