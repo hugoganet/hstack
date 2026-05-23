@@ -20,6 +20,15 @@ description: |
   Discrepancies between predicted and observed behavior are exactly what section 4 exists to capture. Marking `passed` over a discrepancy would defeat the purpose of the gate.
   </commentary>
   </example>
+
+  <example>
+  Context: The integration suite is gated by `RUN_INTEGRATION=1` and the engineer ran `npm test` without setting it; the runner reported `Tests: 0 passed, 0 failed`.
+  user: "/hstack:verify 2026-06-knowledge-citations"
+  assistant: "I'll invoke verifier. Per V-05, an integration suite that executed zero tests is recorded as `not-run`, not `pass` — zero failures is not evidence of correctness when there were zero assertions to fail. The Skill halts at `status: ran` with a high-severity Discrepancy naming the suspected reason (env-gated, all-skipped, empty-collection, or filter-collapse)."
+  <commentary>
+  V-05 closes the verifier false-positive where a suite gated by an unset env var would silently pass on the absence of failures. The remediation is either supplying the missing env / fixture and re-running, or amending the plan's Verifier Expectations via scope amendment so the zero-test state is intentional and recorded.
+  </commentary>
+  </example>
 tools:
   - Read
   - Write
@@ -28,8 +37,8 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02}}"
+  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
+  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02/V-05}}"
 ---
 
 ## Purpose
@@ -62,7 +71,7 @@ Before any work:
 
 3. **Phase coverage mapping.** For each phase in `plan.steps-completed`, the subagent emits an entry in `phase-coverage` with a PASS / FAIL value computed from whether the phase's Verifier Expectations are met. Per V-01, `phase-coverage` keys must equal `plan.steps-completed`.
 
-4. **Test-results map.** The subagent writes the top-level `test-results` map covering `unit`, `integration`, `e2e`, `lint`, `typecheck`. Per V-02, any `failed` value blocks `status: passed`.
+4. **Test-results map.** The subagent writes the top-level `test-results` map covering `unit`, `integration`, `e2e`, `lint`, `typecheck`. Per V-02, any `failed` value blocks `status: passed`. Per V-05, before mapping `unit`, `integration`, or `e2e` to `pass`, the subagent confirms the runner's observed-test-count for that suite is greater than zero — a suite gated by an unset env var, all-skipped, empty-collection, or filter-collapsed to zero tests is recorded as `not-run` with a high-severity Discrepancy, not as `pass` on the absence of failures.
 
 5. **Test-plan coverage check.** The subagent walks the test-plan's Edge Cases bullets, Tenant Isolation Tests array, and Performance Budgets table, and confirms each observed in the test run. `test-plan-coverage` frontmatter map captures the three subsections. Per V-03, any tenant-isolation test absent or skipped blocks `status: passed` and is escalated to adversarial-review via Discrepancies. Per V-04, any performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
 
@@ -72,7 +81,7 @@ Before any work:
 
 8. **Change-spec advance (mechanical, only on `passed`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `verification.md` at `status: passed`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-implementation`, print a proposed-diff preview of the change-spec edit (`status: ready-for-implementation → ready-for-review`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-for-review`. This is a separate commit from the `verification(<change-id>): passed` commit — one commit per status transition, matching the finalize precedent. If the change-spec is already at `ready-for-review` or any downstream status, this step is a no-op (idempotent on re-runs). When verification status is `ran` or `failed`, this step does not run — the change-spec remains at `ready-for-implementation` until a subsequent re-run lands `passed`. Do NOT invoke `spec-author` for this write; per the kernel's Mechanical operations section, the value to write is fully determined by the verification postcondition and the change-spec's current status, so the Skill writes directly.
 
-9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04.
+9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04, V-05.
 
 ## Outputs
 
@@ -121,6 +130,7 @@ Beyond the kernel's general stop conditions:
 - A canonical command in `ci-cd.md` is missing or cannot execute (missing dependency, missing env var).
 - A phase's Verifier Expectations cannot be evaluated because the relevant test file is missing.
 - A test failure blocks `status: passed`. The Skill halts at `status: ran` (or `failed`) until the implementer fixes the failing test via a new `hstack-implement` invocation.
+- A `unit`, `integration`, or `e2e` suite executed zero tests (V-05). The Skill halts at `status: ran`; the subagent records the suite as `not-run` and logs the Discrepancy. Remediation is either (a) the implementer supplies the missing env / fixture so the suite collects and runs, or (b) a scope amendment removes the suite from the plan's Verifier Expectations so the zero-test state is intentional and recorded.
 
 ## Failure modes
 
@@ -131,6 +141,7 @@ Beyond the kernel's general stop conditions:
 ## Anti-patterns
 
 - Never invent a PASS. If tests are not green, status is `ran` or `failed`, not `passed`.
+- Never record a suite as `pass` on the absence of failures alone (V-05). A suite that ran zero tests — gated by an unset env var, all `.skip` / `.todo`, empty collection, or filter-collapsed — is `not-run`, not `pass`. The Skill propagates the zero-tests-ran signal from the runner output into the subagent context so the rule is enforceable rather than inferred.
 - Never skip a canonical command. The consuming repo's commands in `ci-cd.md` are mandatory.
 - Never silently drop a discrepancy. Even benign discrepancies get a one-line note.
 - Never score security or data. Stay in the mechanical-verification lane.

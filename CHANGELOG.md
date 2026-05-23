@@ -4,7 +4,9 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Verifier false-positive on zero-tests-executed suites.** Closed via new validator **V-05** in `template/.claude/agents/verifier.md` and `template/.claude/skills/hstack-verify/SKILL.md`: a `unit`, `integration`, or `e2e` suite that executed zero tests cannot be recorded as `pass`. The verifier now confirms the runner's observed-test-count is greater than zero before mapping a suite to `pass`; suites gated by an unset env var, all `.skip` / `.todo`, empty collection, or filter-collapsed are recorded as `not-run` (per the existing `test-results` enum) with a high-severity Discrepancy naming the runner-reported counts and the suspected reason. A `not-run` value blocks `status: passed` and halts the Skill at `status: ran`. Lint and typecheck are exempt — both produce diagnostic counts whose floor is naturally zero. Reported by a consumer repo where the verifier marked `integration: pass` while the integration suite was env-gated to zero tests.
 
 ## [0.5.0] - 2026-05-23
 
