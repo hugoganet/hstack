@@ -1,7 +1,7 @@
 ---
 id: ADR-0005-engineer-triggered-flag-feeds-kernel-fit
 type: adr
-status: proposed
+status: accepted
 owner: hugoganet
 decision-date: 2026-05-23
 supersedes: null
@@ -20,7 +20,7 @@ Engineer-triggered `/hstack:flag` Skill feeds the kernel-fit closed loop with in
 
 ## Status
 
-Proposed on 2026-05-23. No supersession. Complementary to ADR-0004 (kernel-fit closed-loop); this ADR adds a new input source to the same loop without changing its lifecycle, gating, or human-promotion contract.
+Accepted on 2026-05-23. Phase-1 (Skill + pin template + kernel paragraph + gitignore wiring) ships in the same PR. Phase-2 (analyst processing extension + Slack-nudge tail + `detected-via` field on `kernel-fit-finding`) ships as a follow-up change-spec. No supersession. Complementary to ADR-0004 (kernel-fit closed-loop); this ADR adds a new input source to the same loop without changing its lifecycle, gating, or human-promotion contract.
 
 ## Context
 

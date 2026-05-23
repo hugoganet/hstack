@@ -4,7 +4,18 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Engineer-triggered `/hstack:flag` Skill — phase-1 of ADR-0005.** A one-shot Skill that drops a frontmatter-only pin to `hstack/kernel-fit/flags/pending/` carrying session-id, transcript path, branch, HEAD, and timestamp. No interview, no confirmation, no commit, sub-second wall-clock. Optional one-word `<hint>` positional argument for engineer audit; the analyst forms its own classification from the transcript window at scan time (no contamination from engineer-written hints). Heuristic session-id capture via most-recently-modified jsonl under `~/.claude/projects/<encoded-cwd>/`; `fallback-cwd` path when no jsonl is found, with the analyst's `transcript-truncated` classification as the safety net.
+- **New `kernel-fit-flag` artifact template** at `template/templates/kernel-fit-flag.md` — frontmatter-only schema with FL-01 (required fields at pin-time) and FL-02 (classification + rationale non-null when status: processed) documented in template commentary.
+- **Kernel paragraph under `## How hstack improves itself`** documenting the engineer-trigger side of the loop and pointing to ADR-0005.
+- **`hstack/kernel-fit/flags/` added to consumer `.gitignore`** via `GITIGNORE_KERNEL_FIT_FLAGS_LINE` in `src/lib/wire.ts`; appended at both `hstack init` and `hstack update`. Pins are derivative signal (mirroring `.telemetry/` from ADR-0004); the audit trail lives at the finding layer once the analyst processes them.
+
+### Notes
+- v1 honesty: the analyst processing loop is **not yet implemented** — phase-1 lands the Skill and template safely so pins start accumulating on disk; phase-2 ships the `kernel-fit-analyst` extension that reads each pin's transcript and folds-or-emits a finding. Until phase-2 lands, pins are inert on disk. Documented in ADR-0005 § Decision (two-phase implementation).
+- Session-id capture is heuristic in v1 (most-recently-modified jsonl). Interleaved sessions on the same workspace are a known edge case; v2 substrate will replace the heuristic with a harness-exposed session-id when Claude Code exposes one.
+- The provenance gap (gitignored pins are not reproducible from git alone) is acknowledged in ADR-0005's Consequences challenge and accepted in exchange for the zero-friction-cadence invariant.
+
+See [ADR-0005](adr/ADR-0005-engineer-triggered-flag-feeds-kernel-fit.md) for the design rationale and the complementary relationship with ADR-0004's detector-side loop.
 
 ## [0.3.0] - 2026-05-22
 
