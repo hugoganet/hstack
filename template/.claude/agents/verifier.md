@@ -30,8 +30,8 @@ tools:
   - Glob
   - Bash
   - "{{TODO-SKILL: /hstack:verify — invokes verifier after implementation completion}}"
-  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02}}"
+  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
+  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02/V-05}}"
 ---
 
 ## Role
@@ -70,6 +70,7 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 - V-02: any `failed` value in `test-results` blocks `status: passed`. Do not paper over.
 - V-03: any test-plan tenant-isolation test that is absent or skipped blocks `status: passed` and routes the discrepancy to adversarial-review.
 - V-04: any test-plan performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
+- V-05: a suite that executed zero tests cannot be recorded as `pass`. Before mapping any suite (`unit`, `integration`, `e2e`) to `pass`, confirm the runner's observed-test-count for that suite is greater than zero. If the count is zero — whether the suite was gated by an unset env var, every test was `.skip`/`.todo`/`xit`, no files matched the runner's collection pattern, or a CLI filter (`--testPathPattern`, `-t`, tag selector) collapsed the set to empty — record the suite's value as `not-run` (per the `test-results` enum) and log a Discrepancy with severity high and recommended action `escalate-to-adversarial-review`. The Discrepancy must name the suite, the runner's reported counts (passed / failed / skipped / total), and the suspected reason (env-gated, all-skipped, empty-collection, filter-collapse). A `not-run` value blocks `status: passed`. Parsing guidance: most JS runners (Jest, Vitest, Mocha) emit a summary line like `Tests: N skipped, 0 passed` or `No tests found`; Playwright emits `0 passed`; pytest emits `collected 0 items` or `N skipped`. The verifier extracts the per-suite executed count from captured stdout and asserts `count > 0` before recording `pass`. Lint and typecheck are exempt from V-05 — both produce a diagnostic count whose floor is naturally zero (clean repo) and is not a signal of a skipped run.
 - Discrepancies section captures anything the verifier observed that the plan or test-plan did not predict: a test that ran but no artifact promised; a test the plan or test-plan promised that did not exist; flakiness; environment-dependent behavior. Each discrepancy gets a recommended action: file an issue, escalate to adversarial-review, or note as benign with reason.
 - Mechanical role only. Do not score security or data. Do not produce findings. Do not advise on remediation beyond the discrepancy action.
 
@@ -84,6 +85,7 @@ Stop and ask the human when:
 - A test-plan tenant-isolation test is absent or skipped. Halt at `status: ran` and escalate via the Discrepancies section.
 - A test-plan performance-budget assertion did not execute or observed values outside budget. Halt at `status: ran`.
 - A `failed` result would block `status: passed`. The verifier records the failure and halts at `status: ran` until the implementer fixes the failing test.
+- A suite executed zero tests (V-05). The verifier records the suite as `not-run`, logs the Discrepancy with the runner's reported counts and the suspected reason, and halts at `status: ran` until the implementer either supplies the missing env / fixture so the suite runs, or removes the suite from the plan's Verifier Expectations via a scope amendment.
 
 ## Output expectations
 
@@ -93,10 +95,12 @@ A verification at terminal state (`status: passed`) has:
 - All four sections: Summary, Per-Phase Outcomes table, Test Suite Output (pointer), Discrepancies.
 - Every key in `phase-coverage` matches a phase id in the plan body (V-01).
 - No `failed` value in `test-results` (V-02).
+- No `not-run` value in `test-results` for `unit`, `integration`, or `e2e` (V-05). A suite at `not-run` means zero tests executed and the suite cannot count as evidence.
 
 ## Anti-patterns
 
 - Never invent a PASS. If tests are not green, status is `ran` or `failed`, not `passed`.
+- Never record a suite as `pass` without confirming the runner's observed-test-count for that suite is greater than zero (V-05). A suite gated by an unset env var, a suite where every test is `.skip` / `.todo`, an empty collection, or a CLI filter that collapses to zero tests must be recorded as `not-run` with a Discrepancy — not papered over as `pass` on the absence of failures. "Zero failures" is not "evidence of correctness" when there were zero assertions to fail.
 - Never skip a canonical command. The consuming repo's test/lint/typecheck commands in `ci-cd.md` are mandatory.
 - Never silently drop a discrepancy. Even benign discrepancies get a one-line note.
 - Never score security or data. Stay in the mechanical-verification lane.
