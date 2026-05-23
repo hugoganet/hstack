@@ -1,21 +1,21 @@
 ---
-name: hstack-init
+name: hstack-brownfield-init
 description: |
-  Use this skill when an engineer is adopting hstack on a fresh repository for the first time and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. Until init completes, no other hstack Skill works — every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as six-to-eight mini-sessions of ten-to-fifteen minutes each (one per product-context document) rather than one ninety-minute block, so that an interruption costs at most one in-flight field. Examples:
+  Use this skill when an engineer is adopting hstack on an **existing repository** (one with source code, documentation, or some product context already in place) and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. For empty repositories (no source yet), use `/hstack:greenfield-init` instead — that orchestrator composes the discovery atoms in elicit mode and ends with `/hstack:scaffold`. Until brownfield-init completes, no other hstack Skill works; every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as discrete mini-sessions of ten-to-fifteen minutes each rather than one long block, so that an interruption costs at most one in-flight field. Mini-sessions for data and app architecture **delegate to the standalone atoms** (`/hstack:data-architecture`, `/hstack:app-architecture`), which can also be re-run later via `/hstack:configure` for enrichment when `/hstack:help` flags a layer as missing. Examples:
 
   <example>
-  Context: A fresh Moso clone has no `hstack/config.yaml` and no `hstack/context/` content; the engineer wants to bootstrap hstack from scratch.
-  user: "Start /hstack:init on this repo."
-  assistant: "I'll invoke the product-manager subagent for the first mini-session — vision.md. We'll commit when vision is done and resume with glossary next."
+  Context: A six-month-old codebase has thin docs and no hstack/. The engineer wants to adopt hstack against the existing source.
+  user: "Start /hstack:brownfield-init on this repo."
+  assistant: "I'll read CLAUDE.md, README, package.json, and the source tree to seed proposals. Then mini-session 0 (config), product context via product-manager (vision, glossary, mvp-scope, personas) reading existing docs in extract+confirm mode. For data-architecture and app-architecture I'll delegate to the standalone atoms running in extract mode against the live schema and src/ tree."
   <commentary>
-  Init is the only Skill permitted to write `hstack/config.yaml` and to populate the product-context layer. It orchestrates the product-manager subagent across five-to-seven document interviews, each ending at a commit point. The "no other Skill works until init complete" rule is enforced by every downstream Skill's precondition checks.
+  Brownfield init's distinct mode is extract+confirm against existing sources. Where source docs are thin, the engineer can opt into running /hstack:product-discovery as a follow-up enrichment step after init completes.
   </commentary>
   </example>
 
   <example>
   Context: Init was started two days ago, three documents were committed, and a session crash dropped the fourth. The engineer wants to resume rather than restart.
-  user: "Resume /hstack:init — vision, glossary, and mvp-scope are already done."
-  assistant: "I'll read hstack/.session-state/<session-id>.yaml, confirm which documents are at status `current`, and resume with the next missing one — data-architecture, based on what I see on disk."
+  user: "Resume /hstack:brownfield-init — vision, glossary, and mvp-scope are already done."
+  assistant: "I'll read hstack/.session-state/<session-id>.yaml, confirm which documents are at status `current`, and resume with the next missing one — personas, based on what I see on disk."
   <commentary>
   Idempotency is load-bearing here: the Skill reads disk state, recognizes which documents are already terminal, and continues at the next empty mini-session boundary rather than re-running completed interviews.
   </commentary>
@@ -84,7 +84,11 @@ Init is split into discrete mini-sessions, each commitable independently. The or
 
 5. **Mini-session 4 — personas.** For each persona the engineer names, the `product-manager` subagent runs a persona sub-interview against `hstack/templates/persona.md`, including the challenge prompt "What is this persona explicitly not?" Personas are written to the configured store (typically `hstack/context/personas/<slug>.md`). Commit after each persona individually so partial completion is durable.
 
-6. **Mini-session 5 — data-architecture, tech-stack, ci-cd.** These three are interview-light because the engineer has often already documented them in `CLAUDE.md`, `package.json`, or `.github/workflows/`. The Skill orchestrates by handing each in turn to `product-manager` (or `spec-author` if the engineer prefers a more code-grounded read) with the relevant existing source plus the canonical template. Output: three files at `current`. Commit after each.
+6. **Mini-session 5 — tech-stack, ci-cd.** These two are interview-light because the engineer has often already documented them in `CLAUDE.md`, `package.json`, or `.github/workflows/`. The Skill orchestrates by handing each in turn to `product-manager` (or `spec-author` if the engineer prefers a more code-grounded read) with the relevant existing source plus the canonical template. Output: two files at `current`. Commit after each.
+
+7. **Mini-session 5a — data-architecture (delegated).** The Skill invokes `/hstack:data-architecture --mode extract`. The `data-architect` agent loads the live schema via Supabase MCP (when configured), scans `supabase/migrations/`, and proposes content for the five sections (Tenancy, Entities, RLS, RAG, Migration Sketches) in extract+confirm mode. The engineer confirms or revises section by section. This delegation is mandatory in v1 because the deeper five-section structure (with Tenancy as the load-bearing decision) is what downstream subagents rely on; the old interview-light path is no longer sufficient. The atom can also be re-run later via `/hstack:configure data-architecture [--section <name>]` for enrichment. Output: `hstack/context/data-architecture.md` at `current`. Commit.
+
+8. **Mini-session 5b — app-architecture (delegated).** The Skill invokes `/hstack:app-architecture --mode extract`. The `app-architect` agent scans `src/`, `app/`, or `lib/` via Glob, reads each module's exports and dependencies, and proposes the Module Map plus the four downstream sections (Agent Orchestration Model, Deterministic-vs-LLM Split, State-Ownership Map, Surface Boundaries). At terminal state the atom auto-scaffolds `hstack/specs/<module>/spec.md` stubs at `status: draft`; subsequent `/hstack:module-spec <module>` invocations reverse-engineer the stubs to `current`. Output: `hstack/context/app-architecture.md` at `current` plus one stub per module. Commit.
 
 7. **Mini-session 6 — infrastructure.** Invoke `spec-author` via the Task tool with `subagent_type: spec-author` and context = [`hstack/CLAUDE.md`, `hstack/templates/infrastructure.md`, `hstack/context/tech-stack.md`, `hstack/context/ci-cd.md`, `hstack/context/data-architecture.md`, any existing infra source the engineer points to — cloud console screenshots, Terraform / Pulumi / CDK files, GitHub Actions YAML, Dockerfile, supabase config]. The subagent walks every H2 section of the template via interview, biasing toward grounded truth-gathering rather than aspirational design. **For engineers unfamiliar with infrastructure concepts, the subagent is expected to explain each section's intent before asking, and to spawn the `researcher` subagent for unfamiliar terms (e.g., "what is point-in-time recovery?", "what does a CDN actually do?") rather than asking the engineer to guess.** This mini-session is interview-heavy and often the longest of init for pre-prod teams. Output: `hstack/context/infrastructure.md` at `current`. The Blast-Radius Matrix must have at least one row before status advances to `current` (INF-03); the Unknowns section must be present even when empty (INF-02). Honest "we don't have this yet" answers are explicitly preferred over fabricated content; the resulting gaps land as tech-debt items in the Known Gaps section. Commit.
 
@@ -103,7 +107,9 @@ The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, upda
 - `hstack/context/glossary.md` at `current`.
 - `hstack/context/mvp-scope.md` at `current`.
 - `hstack/context/personas/<slug>.md` per persona, or sync stubs when the store is Notion / Linear.
-- `hstack/context/data-architecture.md`, `tech-stack.md`, `ci-cd.md`, `infrastructure.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
+- `hstack/context/tech-stack.md`, `ci-cd.md`, `infrastructure.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
+- `hstack/context/data-architecture.md` at `current` (produced by the delegated `/hstack:data-architecture` atom, five-section structure).
+- `hstack/context/app-architecture.md` at `current` plus one `hstack/specs/<module>/spec.md` stub per module from Section 1 (produced by the delegated `/hstack:app-architecture` atom).
 - `hstack/context/incident-runbook.md` at `current` with `git-ignored: true`; corresponding `.gitignore` entry verified.
 - `hstack/context/mcp-status.md` documenting active and degraded MCPs.
 
@@ -120,7 +126,7 @@ The commit message names the mini-session and the artifact. Aside from these, in
 
 ## Idempotency contract
 
-Re-running `hstack-init` on a repo where init has progressed partway through:
+Re-running `hstack-brownfield-init` on a repo where init has progressed partway through:
 
 - Reads `hstack/config.yaml` and every existing `hstack/context/*.md`. Any file at `status: current` is considered done; the Skill does not re-interview it.
 - Reads `hstack/.session-state/<session-id>.yaml` if present and resumes the in-flight mini-session at its next un-confirmed field.
