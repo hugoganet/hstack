@@ -8,6 +8,7 @@ export const KERNEL_IMPORT_LINE =
   "> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/CLAUDE.md.";
 
 export const GITIGNORE_TELEMETRY_LINE = "**/.telemetry/";
+export const GITIGNORE_KERNEL_FIT_FLAGS_LINE = "hstack/kernel-fit/flags/";
 
 export type Action =
   | { kind: "copy-template"; from: string; to: string }
@@ -85,6 +86,17 @@ export async function planInit(
     kind: "append-line",
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_TELEMETRY_LINE,
+    createIfMissing: true,
+  });
+
+  // 5b. Append kernel-fit flags gitignore line (per ADR-0005 — pins are
+  // derivative signal, mirroring the `.telemetry/` decision in ADR-0004).
+  // Findings under hstack/kernel-fit/findings/ remain committed; only the
+  // flags/ subtree is gitignored.
+  actions.push({
+    kind: "append-line",
+    file: resolve(consumerRoot, ".gitignore"),
+    line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
     createIfMissing: true,
   });
 
@@ -170,6 +182,14 @@ export async function planUpdate(
     kind: "append-line",
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_TELEMETRY_LINE,
+    createIfMissing: true,
+  });
+
+  // 5b. .gitignore kernel-fit flags line — idempotent re-check (per ADR-0005).
+  actions.push({
+    kind: "append-line",
+    file: resolve(consumerRoot, ".gitignore"),
+    line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
     createIfMissing: true,
   });
 
