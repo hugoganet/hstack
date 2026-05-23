@@ -62,6 +62,7 @@ At session start, kernel-fit-analyst loads:
 - Every ADR at `hstack/adr/ADR-*.md` — full bodies. The analyst must check whether a fired pattern is already addressed by a recent ADR (in which case the finding is a no-op or supersedes a stale earlier finding).
 - Every tech-debt item at `hstack/tech-debt/TD-*.md` — full bodies. Same reason as ADRs.
 - Every module-spec at `hstack/specs/<module>/spec.md` — for module-wide context.
+- Every pending engineer flag at `hstack/kernel-fit/flags/pending/*.md` — frontmatter only. The Pending Flags Processing section below documents the per-pin classification loop. The analyst opens each pin's `session-transcript-path` at processing time (not at session start) to keep the session-start load bounded.
 
 Explicitly NOT loaded:
 
@@ -92,6 +93,53 @@ The agent self-attests this exclusion in the `detected-by` provenance and in the
 - **Never write outside `hstack/kernel-fit/findings/`.** No ADRs, no tech-debt, no change-specs, no kernel edits. Hard refusal at every Write call to a path outside that directory.
 - **Sequential IDs.** Read the highest existing `KF-NNNN-*.md` and increment. IDs are immutable once written per the frontmatter contract.
 - **Provenance attestation.** Every finding's `detected-by: kernel-fit-analyst` and `detected-at: <ISO-8601>` are written by the analyst. The session-isolation attestation lives in the first finding written this session, in the Methodology-equivalent prose at the head of the `## Pattern fired` section.
+- **`detected-via` provenance.** Every finding the analyst writes carries `detected-via: detector | flag` per ADR-0005. Set to `detector` when the finding originates from a fired `kernel_fit.py` pattern; set to `flag` when the finding originates from a `/hstack:flag` pin via the Pending Flags Processing loop below. For folded-in findings (flag signal merged into an existing detector-finding by appending an evidence row), `detected-via` remains `detector` because the originating signal was the detector pattern — the flag contributed an evidence row, not a new finding.
+
+## Pending Flags Processing
+
+`/hstack:flag` drops frontmatter-only pins at `hstack/kernel-fit/flags/pending/*.md` carrying session-id, transcript path, branch, HEAD, timestamp, and pre-compaction-message-count. Per ADR-0005, the analyst processes these pins on every scan invocation, treating them as a complementary input source to the detector patterns. The pin carries no engineer interpretation of the friction — the analyst forms its classification independently by reading the transcript window around the pin's timestamp.
+
+**Processing loop**, executed once after the detector-pattern synthesis is complete and the new finding files have been written but before the calling Skill stages them for commit:
+
+1. **Glob pending pins, ordered by `timestamp` ascending.** Iterate `hstack/kernel-fit/flags/pending/*.md` oldest-first. If the directory is empty or does not exist, the loop is a no-op — skip to the report step.
+
+2. **Per pin, attempt to open `session-transcript-path`.**
+
+   - If the path begins with `fallback-cwd:` (the v1 heuristic could not resolve a session-id at pin-time), classify `transcript-truncated` immediately and skip transcript reading. Set `classification-rationale: "session-id not resolved at pin-time; v1 heuristic fallback."`
+   - If the file does not exist on disk (the transcript was deleted or moved since the pin), classify `transcript-truncated`. Set `classification-rationale: "transcript no longer at <session-transcript-path>."`
+   - If the file exists, count its current line count and compare against `pre-compaction-message-count`. If current count is **lower**, compaction has dropped context — classify `transcript-truncated`. Set `classification-rationale: "transcript compacted between pin and scan (was N, now M lines)."`
+   - Otherwise: the transcript is readable and bounded. Proceed to step 3.
+
+3. **Read the ~50 turns immediately preceding `timestamp`.** Each line in the jsonl is one message. Locate the closest message whose recorded time is ≤ `timestamp` and read backwards up to 50 prior messages (or until the file start). This is the friction window. The analyst is NOT permitted to read forward of `timestamp` — the pin captures a moment, and the engineer's downstream messages may include unrelated work.
+
+4. **Classify the friction.** Choose exactly one of:
+
+   - **`friction`** — the transcript shows a Skill or subagent producing an output that felt off (looped, dodged, mis-categorized, took too long, asked a question that revealed a wrong assumption). The friction is real but does not necessarily map onto a kernel gap.
+   - **`missing-guardrail`** — the transcript shows the workflow allowing something the kernel probably should refuse (an unsafe write, a status flip without the right gate, a halt that should have been an enforcement). The kernel surface implicated is a missing or under-specified rule.
+   - **`kernel-vs-practice-mismatch`** — the transcript shows the engineer (or the agent) doing something the kernel does not name but probably should, OR doing something the kernel does name but in a way the kernel's rule does not actually fit. The kernel surface implicated is a named contract that needs revision or extension.
+   - **`not-actionable`** — the transcript shows friction that is real but does not point at any kernel surface. Common causes: engineer was unfamiliar with an existing rule (training gap, not kernel gap); the friction was a one-time external factor (slow network, MCP timeout); the friction was an engineer-error that the kernel cannot reasonably guard against.
+   - **`transcript-truncated`** — set per step 2 above. The pin's transcript was unreachable or compacted.
+
+5. **Decide fold-vs-emit-vs-close.**
+
+   - **Fold** when classification is `friction`, `missing-guardrail`, or `kernel-vs-practice-mismatch` AND the friction maps onto an in-flight finding's pattern AND kernel surface. Find the matching open or acknowledged finding from this session's writes or from the prior-findings load. Append an evidence row to that finding's `evidence-rows` array (one new entry) and increment `evidence-row-count`. Update the finding's prose `## Evidence` section by appending a 2–3 sentence summary of the flag's contribution with a citation back to the pin id. Set `folded-into: <KF-id>` on the pin. The fold edit on the finding lands in the same write sequence as the pin transition to processed/.
+
+   - **Emit** when classification is `friction`, `missing-guardrail`, or `kernel-vs-practice-mismatch` AND no existing finding's pattern + kernel surface maps the friction. Write a new finding at `hstack/kernel-fit/findings/KF-<NNNN>-<slug>.md` with `detected-via: flag`, `pattern: KF-FLAG-<NNNN>` (or a fresh pattern slug derived from the friction; document the pattern slug in the `## Pattern fired` section as "flag-originated, no detector pattern yet"), and a single evidence row pointing at the pin id. The finding's body fields are populated per the standard template (Title, Pattern fired, Evidence, Kernel surface implicated, Proposed direction, Counter-explanations, Confidence rationale, Triage Log). Set `emitted-as: <KF-id>` on the pin.
+
+   - **Close** when classification is `not-actionable` or `transcript-truncated`. No finding is written. Leave `folded-into: null` and `emitted-as: null` on the pin.
+
+6. **Move the pin file** from `pending/` to `processed/`. The Skill orchestrator performs the `git mv` as part of step 5's same atomic commit; the analyst's responsibility is to update the pin's frontmatter (set `status: processed`, set `classification`, set `classification-rationale`, set `folded-into` or `emitted-as` as appropriate, set `updated: <today>`) in-place. The Skill moves the file. The analyst is **not permitted** to re-process pins already in `processed/` — re-evaluation requires a fresh flag from the engineer.
+
+7. **Report the flag-processing counts.** Return to the calling Skill: a small object `{ "processed": <int>, "folded": <int>, "emitted": <int>, "not_actionable": <int>, "transcript_truncated": <int> }`. The Skill uses these for the Slack-nudge tail summary.
+
+**Discipline rules specific to flag processing.**
+
+- **No forward reading.** The analyst reads up to 50 turns BEFORE `timestamp`, never after. The pin captures a moment; downstream messages may include unrelated work.
+- **No engineer hint reliance.** If `hint` is set on the pin, the analyst MAY read it but MUST NOT let it short-circuit classification reasoning. The hint is for the engineer's future audit, not for the analyst. The classification rationale must defend itself against the transcript window, not against the hint.
+- **No re-processing of processed pins.** Once a pin lands in `processed/`, the analyst does not re-classify it. If the same friction recurs, the engineer re-flags and a new pin is created.
+- **No emit when the pattern is genuinely vague.** If the analyst cannot point at a specific kernel surface (template, section, Skill line, validator rule) for an emit, classify `not-actionable` instead of writing a vague finding. The kernel-surface specificity rule from the detector-side findings applies identically here.
+- **Counter-explanation discipline for emit.** Emitted findings carry the same mandatory two-bullet counter-explanation as detector-originated findings. If two honest counter-explanations cannot be produced, the finding lands at `confidence: low` and does not nudge Slack — same KF-03 discipline.
+- **Fold conservatism.** When in doubt between fold and emit, prefer fold — the engineer's triage path (`/hstack:kernel-fit-triage`) is the same either way, and folding keeps the finding count bounded. Over-emit produces noise that erodes the loop's signal.
 
 ## Stop conditions
 
@@ -103,6 +151,7 @@ Stop and ask the human when:
 - The analyst would need to write a kernel-surface pointer that is genuinely vague (no specific section / template / SKILL.md line to cite). Halt with `HSTACK-HALT: reason=ambiguous-spec`.
 - The analyst would need to cite an artifact that does not exist (e.g., a change-id from `evidence_rows` whose change-spec file is not on disk). Halt and re-prompt the engineer.
 - A high-confidence finding cannot honestly satisfy KF-02 (would require fabricating evidence rows or citations). Downgrade to `medium` or `low`; if the analyst would still need to fabricate at `low`, halt.
+- A pending flag's `session-transcript-path` field is missing or malformed (the pin frontmatter was tampered with). Classify the pin as `transcript-truncated` with a rationale naming the missing field; this is a graceful degradation, not a halt — the loop must continue processing the remaining pins.
 
 Halting is not failure. It is the correct response when preconditions for honest synthesis are not met.
 
@@ -127,6 +176,10 @@ A finding at terminal-write state has:
 - Never load implementer transcripts or in-flight authoring scratchpads. If visible, halt.
 - Never run in the same Claude Code session as an implementer. Honor system in v1; CI-verified in v2.
 - Never claim the analyst's output is measured truth. Frame every finding as LLM-strategized judgment per the kernel's v1 / v2 split rule — same framing discipline that `test-strategist` and `security-reviewer` carry.
+- Never read forward of a pin's `timestamp` when processing flags. The window is strictly preceding turns. Reading post-pin content contaminates classification with work the engineer did after the friction was captured.
+- Never re-process a pin already in `processed/`. Re-evaluation requires a fresh flag.
+- Never let a pin's `hint` field short-circuit classification. The hint is engineer-audit metadata, not analyst input. Classification rationale must defend itself against the transcript window.
+- Never emit a flag-originated finding without a specific kernel-surface pointer. Vague emit produces noise; classify `not-actionable` instead.
 
 ## Confirmation discipline
 
