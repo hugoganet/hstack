@@ -78,13 +78,17 @@ The Skill is opt-in. There is no cron, no automatic invocation, no event-driven 
 
 2. **Run detection.** Shell out: `python3 hstack/scripts/telemetry/run_kernel_fit.py --repo <repo-root> --window <N>`. Capture stdout as JSON; capture stderr as the diagnostic log. On non-zero exit, surface the traceback and halt with `HSTACK-HALT: reason=missing-context`.
 
-3. **Decide whether to invoke the subagent.** Parse the JSON. If every pattern has `fired: false`, exit clean: print "kernel-fit-scan: no patterns fired in window — kernel is consistent with shipped practice in current corpus" to stdout, write nothing, do not invoke the subagent, do not nudge Slack, do not commit. This is the most common outcome on a healthy repo.
+3. **Enumerate pending engineer flags.** Glob `hstack/kernel-fit/flags/pending/*.md`. Capture the list (may be empty). The analyst processes these per ADR-0005's Pending Flags Processing loop documented in `template/.claude/agents/kernel-fit-analyst.md`; this Skill is responsible for surfacing the list to the analyst and for the post-analyst pin-file moves at step 5.
 
-4. **Invoke `kernel-fit-analyst`.** When at least one pattern fired, invoke via Task tool with `subagent_type: kernel-fit-analyst`. The prompt includes (a) the JSON evidence blob verbatim, (b) the canonical reminder of session-isolation (no implementer transcripts loaded), (c) the explicit instruction "one file per fired pattern; mandatory two-bullet counter-explanation; never write outside `hstack/kernel-fit/findings/`". The subagent's writes land in the working tree before the subagent returns.
+4. **Decide whether to invoke the subagent.** Parse the detector JSON. If every pattern has `fired: false` **and** no pending flags exist, exit clean: print "kernel-fit-scan: no patterns fired in window, no pending flags — kernel is consistent with shipped practice in current corpus" to stdout, write nothing, do not invoke the subagent, do not nudge Slack, do not commit. If patterns fired OR pending flags exist (or both), proceed to step 5.
 
-5. **Stage and commit findings.** Compute the set of newly-written or modified finding files (analyst may have superseded a prior finding atomically with a new one). Print the proposed diff for engineer confirmation (per the kernel's "AI writes, humans confirm" mechanical-operations adaptation). On Y/n confirmation `Y` (default Yes), `git add` the finding files and commit with message `kernel-fit: <N> finding(s) detected` (or `kernel-fit: <N> finding(s) detected, <M> superseded` when supersession edits also landed). One commit per scan run, atomic across all new/edited findings.
+5. **Invoke `kernel-fit-analyst`.** Invoke via Task tool with `subagent_type: kernel-fit-analyst`. The prompt includes (a) the JSON evidence blob verbatim, (b) the list of pending flag paths from step 3 (or "no pending flags" when empty), (c) the canonical reminder of session-isolation (no implementer transcripts loaded), (d) the explicit instruction "one file per fired pattern; mandatory two-bullet counter-explanation; never write outside `hstack/kernel-fit/findings/`; process pending flags per the Pending Flags Processing section of the analyst prompt". The subagent's writes land in the working tree before the subagent returns. The analyst's response object reports the flag-processing counts (`processed`, `folded`, `emitted`, `not_actionable`, `transcript_truncated`).
 
-6. **Notification — Slack nudge (best-effort).** Compute the notification set:
+6. **Move processed pin files.** For each pin the analyst updated to `status: processed`, `git mv hstack/kernel-fit/flags/pending/<pin>.md hstack/kernel-fit/flags/processed/<pin>.md`. Create the `processed/` directory if missing. This move lands in the same commit as the finding writes at step 7 — the analyst's pin frontmatter updates (classification, classification-rationale, folded-into, emitted-as, status) plus the file move must be atomic from git's perspective. **Note**: pin files are gitignored per ADR-0005, so `git mv` operates only on the filesystem (git will not stage either side). The "atomicity" here is filesystem-only — the analyst's in-place frontmatter update and the directory move complete together before stdout reports flag-processing counts. If the gitignore is later relaxed (would require an ADR amendment), this step's `git mv` becomes a real staged operation.
+
+7. **Stage and commit findings.** Compute the set of newly-written or modified finding files (analyst may have superseded a prior finding atomically with a new one, or appended evidence rows to existing findings via fold). Print the proposed diff for engineer confirmation (per the kernel's "AI writes, humans confirm" mechanical-operations adaptation). On Y/n confirmation `Y` (default Yes), `git add` the finding files and commit with message `kernel-fit: <N> finding(s) detected` (or `kernel-fit: <N> finding(s) detected, <M> superseded` when supersession edits landed; or `kernel-fit: <N> finding(s) detected (<F> from flags), <M> superseded` when flag-emit landed). One commit per scan run, atomic across all new/edited findings. When patterns did not fire and only pending flags were processed, the commit message reads `kernel-fit: <F> flag(s) processed (<E> emit, <FF> fold, <NA> not-actionable, <TT> transcript-truncated)`.
+
+8. **Notification — Slack nudge (best-effort).** Compute the notification set:
 
    ```
    notify = [f for f in newly_written_findings
@@ -97,8 +101,8 @@ The Skill is opt-in. There is no cron, no automatic invocation, no event-driven 
    ```
    hstack kernel-fit: <N> new finding(s)
 
-   • KF-NNNN — <title>  [confidence: high|medium]
-     Pattern: <KF-P1|KF-P2|KF-P3>
+   • KF-NNNN — <title>  [confidence: high|medium] [via: detector|flag]
+     Pattern: <KF-P1|KF-P2|KF-P3|KF-FLAG-NNNN>
      Kernel surface: <one-line>
      hstack/kernel-fit/findings/KF-NNNN-<slug>.md
 
@@ -107,29 +111,39 @@ The Skill is opt-in. There is no cron, no automatic invocation, no event-driven 
    Promote:  /hstack:kernel-fit-promote KF-NNNN --slug <adr-slug>
    ```
 
-   Bundle multiple findings into a single message when more than one fires in this scan.
+   Bundle multiple findings into a single message when more than one fires in this scan. When flag-processing occurred, append the **flag tail summary** as the last line of the same Slack message:
 
-7. **Graceful degradation when Slack is unreachable.** If the MCP call raises (tool not configured, network failure, channel-not-found, etc.), log to stderr: `kernel-fit: Slack MCP unreachable; <N> finding(s) written to disk without notification. Triage via /hstack:help to discover open findings.` Exit 0. The disk write from step 5 is the load-bearing action; Slack is a side-channel pointer. This is a deliberate carve-out from the kernel's general MCP-unreachable stop condition — Slack is not load-bearing for kernel-fit (the canonical state lives on disk and is reachable via `/hstack:help`). The carve-out is documented here and in the kernel's `## How hstack improves itself` section.
+   ```
+   Flags processed: <P> total — <FF> folded, <E> emitted, <NA> not-actionable, <TT> transcript-truncated.
+   ```
 
-8. **Report.** Print to stdout: the count of patterns fired, the count of new findings written, the count of supersessions, the count of Slack notifications fired (or "skipped — Slack unreachable" / "skipped — within dedup window for all findings"). Done.
+   The tail is included only when at least one pin was processed AND at least one of `folded` or `emitted` is non-zero, OR when `transcript_truncated > 0` (the transcript-truncated count is operationally interesting because it surfaces v1-heuristic edge cases the engineer should know about). When every processed pin was classified `not-actionable` the tail is suppressed — it would otherwise be pure noise. When the scan produces zero detector findings AND only `not-actionable` pin processing, the Slack message is suppressed entirely (no findings, no tail-worthy signal).
+
+9. **Graceful degradation when Slack is unreachable.** If the MCP call raises (tool not configured, network failure, channel-not-found, etc.), log to stderr: `kernel-fit: Slack MCP unreachable; <N> finding(s) written to disk without notification. <P> flag(s) processed; triage via /hstack:help to discover open findings.` Exit 0. The disk write from step 7 is the load-bearing action; Slack is a side-channel pointer. This is a deliberate carve-out from the kernel's general MCP-unreachable stop condition — Slack is not load-bearing for kernel-fit (the canonical state lives on disk and is reachable via `/hstack:help`). The carve-out is documented here and in the kernel's `## How hstack improves itself` section.
+
+10. **Report.** Print to stdout: the count of patterns fired, the count of new findings written, the count of supersessions, the count of flags processed broken down by classification (`folded`, `emitted`, `not-actionable`, `transcript-truncated`), and the count of Slack notifications fired (or "skipped — Slack unreachable" / "skipped — within dedup window for all findings" / "skipped — no signal worth surfacing"). Done.
 
 ## Outputs
 
 - Zero or more files at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md` at `status: open`.
 - Zero or more supersession edits (status flip + `superseded-by` set) on prior finding files.
-- Zero or one git commits.
-- Zero or one Slack messages (bundled when multiple findings notify).
+- Zero or more evidence-row appends to existing findings (from flag fold).
+- Zero or more pin transitions from `hstack/kernel-fit/flags/pending/` to `hstack/kernel-fit/flags/processed/` with `status: processed` and the analyst-owned classification fields populated. Pins are gitignored per ADR-0005, so the moves are filesystem-only — not staged in git.
+- Zero or one git commits (covering finding writes only; pin moves are not staged).
+- Zero or one Slack messages (bundled when multiple findings notify, with the flag tail summary appended when applicable).
 
 ## Auto-commit triggers
 
-- One commit at the writing of finding files (per the kernel's auto-commit-at-status-transition rule applied at the artifact-creation moment). No commit when no patterns fire.
+- One commit at the writing of finding files (per the kernel's auto-commit-at-status-transition rule applied at the artifact-creation moment). No commit when no patterns fire AND no flag-emit or flag-fold landed (i.e., only `not-actionable` / `transcript-truncated` flag processing occurred). Pin file moves are filesystem-only (pins are gitignored) and do not require a commit.
 
 ## Idempotency contract
 
-- Re-running the Skill when no patterns fire: zero new disk artifacts, no commit, no Slack message. Pure no-op.
+- Re-running the Skill when no patterns fire AND no pending flags exist: zero new disk artifacts, no commit, no Slack message. Pure no-op.
+- Re-running when no patterns fire but pending flags exist: the analyst is invoked to process flags only. Outcomes depend on classification — fold/emit may produce finding writes and a commit; not-actionable/transcript-truncated produce only pin moves (no commit).
 - Re-running when patterns fire that already have open findings within the dedup window: the analyst is invoked, sees existing findings, and may skip-write or supersede; Slack notification is suppressed by the dedup gate.
 - Re-running when the same patterns fire with new evidence: the analyst may produce supersession edits; the dedup gate still suppresses Slack (already-notified within the window).
-- Re-running with `--no-slack`: identical to a run with Slack unreachable — findings land on disk, no Slack message.
+- Re-running with `--no-slack`: identical to a run with Slack unreachable — findings land on disk, flags are processed normally, no Slack message.
+- Re-running after pending flags were processed in a prior scan: the prior pins are now in `processed/` and the analyst is forbidden from re-processing them (per the kernel-fit-analyst's discipline rules). Only newly-flagged pins (added to `pending/` since the last scan) are processed this run.
 
 ## Stop conditions
 
@@ -178,3 +192,6 @@ What you do NOT need to do: no code to write, no hook to install. The Skill is p
 - Never write outside `hstack/kernel-fit/findings/` or modify any artifact not produced by the analyst this run. This Skill orchestrates; it does not author.
 - Never claim the analyst's output is measured truth. Frame every finding as LLM-strategized judgment per the kernel's v1 / v2 split rule.
 - Never bundle a Slack notification across scan runs. One scan, one message (or zero, when the dedup gate suppresses or Slack is unreachable).
+- Never re-process a pin already in `hstack/kernel-fit/flags/processed/`. The analyst's discipline rule (no re-processing) is mirrored here: the Skill globs only `pending/`, never `processed/`. If the engineer believes a processed pin was mis-classified, the path is to re-flag (creating a fresh pin), not to move the prior pin back.
+- Never include the flag tail summary in the Slack message when every pin was classified `not-actionable`. The tail's purpose is to surface actionable signal — the all-not-actionable case is pure noise and the suppression is deliberate.
+- Never commit a pin move. Pins are gitignored per ADR-0005; the `git mv` from `pending/` to `processed/` is filesystem-only and produces no staged change.

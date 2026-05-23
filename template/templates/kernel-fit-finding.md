@@ -6,6 +6,7 @@ owner: null                            # git-handle of the triager; null until f
 pattern: <KF-P1 | KF-P2 | KF-P3 | …>   # detector pattern that fired; enumerated in scripts/telemetry/insights/kernel_fit.py
 confidence: medium                     # high | medium | low
 detected-by: kernel-fit-analyst
+detected-via: detector                 # detector | flag — `detector` (default) when the finding came from kernel_fit.py pattern matching; `flag` when the finding originated from a /hstack:flag pin (ADR-0005). For folded-in findings (flag signal merged into an existing detector-finding), `detected-via` remains `detector` because the originating signal was the detector pattern.
 detected-at: <ISO-8601 timestamp>
 evidence-row-count: 0                  # integer; must equal len(evidence-rows) per KF-01
 evidence-rows: []                      # YAML array of {change|adr|td, signal} dicts; one entry per row counted above
