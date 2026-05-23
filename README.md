@@ -1,12 +1,17 @@
 # hstack
 
-A spec-driven engineering workflow that ships as Claude Code Skills and subagents. Configurable per repo. Designed to take a brownfield AI-native SaaS codebase from prototype toward production-grade without adopting a heavyweight methodology framework.
+A spec-driven engineering workflow that ships as Claude Code Skills and subagents. Configurable per repo. Adopts into a brownfield AI-native SaaS codebase OR starts a new project from line zero — both paths funnel into the same kernel, the same artifact taxonomy, and the same gates.
 
 hstack sits between an engineer's intent and a merged commit. Scoping, gating, artifact production, multi-tenant safety, audit, reviewability — all flow through it.
 
 ## What hstack is
 
-A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. Sixteen Skills, ten subagents, a small set of canonical templates, and one kernel (`CLAUDE.md`) that wins every conflict. AI writes; humans confirm. Artifacts on disk are the state machine — no parallel tracker, no separate dashboard.
+A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. ~34 Skills, ~16 subagents, ~32 canonical templates, and one kernel (`CLAUDE.md`) that wins every conflict. AI writes; humans confirm. Artifacts on disk are the state machine — no parallel tracker, no separate dashboard.
+
+Two entry points cover the project lifecycle:
+
+- **`/hstack:greenfield-init`** — for empty repositories. Six phases (product discovery → data architecture → app architecture → stack decisions → threat-model / hardening → scaffold) elicit the design from scratch and produce a bootable repo with discipline baked in from line zero.
+- **`/hstack:brownfield-init`** — for existing repositories. The same discovery atoms run in extract+confirm mode against existing source, populating the context layer without rewriting it.
 
 ## What hstack is not
 
@@ -82,17 +87,47 @@ macOS and Linux only in v0.1. Windows is hard-failed at `hstack init` — the di
 
 ## First run
 
-Open a fresh Claude Code session in the consuming repo and run:
+Open a fresh Claude Code session in the consuming repo. Pick the right entry point based on repo state:
+
+### Empty repo — greenfield
 
 ```
-/hstack:init
+/hstack:greenfield-init
 ```
 
-Init is conversational and split into five-to-seven mini-sessions of ten-to-fifteen minutes each — one per product-context document. Each mini-session ends at a commit point so an interruption costs at most one in-flight field. Total elapsed time is 60–90 minutes for a fresh repo. No other Skill runs until init completes.
+Six phases of conversational design, each ending at a commit point. Total elapsed time is founder-paced — typically 4–8 hours of conversation across multiple sessions. Phases:
 
-Init produces `hstack/config.yaml` and every required document under `hstack/context/`: vision, glossary, mvp-scope, personas, data-architecture, tech-stack, ci-cd, threat-model, hardening-checklist, incident-runbook. The product-manager subagent drives the interview. If the consuming repo has existing source documents (Notion pages, repo markdown, Google Docs), point the agent at them and it will map content into the canonical templates before walking field-by-field confirmation.
+1. **Product discovery** — `product-discovery` agent runs one of three techniques (Brainstorm, Forcing-Questions, Project-Brief) and produces `hstack/context/product/product-brief.md`, then auto-routes to `product-manager` to refresh vision, mvp-scope, personas, glossary.
+2. **Data architecture** — `data-architect` agent walks five sections (Tenancy, Entities, RLS, RAG, Migration Sketches) and produces a deeper `hstack/context/data-architecture.md`.
+3. **App architecture** — `app-architect` agent walks five sections (Module Map, Agent Orchestration, Deterministic-vs-LLM Split, State-Ownership, Surface Boundaries) and produces `hstack/context/app-architecture.md`. Scaffolds module-spec stubs.
+4. **Stack decisions** — `stack-architect` agent runs the constraint interview, routes ADRs through `spec-author` with pre-populated Context / Decision / Alternatives. Default-stack fast-path collapses confirmed defaults into one rollup ADR.
+5. **Threat-model + hardening** — `security-reviewer` in `--mode foundational` scores against proposed posture.
+6. **Scaffold** — `/hstack:scaffold` generates a bootstrap change-spec, runs foundational-mode security/data review, then planner → implementer phase-by-phase → verifier. At the end, the repo is bootable.
 
-After init, run `/hstack:module-spec <area>` once per critical module to reverse-engineer baseline module-specs.
+### Existing repo — brownfield
+
+```
+/hstack:brownfield-init
+```
+
+Conversational, split into mini-sessions of ten-to-fifteen minutes each — one per product-context document. Each mini-session ends at a commit point. Total elapsed time is 60–90 minutes for a fresh adoption. No other per-change Skill runs until init completes.
+
+Brownfield-init produces `hstack/config.yaml` and every required document under `hstack/context/`: vision, glossary, mvp-scope, personas (via `product-manager` reading existing docs in extract+confirm mode), data-architecture and app-architecture (delegated to the standalone atoms running in extract mode against the live schema and source tree), tech-stack, ci-cd, threat-model, hardening-checklist, infrastructure, incident-runbook. If the consuming repo has existing source documents (Notion pages, repo markdown, Google Docs), point the agents at them and they will map content into the canonical templates before walking field-by-field confirmation.
+
+After brownfield-init, run `/hstack:module-spec <area>` once per critical module to reverse-engineer baseline module-specs from the stubs scaffolded by `/hstack:app-architecture`.
+
+### Discovery atoms — standalone
+
+The four discovery atoms can also be invoked outside an init orchestrator, for example to enrich a brownfield repo whose `/hstack:help` flagged a missing layer:
+
+```
+/hstack:product-discovery [--mode extract|elicit] [--section <name>]
+/hstack:data-architecture [--mode extract|elicit] [--section <name>]
+/hstack:app-architecture  [--mode extract|elicit] [--section <name>]
+/hstack:stack-decide      [--layer <name>]
+```
+
+Each atom is independently re-runnable. Section-targeted entry (`--section`) fast-jumps to a specific section but always re-runs the end-of-atom coherence check.
 
 ## Per-change workflow
 
@@ -127,20 +162,27 @@ hstack/
   CLAUDE.md                # the kernel (authority)
   README.md                # this file
   context/                 # slow-changing product context
+    product/
+      product-brief.md     # discovery synthesis (Phase 1 output)
+    app-architecture.md    # internal architecture (Phase 3 output)
+    data-architecture.md   # five-section foundational data design (Phase 2 output)
+    ...                    # vision, mvp-scope, personas, glossary, tech-stack, ci-cd, infrastructure, threat-model, hardening-checklist, incident-runbook
   specs/
-    <module>/spec.md       # module baseline
-    changes/<id>/          # per-change artifacts
-  adr/                     # Architecture Decision Records
+    <module>/spec.md       # module baseline (stubs scaffolded by app-architect; reverse-engineered post-bootstrap)
+    changes/<id>/          # per-change artifacts (including the one-time bootstrap change-spec)
+  adr/                     # Architecture Decision Records (including stack ADRs from Phase 4)
   tech-debt/               # known compromises
   research/
     sessions/              # transient
     promoted/              # durable
   templates/               # canonical templates
+    discovery/             # three technique scripts (brainstorm, forcing-questions, project-brief)
+  kernel-fit/              # closed-loop drift detection findings
   lints/                   # pattern-based lint rules
-  scripts/                 # validators, gate runners
+  scripts/                 # validators, gate runners, telemetry
 .claude/
-  skills/hstack-*/SKILL.md # 16 Skills
-  agents/                  # 10 subagent personas
+  skills/hstack-*/SKILL.md # ~34 Skills
+  agents/                  # ~16 subagent personas
 ```
 
 ## Honesty clause: v1 vs v2
@@ -166,4 +208,4 @@ The full v2 roadmap lives in the architecture document.
 
 ## Status
 
-hstack v0.1.0. Sixteen Skills, ten subagents, twenty-two templates, the kernel. Enforcement scripts (`hstack/scripts/`) and pattern-based lint rules (`hstack/lints/`) are sketched but not yet implemented — the Skills run as conversational interviews without them, and the CI gate runs in advisory mode until the scripts land. First real use against a consuming repo is the next milestone.
+hstack v0.x.x. ~34 Skills, ~16 subagents, ~32 templates, the kernel. Greenfield workflow added in this release (four discovery-atom subagents — product-discovery, data-architect, app-architect, stack-architect — plus seven new skills: greenfield-init, the four atoms, scaffold). `/hstack:init` was renamed to `/hstack:brownfield-init`; consumers on the rename'd version run `npx hstack update` to reconcile per-skill symlinks. Enforcement scripts (`hstack/scripts/`) and pattern-based lint rules (`hstack/lints/`) are sketched but not yet implemented — the Skills run as conversational interviews without them, and the CI gate runs in advisory mode until the scripts land. First real use of the greenfield path against a fresh project is the next milestone.

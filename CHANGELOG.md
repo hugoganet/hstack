@@ -6,6 +6,47 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 _Nothing yet._
 
+## [0.5.0] - 2026-05-23
+
+Greenfield workflow: hstack now adopts into empty repositories from line zero, not just brownfield repos. Same kernel, same artifact taxonomy, same gates — a second entry point and a new discovery layer underneath.
+
+### Breaking
+
+- **`/hstack:init` renamed to `/hstack:brownfield-init`.** Existing skill content kept; description updated to reflect brownfield-specific framing. Consumers must run `npx hstack@latest update` to reconcile per-skill symlinks (the `hstack-*` glob handles the symlink removal + addition automatically). Any script or doc that hard-codes `/hstack:init` must be updated.
+- **`data-architecture.md` template rewritten to five-section structure** (Tenancy, Entities, RLS, RAG, Migration Sketches), replacing the prior six-section template (Tables, RLS, RAG, Lifecycle, External Sources, Conventions). Tenancy is the new load-bearing first section; data-architect refuses to advance past it until concrete. Consumers with in-flight `data-architecture.md` artifacts must run `/hstack:configure data-architecture` to reshape into the new structure; the prior content is not auto-migrated.
+
+### Added
+
+- **Four discovery-atom subagents** (`template/.claude/agents/`):
+  - `product-discovery` (opus) — thinking partner running one of three techniques (Brainstorm, Forcing-Questions, Project-Brief). Coach, never generator. Produces `hstack/context/product/product-brief.md` and auto-routes to `product-manager` for vision/mvp-scope/personas/glossary refresh.
+  - `data-architect` (opus) — foundational data-layer designer. Walks five sections; tenancy gate is non-negotiable. Bidirectional drift recovery with downstream phases.
+  - `app-architect` (opus) — internal-architecture designer. Stack-agnostic by design. At terminal state, three-file atomic commit: artifact + module-spec stubs + `hstack/config.yaml` surfaces enum update. Narrow carve-out from the spec-author exclusivity rule (stubs only, headers + `status: draft`).
+  - `stack-architect` (sonnet) — technical-discovery interviewer. Default-stack fast-path collapses confirmed defaults into a single rollup ADR; deep-dive layers get the full constraint interview. Routes ADRs through `spec-author` via `/hstack:adr-new` with pre-populated Context / Decision / Alternatives. Consequences challenge fires fresh regardless of pre-population.
+- **Six new templates** (`template/templates/`):
+  - `product-brief.md` — single synthesis artifact for product discovery.
+  - `discovery/{brainstorm,forcing-questions,project-brief}.md` — three technique scripts. Forcing-Questions derived from Gstack's YC-partner reframe pattern.
+  - `app-architecture.md` — five-section internal architecture.
+  - `bootstrap.md` — change-spec variant with `area: bootstrap`, `surfaces: [infra]`, explicit `in-scope` enumeration.
+- **Seven new skills** (`template/.claude/skills/`):
+  - `hstack-greenfield-init` — six-phase orchestrator for empty repos.
+  - `hstack-product-discovery`, `hstack-data-architecture`, `hstack-app-architecture`, `hstack-stack-decide` — the four atoms. Each runs in elicit (greenfield) or extract+confirm (brownfield) mode; each is independently re-runnable via `/hstack:configure`. Section-targeted entry (`--section <name>`) fast-jumps but always re-runs the end-of-atom coherence check.
+  - `hstack-scaffold` — Phase 6 execution. Generates bootstrap change-spec, runs foundational-mode security-review and data-review, drives the standard per-change workflow to a bootable repo.
+
+### Kernel additions
+
+- **Halt sentinel enum** gains `upstream-drift`. Emitted by discovery atoms when a section's drift challenge surfaces a contradiction with an upstream artifact. Bidirectional recovery via `/hstack:configure <upstream-atom>`.
+- **SP-09 / SP-13** extended with **Category C (`area: bootstrap`)** as the third no-story carve-out, mutually exclusive with Category A (`internal-tooling: true`) and Category B (`enables: [...]`). Audit-query semantics defined for each.
+- **Product context file list** updated with `product/product-brief.md` and `app-architecture.md`. `assumes-database: postgres` declared on `data-architecture.md`; stack-agnostic invariant declared on `app-architecture.md`.
+- **Session-start load rules** documented for the four new agents. `app-architect` explicitly does NOT load `tech-stack.md`.
+- **Mechanical operations** carve-out for `app-architect` to scaffold module-spec stubs (headers only) under `hstack/specs/`. Three new mechanical-operation skills (`/hstack:app-architecture`, `/hstack:stack-decide`, `/hstack:scaffold`).
+
+### Notes
+
+- v1 honesty: foundational-mode `security-review` and `data-review` (used during scaffold) score against proposed posture, not against a diff; this is the same v1 limitation the per-change reviewers carry. v2 substrate adds executable probes.
+- Discovery atoms work in extract+confirm mode against existing source via Supabase MCP, Glob over `src/`, and engineer-pointed-at docs. When MCPs are unreachable in load-bearing mode, the atoms halt per the kernel's MCP-unreachable rule.
+- The `app-architect` carve-out from the spec-author exclusivity rule is narrowly scoped: stubs are headers + `status: draft` + a one-line body note, never authored content. Any deviation reverts to spec-author ownership via `/hstack:module-spec`.
+- README counts updated to ~34 Skills, ~16 subagents, ~32 templates.
+
 ## [0.4.0] - 2026-05-23
 
 ### Added

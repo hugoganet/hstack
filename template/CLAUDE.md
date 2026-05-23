@@ -1,5 +1,5 @@
 ---
-hstack-version: v0.1.0
+hstack-version: v0.5.0
 authority: kernel
 ---
 
@@ -139,12 +139,13 @@ Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601;
 
 **Change-spec carries an optional `revisits-change` array.** When a new change-spec is filed to fix a defect, regression, or missed adversarial-review finding from a prior shipped change, the engineer populates `revisits-change: [<predecessor-change-id>]` so post-merge defect correlation is computable (`/hstack:telemetry` § QO-6 when promoted from watch-list to dashboard). Default empty. The field is informational, not gating — no Skill refuses to advance because the array is empty or non-empty.
 
-**Change-spec carries `internal-tooling` (Category A) and `enables` (Category B) as the two no-story carve-outs.** A change-spec with no driving user story must declare one of two categories before status advances past `draft` (SP-09):
+**Change-spec carries `internal-tooling` (Category A), `enables` (Category B), and `area: bootstrap` (Category C) as the three no-story carve-outs.** A change-spec with no driving user story must declare one of three categories before status advances past `draft` (SP-09):
 
 - **Category A — `internal-tooling: true`.** Engineering-only code that never ships on a user path: CI tooling, dev scripts, repo automation, internal dashboards. No `enables` linkage exists because no downstream user-facing change is teed up.
 - **Category B — `enables: [<downstream-change-spec-id>, ...]`.** Production code that ships, but user value is realized by a named downstream change-spec that consumes this one's output. Typical case: schema or plumbing landed ahead of the UI that surfaces it. The reciprocal field `enabled-by: []` on the downstream spec is written atomically with `enables`.
+- **Category C — `area: bootstrap`.** The one-time greenfield scaffold change-spec. The code ships on user paths, but the explicit `enables` list would be degenerate (every future change-spec would be a target) and `internal-tooling: true` would be dishonest. The `area: bootstrap` value satisfies SP-09 as the third carve-out. Bootstrap is produced by `/hstack:scaffold` (Phase 6 of `/hstack:greenfield-init`) and runs at most once per project lifetime; the canonical template is `hstack/templates/bootstrap.md`.
 
-The two flags are mutually exclusive (SP-13): a change is Category A *or* Category B, never both. If neither applies, `user-stories` must be non-empty. The audit query *"what's the user value of this change?"* follows the `enables` chain until it hits a spec with `user-stories` non-empty (the user-value realization point) or a dead end. Forward references are permitted at authoring time — if `enables` names a not-yet-scaffolded id, `/hstack:change-new` reconciles the reciprocal `enabled-by` when the downstream spec is later scaffolded. Reciprocity (`change-spec.enables ↔ change-spec.enabled-by`) is enforced by SP-14 and lands in a single atomic commit, matching the kernel's other reciprocal-pair rules.
+The three flags are mutually exclusive (SP-13): a change is Category A, Category B, or Category C — never two. If none applies, `user-stories` must be non-empty. The audit query *"what's the user value of this change?"* follows the `enables` chain (Category B) until it hits a spec with `user-stories` non-empty, terminates at Category A with "none, it's internal", or terminates at Category C with "it bootstraps the project; all subsequent changes inherit from it." Forward references are permitted at authoring time — if `enables` names a not-yet-scaffolded id, `/hstack:change-new` reconciles the reciprocal `enabled-by` when the downstream spec is later scaffolded. Reciprocity (`change-spec.enables ↔ change-spec.enabled-by`) is enforced by SP-14 and lands in a single atomic commit, matching the kernel's other reciprocal-pair rules.
 
 ---
 
@@ -198,6 +199,8 @@ Subagents are expensive. Each fresh subagent invocation pays the cost of its sys
 
 The kernel rule reading: *"spec-author is the only **subagent** permitted to write under `hstack/specs/`, `hstack/adr/`, and `hstack/tech-debt/`."* The Skill orchestrator running in the main Claude Code session is not a subagent. Skills are therefore permitted to perform mechanical frontmatter writes directly, without invoking a subagent. ADR-0001 documents the decision.
 
+**Narrow carve-out for `app-architect`.** The `app-architect` subagent may scaffold `hstack/specs/<module>/spec.md` **stubs** (headers only, `status: draft`, body note pointing to `/hstack:module-spec`) at the terminal state of its own atom, as pre-allocation for downstream `spec-author` work. The carve-out is scoped narrowly: stubs are not authored content (no body prose, no filled sections), they land in one atomic commit alongside `app-architecture.md` advancing to `current`, and the engineer's first invocation of `/hstack:module-spec <module>` reverse-engineers the stub into authored content via the normal `spec-author` interview. Any other subagent attempting to write under `hstack/specs/` is rejected per the original rule.
+
 **What counts as a mechanical operation.** Operations where no open-ended interview is required — values are determined by the Skill's preconditions, the engineer's invocation arguments, or a structured-elicitation loop with a fixed question set and bounded answer shape:
 
 - **Status flips** — advancing an artifact's `status` field along the lifecycle. The engineer's invocation of the Skill (and any acknowledgement gate the Skill carries) is the confirmation.
@@ -216,6 +219,9 @@ The kernel rule reading: *"spec-author is the only **subagent** permitted to wri
 - `/hstack:tech-debt-wontfix` — TD `open → wontfix`; `wontfix-reason` and `wontfix-accepted-alternative` writes; Resolution Log append.
 - `/hstack:tech-debt-stale` — TD `open → stale-no-longer-reproducible`; `stale-verified-at` and `stale-verification-method` writes; Resolution Log append.
 - `/hstack:tech-debt-new` — reciprocal `creates-tech-debt` write on the originating change-spec after `spec-author` finishes the TD authoring interview.
+- `/hstack:app-architecture` — at terminal state, three-file atomic commit: `app-architecture.md` advances to `status: current`; one `hstack/specs/<module>/spec.md` stub per module from Section 1 (under the `app-architect` carve-out above); `hstack/config.yaml`'s `surfaces` enum updated to match Section 5. All three writes land in one git commit; the proposed-diff preview runs before commit per the standard mechanical-operations contract.
+- `/hstack:stack-decide` — optional `hstack/config.yaml` default-stack update after per-layer ADRs land, when the engineer wants a layer's choice to become the project-wide default. Mechanical write, proposed-diff preview, single commit.
+- `/hstack:scaffold` — generates the bootstrap change-spec's `in-scope` enumeration (from app-architecture Module Map + data-architecture Migration Sketches + standard infra files) and pre-populates `related-adrs` from Phase 4 ADRs. The change-spec lands at `status: draft`; `spec-author` walks the engineer through confirm-or-revise to reach `ready-to-plan`. After that, the standard per-change workflow Skills run unchanged.
 
 **Discipline preserved.** Skills doing direct writes still honor:
 
@@ -297,11 +303,13 @@ Subagents and Skills in v1 must not falsely assert v2 guarantees. The `security-
 
 The product context layer lives at `hstack/context/`:
 
+- `product/product-brief.md` — the durable thinking artifact capturing the project's product reasoning. Produced by `product-discovery` via one of three techniques (Brainstorm, Forcing-Questions, Project-Brief). Upstream of `vision.md`, `mvp-scope.md`, `personas/`, `glossary.md` — those are refreshed from the brief by `product-manager` via auto-route.
 - `vision.md` — what the product is, what it does, what it is not.
 - `glossary.md` — terms with non-obvious meaning.
 - `mvp-scope.md` — in MVP, in v2, deferred.
 - `personas/` — one file per persona, or one row per persona in the configured store.
-- `data-architecture.md` — data model, schema, RAG architecture, embedding strategy.
+- `data-architecture.md` — five-section foundational design (Tenancy, Entities, RLS, RAG, Migration Sketches). Produced by `data-architect`. Carries `assumes-database: postgres` in frontmatter (or alternative with explicit rationale).
+- `app-architecture.md` — five-section internal-architecture design (Module Map, Agent Orchestration, Deterministic-vs-LLM Split, State-Ownership, Surface Boundaries). Produced by `app-architect`. Stack-agnostic by design; does not name frameworks.
 - `tech-stack.md` — canonical languages, frameworks, libraries.
 - `ci-cd.md` — CI/CD setup of the consuming repo.
 - `infrastructure.md` — operational truth: hosting, networking, secrets, environments, deploy pipeline, observability, cost, disaster recovery, blast-radius matrix, access control, compliance posture, third-party dependencies. Truth-gathering, not policy — `threat-model.md` and `hardening-checklist.md` carry the policy and score against this file.
@@ -311,7 +319,11 @@ The product context layer lives at `hstack/context/`:
 
 Load-at-session-start rules by subagent:
 
-- `product-manager`: vision, personas, mvp-scope, glossary.
+- `product-discovery`: kernel, the chosen technique script (`hstack/templates/discovery/<technique>.md`), `product-brief.md` if it exists (resume mode), and in extract mode any source documents the engineer points at.
+- `product-manager`: vision, personas, mvp-scope, glossary. In auto-route from `product-discovery`: also the brief.
+- `data-architect`: kernel, product-brief, vision, mvp-scope, personas, glossary, data-architecture if it exists. In extract mode: live schema via Supabase MCP and `supabase/migrations/`.
+- `app-architect`: kernel, product-brief, data-architecture, vision, mvp-scope, personas, glossary, app-architecture if it exists. Explicitly NOT `tech-stack.md` — app-architecture is stack-agnostic by design. In extract mode: consuming-repo source tree.
+- `stack-architect`: kernel, product-brief, data-architecture, app-architecture, `hstack/config.yaml`'s default-stack declaration, all existing ADRs, threat-model and hardening-checklist if they exist. In standalone mode (`--layer <name>`): additionally `infrastructure.md`.
 - `spec-author`: glossary, tech-stack, the relevant module-spec.
 - `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope.
 - `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present).
@@ -362,7 +374,9 @@ When a Skill or subagent halts at any of the stop conditions above, it emits one
 HSTACK-HALT: reason=<enum>
 ```
 
-Where `<enum>` is one of: `scope-amendment | upstream-non-terminal | mcp-unreachable | forbidden-tool | test-immutability-protocol | missing-context | ambiguous-spec | environment-misconfig | branch-mismatch | other`.
+Where `<enum>` is one of: `scope-amendment | upstream-non-terminal | mcp-unreachable | forbidden-tool | test-immutability-protocol | missing-context | ambiguous-spec | environment-misconfig | branch-mismatch | upstream-drift | other`.
+
+The `upstream-drift` value is emitted by discovery atoms (`product-discovery`, `data-architect`, `app-architect`, `stack-architect`) when a section's drift challenge surfaces a contradiction with an upstream artifact (e.g., a data-architecture entity that has no trace to a persona in the product-brief, or an app-architecture flow whose state-ownership requires an entity the data-architecture doesn't have). Distinct from `upstream-non-terminal` (which means an upstream artifact is still at `draft`) and from `scope-amendment` (which means an in-scope file is missing). Drift is bidirectional: a downstream atom finding an upstream gap reroutes through `/hstack:configure <upstream-atom>`, the upstream refreshes, the downstream resumes.
 
 The sentinel is a single line, costs zero LLM tokens to emit, and makes post-hoc halt-frequency analysis cheap (see `/hstack:telemetry` § WS-6). The sentinel is appended to the auto-commit body when a halt coincides with a status-flip commit; otherwise it appears in the conversation alone (the telemetry parser reads both transcript text and commit bodies). Halting still includes the prose explanation of the situation — the sentinel does not replace the human-readable reason, it complements it.
 
