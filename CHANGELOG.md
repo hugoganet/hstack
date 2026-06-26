@@ -6,6 +6,12 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 _Nothing yet._
 
+## [0.5.2] - 2026-06-26
+
+### Fixed
+
+- **Greenfield-init collapsed the six-phase discovery flow into a flat questionnaire.** `template/.claude/skills/hstack-greenfield-init/SKILL.md` described the right behavior but never pinned it in imperative, agent-readable terms, so a session could answer `/hstack:greenfield-init` with a numbered config-question list ("answer #1 and #8, I'll accept defaults for #2–7, then write the config and move to Phase 1") instead of launching the product-discovery thinking-partner session. Four contract-tightening edits: (1) a new Precondition bullet forbidding inline config authoring or Phase 1 paraphrase; (2) a new **First-turn contract** section pinning the exact first-message shape (name the six phases → open Phase 1 → offer the Brainstorm / Forcing-Questions / Project-Brief technique picker) and enumerating the forbidden numbered-question shape; (3) **Phase 0 reframed** from an upfront questionnaire to inline field-sourcing deferred to the Phase 1→2 boundary, removing the "fill the config first" hook; (4) **Phase 1 made imperative** — the first non-trivial action MUST be a `Task` call launching the `product-discovery` subagent — plus two sharpened anti-patterns against the flat-question-list shape and against running Phase 1 inline. No code change; Skill-contract text only. Reported from a consumer greenfield repo where init skipped discovery entirely.
+
 ## [0.5.1] - 2026-05-23
 
 ### Fixed
