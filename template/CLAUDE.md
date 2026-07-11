@@ -1,5 +1,5 @@
 ---
-hstack-version: v0.5.0
+hstack-version: v0.6.0
 authority: kernel
 ---
 

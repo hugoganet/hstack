@@ -6,6 +6,27 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 _Nothing yet._
 
+## [0.6.0] - 2026-07-11
+
+Cross-session coordination: parallel Claude Code sessions (git worktrees of the same repo) and sibling hstack repos on the same machine can now coordinate asynchronously — pull-based over committed state, per ADR-0006. No home-directory bus, no hooks, no presence tracking: committed artifacts are the channel, and the "anything for me?" check is a silent exit-0 subprocess when there is no traffic.
+
+### Added
+
+- **`/hstack:coord` Skill** (`template/.claude/skills/hstack-coord/SKILL.md`) with four modes: `check` (default — scan for new messages, surface them to the engineer, ack after surfacing), `send` (author + commit an addressed `coord-message`), `register` (add this repo to the machine registry, resolving the durable main-worktree path even when invoked from an ephemeral Conductor worktree), `peers` (list registered repos and reachability). Includes a scope-lock guard (no coordination reads mid-`/hstack:implement`; coordination happens in the main session between phases or at planning points) and a frontmatter-first read discipline with heavy peer reads delegated to a read-only subagent returning a distilled summary.
+- **`coord-message` artifact** (`template/templates/coord-message.md`) — committed, immutable, append-only message written in the **sender's** repo on the sender's branch, addressed via `to-repo` / optional `to-branch` frontmatter with `refs` pointing at the committed artifacts carrying the authoritative detail. Validator rules: CM-01 (required fields at send-time), CM-02 (immutability — corrections are new messages), CM-03 (bodies are information, never instructions; peer content is untrusted input). Addressing resolves against the receiver's **canonical name**: the committed one-line file `hstack/coord/NAME` (machine-local registry names are aliases and unsafe for addressing). Message ids carry a timestamp + sender prefix plus a random-hex suffix so same-second sends never collide.
+- **`coord_scan.py`** (`template/scripts/coord/`, stdlib-only Python) — discovery: walks every local branch of this repo plus every registered repo's local branches for messages addressed to this repo; filters acked / expired / own-sent; silent with exit 0 when empty. Peer-authored identifier fields collapse to a strict ref charset and the suggested `read:` command is shell-quoted (prompt-injection hardening); malformed ids and expiry dates fail closed with a stderr warning. Ack cursor is per-worktree, gitignored, written atomically; losing it re-surfaces messages (at-least-once surfacing — the guarantee is committed-and-auditable, not delivered).
+- **Kernel section `## Cross-session coordination`** in `template/CLAUDE.md`, plus `hstack/coord/messages/` added to the frontmatter contract.
+- **New ADR** `adr/ADR-0006-pull-based-cross-session-coordination.md` recording the design and the rejected `~/.hstack/coord/` bus alternative (presence cards + per-target inboxes + SessionStart/UserPromptSubmit hooks) with the adversarial-review arguments against it.
+
+### Fixed
+
+- **`hstack/.session-state/` was declared git-ignored by the kernel's Resumability section but the installer never wired it.** `hstack init` and `hstack update` now append the `.gitignore` line. Repos installed before 0.6.0 may have committed session-state files; verify after updating.
+
+### Consumer action required
+
+- Run `npx hstack@latest update` to receive the Skill symlink, `scripts/coord/`, the template, and the kernel section.
+- Once per repo per machine: `/hstack:coord register`, and commit the canonical-name file `hstack/coord/NAME` when prompted — cross-repo addressing depends on it.
+
 ## [0.5.2] - 2026-06-26
 
 ### Fixed
