@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import '@gomoso-ai/design-system/styles.css';
+
+html,
+body {
+  min-height: 100dvh;
+}
