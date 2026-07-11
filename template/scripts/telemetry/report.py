@@ -24,6 +24,7 @@ network calls.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from datetime import date, datetime, timedelta, timezone
@@ -107,7 +108,29 @@ def main(argv: list[str] | None = None) -> int:
         out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report_md, encoding="utf-8")
 
+    # Structured twin of the markdown report — same metrics dict, machine-readable.
+    # Consumed by the telemetry UI; carries the same derivative-only guarantee.
+    json_path = out_path.with_suffix(".json")
+    payload = {
+        "schema_version": 1,
+        "repo": repo.name,
+        "generated": date.today().isoformat(),
+        "window_days": window_days,
+        "counts": {
+            "changes": len(changes),
+            "tech_debt": len(tech_debt),
+            "adrs": len(adrs),
+            "module_specs": len(module_specs),
+            "commits": len(git_commits),
+            "sessions": len(session_rows),
+        },
+        "watch_list": render.watch_items(metrics),
+        "metrics": metrics,
+    }
+    json_path.write_text(json.dumps(payload, indent=1, default=str), encoding="utf-8")
+
     print(f"telemetry: report written to {out_path}", file=sys.stderr)
+    print(f"telemetry: json written to {json_path}", file=sys.stderr)
     return 0
 
 
