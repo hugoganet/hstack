@@ -20,6 +20,7 @@ export const FRAMEWORK_PATHS = [
   ".claude/agents/",
   ".claude/skills/",
   "scripts/telemetry/",
+  "scripts/coord/",
 ] as const;
 
 /**

@@ -9,6 +9,7 @@ export const KERNEL_IMPORT_LINE =
 
 export const GITIGNORE_TELEMETRY_LINE = "**/.telemetry/";
 export const GITIGNORE_KERNEL_FIT_FLAGS_LINE = "hstack/kernel-fit/flags/";
+export const GITIGNORE_SESSION_STATE_LINE = "hstack/.session-state/";
 
 export type Action =
   | { kind: "copy-template"; from: string; to: string }
@@ -97,6 +98,18 @@ export async function planInit(
     kind: "append-line",
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
+    createIfMissing: true,
+  });
+
+  // 5c. Append session-state gitignore line. The kernel's Resumability section
+  // declared hstack/.session-state/ git-ignored, but the installer never wired
+  // it until ADR-0006 (the coord ack cursor made the gap load-bearing) — repos
+  // installed before this may have committed session-state files; `hstack
+  // doctor` users should verify.
+  actions.push({
+    kind: "append-line",
+    file: resolve(consumerRoot, ".gitignore"),
+    line: GITIGNORE_SESSION_STATE_LINE,
     createIfMissing: true,
   });
 
@@ -190,6 +203,14 @@ export async function planUpdate(
     kind: "append-line",
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
+    createIfMissing: true,
+  });
+
+  // 5c. .gitignore session-state line — idempotent re-check (per ADR-0006).
+  actions.push({
+    kind: "append-line",
+    file: resolve(consumerRoot, ".gitignore"),
+    line: GITIGNORE_SESSION_STATE_LINE,
     createIfMissing: true,
   });
 
