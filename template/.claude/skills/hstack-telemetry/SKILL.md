@@ -73,6 +73,7 @@ The Skill is read-only and idempotent — re-running produces a fresh report at 
 ## Outputs
 
 - `hstack/telemetry/reports/<YYYY-MM-DD>.md` — the markdown report.
+- `hstack/telemetry/reports/<YYYY-MM-DD>.json` — the structured twin of the markdown report (same metrics dict, machine-readable). Consumed by the telemetry UI shipped in the hstack source repo (`ui/`, run locally with `HSTACK_REPO=<repo> npm run dev`); carries the same derivative-only guarantee.
 - No frontmatter changes. No commits. The Skill is read-only.
 
 ## Auto-commit triggers

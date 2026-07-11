@@ -331,9 +331,13 @@ def _render_kernel_fit(lines: list[str], kf: dict) -> None:
             )
 
 
-def _render_watch_list(lines: list[str], metrics: dict) -> None:
-    _h(lines, 2, "Watch list")
-    items = []
+def watch_items(metrics: dict) -> list[str]:
+    """Compute the watch-list lines from the metrics dict.
+
+    Shared between the markdown renderer and the JSON emission so both
+    surfaces flag the same anomalies.
+    """
+    items: list[str] = []
 
     # TE-2: any Skill cache-hit below 0.5
     te2 = metrics.get("token_economics", {}).get("te_2_cache_hit_per_subagent", {})
@@ -375,6 +379,13 @@ def _render_watch_list(lines: list[str], metrics: dict) -> None:
             rc = block.get("evidence_row_count", 0)
             items.append(f"Kernel-fit {label} fired with {rc} evidence row(s) — "
                          f"run `/hstack:kernel-fit-scan` to synthesize findings.")
+
+    return items
+
+
+def _render_watch_list(lines: list[str], metrics: dict) -> None:
+    _h(lines, 2, "Watch list")
+    items = watch_items(metrics)
 
     if not items:
         _p(lines, "_Nothing flagged. Either everything is healthy, or the metrics need tuning._")
