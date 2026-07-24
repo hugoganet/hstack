@@ -2,7 +2,7 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [0.7.0] - 2026-07-24
 
 Hook-driven coord notification (ADR-0007): sessions now learn about unread coord-messages automatically instead of waiting for the engineer to hand-carry a "check your messages" nudge between workspaces. Discovery stays pull-over-committed-state per ADR-0006 — the harness merely schedules the scan.
 
