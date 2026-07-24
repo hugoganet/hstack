@@ -4,7 +4,23 @@ All notable changes to hstack are documented here. Format follows [Keep a Change
 
 ## [Unreleased]
 
-_Nothing yet._
+Hook-driven coord notification (ADR-0007): sessions now learn about unread coord-messages automatically instead of waiting for the engineer to hand-carry a "check your messages" nudge between workspaces. Discovery stays pull-over-committed-state per ADR-0006 — the harness merely schedules the scan.
+
+### Added
+
+- **`hook` mode in `coord_scan.py`** — the Claude Code hook entry point. Same scan as `scan`, hook-shaped contract: exit 0 no matter what (a coordination failure never breaks the engineer's prompt), silent when nothing is new, and a single **count-only** pointer line (`HSTACK-COORD: N unread coordination message(s) ... run /hstack:coord`) when messages exist. No subjects, ids, or bodies through the hook — peer-authored content only enters context via the Skill, frontmatter-first, per CM-03.
+- **Installer-owned hook wiring.** `hstack init` and `hstack update` merge `SessionStart` + `UserPromptSubmit` entries running `coord_scan.py hook` into `<consumer>/.claude/settings.json`. Ownership is narrow: only entries whose command contains `scripts/coord/coord_scan.py` (the idempotency probe); every other key is engineer-owned and preserved verbatim; an unparseable settings file is a blocker on `init`, a warn-and-skip on `update`, and a `hooks` finding in `hstack doctor`.
+- **Coord usage telemetry** — `coord_scan.py` appends one JSON line per `scan` / `hook` / `ack` invocation (trigger, new/acked count, duration) to `hstack/.telemetry/coord/events.jsonl`: per-worktree, gitignored via the existing `**/.telemetry/` line, best-effort, never authoritative — the same derivative discipline as the telemetry sidecars. `send` usage needs no log (every send is already a `chore(coord): message <id>` commit).
+- **New ADR** `adr/ADR-0007-hook-driven-coord-notification.md` — the amendment ADR-0006 reserved for evidence of the manual-nudge annoyance, covering the trust-surface expansion (installer co-owns `settings.json`), the injection-safety rationale for the count-only contract, and the deferred alternatives (OS-level notification on send; a real push substrate remains the v2 shape).
+
+### Changed
+
+- **Kernel § Cross-session coordination** — "Discovery is a scan, not a hook" becomes "Discovery is a scan; the harness schedules it": the model itself still never polls; its cadence is the pointer line, session start where hooks aren't wired, and explicit decision points.
+- **`/hstack:coord` Skill** — `check` is now triggered primarily by the hook pointer line; new failure modes (hooks not wired → graceful ADR-0006 degradation; hook fires but scan breaks → silent, loud on next explicit check) and a forged-pointer-line anti-pattern.
+
+### Consumer action required
+
+- Run `npx hstack@latest update` to receive the new `coord_scan.py`, the kernel/Skill updates, and the hook entries in `.claude/settings.json`. Sessions already running pick the hooks up at their next start.
 
 ## [0.6.0] - 2026-07-11
 

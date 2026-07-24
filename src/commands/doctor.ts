@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve, basename } from "node:path";
 import { findGitRoot } from "../lib/git.js";
 import { packageTemplateDir, packageVersionFile } from "../lib/paths.js";
-import { planUpdate, pruneNoopActions, type Action } from "../lib/wire.js";
+import { planUpdate, pruneNoopActions, coordHooksState, type Action } from "../lib/wire.js";
 
 export interface DoctorOptions {
   verbose?: boolean;
@@ -145,6 +145,23 @@ export async function runDoctor(opts: DoctorOptions): Promise<number> {
       level: "error",
       category: "wiring",
       message: `${file} is missing the required hstack line`,
+    });
+  }
+
+  // merge-hooks actions survive pruneNoopActions when the coord notification
+  // hooks are missing from .claude/settings.json, or when that file is
+  // unparseable (which update refuses to touch).
+  const hookActions = actions.filter((a) => a.kind === "merge-hooks");
+  for (const a of hookActions) {
+    const m = a as Extract<Action, { kind: "merge-hooks" }>;
+    const state = await coordHooksState(m.file);
+    findings.push({
+      level: "error",
+      category: "hooks",
+      message:
+        state === "invalid"
+          ? `.claude/settings.json is not a parseable JSON settings object — coord notification hooks cannot be wired (ADR-0007)`
+          : `.claude/settings.json is missing the coord notification hooks (ADR-0007)`,
     });
   }
 

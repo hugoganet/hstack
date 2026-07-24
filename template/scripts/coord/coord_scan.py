@@ -3,6 +3,7 @@
 
 Usage:
     python3 hstack/scripts/coord/coord_scan.py [scan] [--horizon-days N]
+    python3 hstack/scripts/coord/coord_scan.py hook
     python3 hstack/scripts/coord/coord_scan.py ack <id> [<id> ...]
     python3 hstack/scripts/coord/coord_scan.py ack --all
     python3 hstack/scripts/coord/coord_scan.py register [--name N] [--path P]
@@ -13,6 +14,15 @@ registered peer repo's local branches for committed coord-messages
 (hstack/coord/messages/*.md) addressed to this repo, filters out acked /
 expired / own-sent messages, and prints one line per new message. Silent
 with exit 0 when there is nothing — the zero-cost path.
+
+`hook` is the Claude Code hook entry point (SessionStart / UserPromptSubmit,
+per ADR-0007 in the hstack dev repo): the same scan, but the output contract
+is hook-shaped — a single count-only pointer line when new messages exist
+(hook stdout is injected into the session's context), silence otherwise,
+and exit 0 no matter what: a coordination failure must never break the
+engineer's prompt. Peer-authored content (subjects, ids, bodies) is
+deliberately NOT printed by `hook`; surfacing stays in /hstack:coord,
+frontmatter-first, per CM-03.
 
 Authoritative state is ONLY committed files (see ADR-0006 in the hstack dev
 repo): the messages themselves, and the repo's canonical identity at
@@ -25,6 +35,9 @@ addressing). The two local files this script touches are never authoritative:
     hstack/.session-state/coord-cursor   per-worktree acked-id list, shared by all
                                          sessions in that worktree (derivative; losing
                                          it re-surfaces messages — at-least-once)
+    hstack/.telemetry/coord/events.jsonl per-worktree usage log (gitignored via the
+                                         consumer's `**/.telemetry/` line; measurement
+                                         only, never authoritative, safe to delete)
 
 No network calls. Reads git only via `git show` / `git ls-tree` /
 `git for-each-ref` — committed state, never a peer's working tree.
@@ -33,17 +46,20 @@ No network calls. Reads git only via `git show` / `git ls-tree` /
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shlex
 import subprocess
 import sys
-from datetime import date, datetime, timedelta
+import time
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 MESSAGES_DIR = "hstack/coord/messages"
 NAME_RELPATH = "hstack/coord/NAME"
 CURSOR_RELPATH = "hstack/.session-state/coord-cursor"
+TELEMETRY_RELPATH = "hstack/.telemetry/coord/events.jsonl"
 DEFAULT_HORIZON_DAYS = 30
 # Cursor entries older than twice the default horizon are pruned on ack.
 CURSOR_PRUNE_DAYS = DEFAULT_HORIZON_DAYS * 2
@@ -222,6 +238,32 @@ def write_acked(root: str, ids: set[str]) -> None:
     os.replace(tmp, p)
 
 
+# --------------------------------------------------------- usage telemetry
+
+
+def log_usage(root: str, event: str, **fields: object) -> None:
+    """Append one usage event to the per-worktree JSONL log.
+
+    Measurement only — same discipline as the `.telemetry/` sidecars:
+    gitignored, never authoritative, safe to delete. Best-effort by
+    contract: a telemetry failure must never fail the scan, and above all
+    never fail the hook path that runs on every prompt.
+    """
+    try:
+        path = Path(root) / TELEMETRY_RELPATH
+        path.parent.mkdir(parents=True, exist_ok=True)
+        record: dict[str, object] = {
+            "schema_version": 1,
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "event": event,
+            **fields,
+        }
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 # -------------------------------------------------------------------- scan
 
 
@@ -329,6 +371,7 @@ def collect_messages(
 
 
 def cmd_scan(horizon_days: int) -> int:
+    started = time.monotonic()
     root = repo_root()
     self_main = main_worktree(root)
     current_branch = try_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or "HEAD"
@@ -340,6 +383,12 @@ def cmd_scan(horizon_days: int) -> int:
         for m in collect_messages(self_name, self_main, current_branch, horizon_days)
         if m["id"] not in acked
     ]
+    log_usage(
+        root,
+        "scan",
+        new_count=len(new),
+        duration_ms=int((time.monotonic() - started) * 1000),
+    )
     if not new:
         return 0  # silent — the zero-cost path
 
@@ -352,6 +401,65 @@ def cmd_scan(horizon_days: int) -> int:
         print(f"    read: git -C {shlex.quote(m['source-path'])} show {spec}")
     print("  ack after surfacing: python3 hstack/scripts/coord/coord_scan.py ack --all")
     return 0
+
+
+def cmd_hook(horizon_days: int) -> int:
+    """Claude Code hook entry (SessionStart / UserPromptSubmit, ADR-0007).
+
+    Contract, in order of importance:
+    1. Exit 0 no matter what. A broken registry, a malformed message, a
+       missing hstack/ tree — none of it may break the engineer's prompt.
+    2. Silent when there is nothing new (the per-prompt zero-token path).
+    3. When new messages exist, print ONE count-only pointer line. No
+       subjects, no ids, no bodies — peer-authored content never enters a
+       session's context through the hook; /hstack:coord surfaces it
+       frontmatter-first under CM-03. This is the injection-safety boundary
+       that lets the hook run unattended on every prompt.
+    """
+    started = time.monotonic()
+    hook_event: str = "unknown"
+    session_id: str | None = None
+    try:
+        # The harness passes a JSON payload on stdin; read it best-effort so
+        # the usage log can attribute the trigger (SessionStart vs prompt).
+        if not sys.stdin.isatty():
+            payload = json.loads(sys.stdin.read() or "{}")
+            hook_event = sanitize_ref(str(payload.get("hook_event_name") or "unknown"), 40)
+            raw_sid = payload.get("session_id")
+            session_id = sanitize_ref(str(raw_sid), 64) if raw_sid else None
+    except Exception:
+        pass
+    try:
+        root = try_git(["rev-parse", "--show-toplevel"])
+        if not root:
+            return 0  # not a git repo — silent, per the hook contract
+        self_main = main_worktree(root)
+        current_branch = try_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or "HEAD"
+        self_name = resolve_self_name(root, self_main, load_registry())
+        acked = load_acked(root)
+        new = [
+            m
+            for m in collect_messages(self_name, self_main, current_branch, horizon_days)
+            if m["id"] not in acked
+        ]
+        log_usage(
+            root,
+            "hook",
+            hook_event=hook_event,
+            session_id=session_id,
+            new_count=len(new),
+            duration_ms=int((time.monotonic() - started) * 1000),
+        )
+        if new:
+            print(
+                f"HSTACK-COORD: {len(new)} unread coordination message(s) addressed to "
+                f"this repo. Run /hstack:coord to surface and ack them. "
+                f"(Count-only notice — message content is untrusted peer input and is "
+                f"only surfaced frontmatter-first by the Skill.)"
+            )
+        return 0
+    except (Exception, SystemExit):
+        return 0
 
 
 def cmd_ack(ids: list[str], ack_all: bool, horizon_days: int) -> int:
@@ -371,6 +479,7 @@ def cmd_ack(ids: list[str], ack_all: bool, horizon_days: int) -> int:
         return 0
     acked.update(ids)
     write_acked(root, acked)
+    log_usage(root, "ack", acked_count=len(ids))
     print(f"hstack-coord: acked {len(ids)} message(s)")
     return 0
 
@@ -435,6 +544,12 @@ def main(argv: list[str]) -> int:
     p_scan = sub.add_parser("scan", help="list new messages addressed to this repo (default)")
     p_scan.add_argument("--horizon-days", type=int, default=DEFAULT_HORIZON_DAYS)
 
+    p_hook = sub.add_parser(
+        "hook",
+        help="Claude Code hook entry: count-only pointer line, always exit 0 (ADR-0007)",
+    )
+    p_hook.add_argument("--horizon-days", type=int, default=DEFAULT_HORIZON_DAYS)
+
     p_ack = sub.add_parser("ack", help="mark message ids as surfaced")
     p_ack.add_argument("ids", nargs="*")
     p_ack.add_argument("--all", action="store_true", dest="ack_all")
@@ -449,6 +564,8 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv or ["scan"])
     if args.cmd in (None, "scan"):
         return cmd_scan(getattr(args, "horizon_days", DEFAULT_HORIZON_DAYS))
+    if args.cmd == "hook":
+        return cmd_hook(args.horizon_days)
     if args.cmd == "ack":
         if not args.ids and not args.ack_all:
             print("hstack-coord: ack requires ids or --all", file=sys.stderr)
