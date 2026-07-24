@@ -11,6 +11,22 @@ export const GITIGNORE_TELEMETRY_LINE = "**/.telemetry/";
 export const GITIGNORE_KERNEL_FIT_FLAGS_LINE = "hstack/kernel-fit/flags/";
 export const GITIGNORE_SESSION_STATE_LINE = "hstack/.session-state/";
 
+/**
+ * Coord-notification hooks (ADR-0007): the harness runs the coord scan at
+ * SessionStart and on every UserPromptSubmit, injecting a count-only pointer
+ * line when unread coord-messages exist and nothing otherwise. The command
+ * targets the consumer's own committed copy of the script; `hook` mode always
+ * exits 0 so a coordination failure can never break a prompt.
+ */
+export const COORD_HOOK_COMMAND =
+  'python3 "$CLAUDE_PROJECT_DIR"/hstack/scripts/coord/coord_scan.py hook';
+/** Idempotency probe: any existing hook command containing this substring
+ *  counts as "already wired" (survives cosmetic command edits). */
+export const COORD_HOOK_PROBE = "scripts/coord/coord_scan.py";
+export const COORD_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
+/** Generous cap for branch-heavy machines; the scan is typically <1s. */
+export const COORD_HOOK_TIMEOUT_S = 15;
+
 export type Action =
   | { kind: "copy-template"; from: string; to: string }
   | { kind: "add-file"; from: string; to: string; relpath: string }
@@ -32,7 +48,16 @@ export type Action =
        */
       matchOn?: string;
     }
-  | { kind: "write-version"; to: string; version: string };
+  | { kind: "write-version"; to: string; version: string }
+  | {
+      /**
+       * Merge the coord-notification hook entries (ADR-0007) into the
+       * consumer's .claude/settings.json. Merge-only: engineer-owned keys are
+       * preserved verbatim; only missing hstack hook entries are appended.
+       */
+      kind: "merge-hooks";
+      file: string;
+    };
 
 /**
  * Compute the full plan for `hstack init` against `consumerRoot`,
@@ -111,6 +136,15 @@ export async function planInit(
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_SESSION_STATE_LINE,
     createIfMissing: true,
+  });
+
+  // 5d. Merge the coord-notification hook entries into .claude/settings.json
+  // (per ADR-0007 — sessions get alerted about unread coord-messages without
+  // the engineer hand-carrying the nudge). Merge-only; engineer-owned settings
+  // are never touched.
+  actions.push({
+    kind: "merge-hooks",
+    file: resolve(consumerRoot, ".claude", "settings.json"),
   });
 
   // 6. Stamp the installed-version marker so update can compare later.
@@ -214,6 +248,12 @@ export async function planUpdate(
     createIfMissing: true,
   });
 
+  // 5d. Coord-notification hooks — idempotent re-check (per ADR-0007).
+  actions.push({
+    kind: "merge-hooks",
+    file: resolve(consumerRoot, ".claude", "settings.json"),
+  });
+
   // 6. VERSION marker.
   actions.push({
     kind: "write-version",
@@ -222,6 +262,90 @@ export async function planUpdate(
   });
 
   return actions;
+}
+
+/**
+ * Where the coord hook entries stand in a consumer's .claude/settings.json.
+ * - "present": both event entries wired — nothing to do.
+ * - "missing": file absent, or parseable but lacking at least one entry.
+ * - "invalid": file exists but is not a JSON object, or a hooks key has an
+ *   unexpected shape. Never merged into — surfaced as a blocker instead,
+ *   because silently rewriting an engineer's malformed settings file is how
+ *   configuration gets lost.
+ */
+export type CoordHooksState = "present" | "missing" | "invalid";
+
+function eventHasCoordHook(hooks: unknown, event: string): boolean {
+  if (typeof hooks !== "object" || hooks === null) return false;
+  const matchers = (hooks as Record<string, unknown>)[event];
+  if (!Array.isArray(matchers)) return false;
+  return matchers.some((m) => {
+    const inner = (m as { hooks?: unknown } | null)?.hooks;
+    if (!Array.isArray(inner)) return false;
+    return inner.some(
+      (h) =>
+        typeof (h as { command?: unknown } | null)?.command === "string" &&
+        ((h as { command: string }).command).includes(COORD_HOOK_PROBE),
+    );
+  });
+}
+
+export async function coordHooksState(file: string): Promise<CoordHooksState> {
+  if (!(await fs.pathExists(file))) return "missing";
+  let settings: unknown;
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    settings = raw.trim() === "" ? {} : JSON.parse(raw);
+  } catch {
+    return "invalid";
+  }
+  if (typeof settings !== "object" || settings === null || Array.isArray(settings)) {
+    return "invalid";
+  }
+  const hooks = (settings as Record<string, unknown>).hooks;
+  if (hooks !== undefined && (typeof hooks !== "object" || hooks === null || Array.isArray(hooks))) {
+    return "invalid";
+  }
+  for (const event of COORD_HOOK_EVENTS) {
+    const matchers = hooks ? (hooks as Record<string, unknown>)[event] : undefined;
+    if (matchers !== undefined && !Array.isArray(matchers)) return "invalid";
+    if (!eventHasCoordHook(hooks, event)) return "missing";
+  }
+  return "present";
+}
+
+async function mergeCoordHooks(file: string): Promise<void> {
+  const state = await coordHooksState(file);
+  if (state === "present") return;
+  if (state === "invalid") {
+    // Never rewrite an unparseable engineer-owned file, and never abort the
+    // rest of the plan over it — warn and let `hstack doctor` keep flagging it.
+    console.error(
+      `hstack: skipped coord notification hooks — ${file} is not a parseable JSON settings object. Fix it, then re-run \`npx hstack update\`.`,
+    );
+    return;
+  }
+  let settings: Record<string, unknown> = {};
+  if (await fs.pathExists(file)) {
+    const raw = await fs.readFile(file, "utf8");
+    if (raw.trim() !== "") settings = JSON.parse(raw);
+  }
+  const hooks = (settings.hooks ??= {}) as Record<string, unknown>;
+  for (const event of COORD_HOOK_EVENTS) {
+    if (eventHasCoordHook(hooks, event)) continue;
+    const matchers = (hooks[event] ??= []) as unknown[];
+    matchers.push({
+      hooks: [
+        {
+          type: "command",
+          command: COORD_HOOK_COMMAND,
+          timeout: COORD_HOOK_TIMEOUT_S,
+        },
+      ],
+    });
+  }
+  await fs.ensureDir(dirname(file));
+  await fs.writeFile(file, JSON.stringify(settings, null, 2) + "\n");
 }
 
 /**
@@ -257,6 +381,9 @@ export async function pruneNoopActions(
         const cur = (await fs.readFile(a.to, "utf8")).trim();
         if (cur === packageVersion) continue;
       }
+    } else if (a.kind === "merge-hooks") {
+      // "invalid" is kept so validatePlan / doctor can surface it.
+      if ((await coordHooksState(a.file)) === "present") continue;
     }
     out.push(a);
   }
@@ -308,6 +435,8 @@ export function renderPlan(actions: Action[], consumerRoot: string): string {
           return `  unlink ${rel(a.to, consumerRoot)}`;
         case "append-line":
           return `  check  ${rel(a.file, consumerRoot)}  (idempotent append)`;
+        case "merge-hooks":
+          return `  hooks  ${rel(a.file, consumerRoot)}  (coord notification hooks, ADR-0007)`;
         case "write-version":
           return `  write  ${rel(a.to, consumerRoot)}  (${a.version})`;
       }
@@ -356,6 +485,14 @@ export async function validatePlan(actions: Action[]): Promise<string[]> {
         }
       }
     }
+    if (a.kind === "merge-hooks") {
+      if ((await coordHooksState(a.file)) === "invalid") {
+        blockers.push(
+          `${a.file} exists but is not a parseable JSON settings object (or its hooks key has an unexpected shape). ` +
+            `Fix it manually, then re-run — hstack never rewrites an unparseable settings file.`,
+        );
+      }
+    }
     // append-line is always safe (idempotent at execute time)
   }
   return blockers;
@@ -394,6 +531,9 @@ export async function executePlan(actions: Action[]): Promise<void> {
       }
       case "append-line":
         await appendLineIdempotent(a.file, a.line, a.createIfMissing, a.matchOn);
+        break;
+      case "merge-hooks":
+        await mergeCoordHooks(a.file);
         break;
       case "write-version":
         await fs.ensureDir(dirname(a.to));

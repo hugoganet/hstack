@@ -54,4 +54,12 @@ export const CLAUDE_WIRING = {
   skillsGlob: "hstack-*",
   skillsSourceDir: "hstack/.claude/skills",
   skillsTargetDir: ".claude/skills",
+  /**
+   * Coord-notification hook entries merged into <consumer>/.claude/settings.json
+   * (ADR-0007). The installer owns ONLY the two entries whose command targets
+   * hstack's committed coord script — everything else in the file is
+   * engineer-owned and never touched. Merge-only, idempotent; an unparseable
+   * settings.json is a blocker, never an overwrite.
+   */
+  settingsFile: ".claude/settings.json",
 } as const;

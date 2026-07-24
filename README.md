@@ -35,7 +35,7 @@ hstack installs into the consuming repo at the path `hstack/` relative to the re
 npx hstack@latest init
 ```
 
-`hstack init` copies the framework files under `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md`, and adds `**/.telemetry/` to `<consumer>/.gitignore`. Use `--dry-run` to preview the plan, `--yes` to skip the confirmation prompt, `--force` to override the dirty-working-tree check.
+`hstack init` copies the framework files under `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md`, adds `**/.telemetry/` to `<consumer>/.gitignore`, and merges the two coord-notification hook entries (`SessionStart` + `UserPromptSubmit`, per ADR-0007) into `<consumer>/.claude/settings.json` — merge-only: everything else in that file is engineer-owned and never touched, and an unparseable settings file is a blocker, never an overwrite. Use `--dry-run` to preview the plan, `--yes` to skip the confirmation prompt, `--force` to override the dirty-working-tree check.
 
 The CLI ships three commands:
 
@@ -43,9 +43,9 @@ The CLI ships three commands:
 | --- | --- |
 | `npx hstack init` | First-time install. Halts if `<consumer>/hstack/` already exists. |
 | `npx hstack update` | Sync framework files to the package version. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Surfaces a diff plan before writing. |
-| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines. Exits 1 on any finding. |
+| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines, missing coord-notification hooks. Exits 1 on any finding. |
 
-The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/CLAUDE.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/VERSION`. **What they never touch**: anything under the user-content paths above.
+The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/CLAUDE.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/scripts/coord/`, `hstack/VERSION`, plus the two probe-matched hook entries in `.claude/settings.json`. **What they never touch**: anything under the user-content paths above, and every engineer-owned key in `settings.json`.
 
 ### Manual install (legacy)
 
@@ -65,6 +65,37 @@ echo '**/.telemetry/' >> .gitignore
 git add hstack .claude CLAUDE.md .gitignore && git commit -m "vendor hstack"
 ```
 
+Then wire the coord-notification hooks (ADR-0007) by merging this into `.claude/settings.json` (create the file if absent; keep any existing keys):
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/hstack/scripts/coord/coord_scan.py hook",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/hstack/scripts/coord/coord_scan.py hook",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
 `hstack doctor` works against manually-vendored installs too. It will flag the missing `hstack/VERSION` marker as a warning until you run `hstack update --force` to stamp it.
 
 Why agents is dir-level but skills is per-skill: consuming repos may want non-hstack skills (e.g., `lyra`, `notion-write`) alongside hstack ones. A dir-level symlink for `.claude/skills/` would evict them. Agents has no such case in practice, so dir-level is cleaner there.
@@ -80,6 +111,8 @@ Run `npx hstack doctor` to audit health without making changes — useful for CI
 `hstack/scripts/telemetry/` ships with the framework and is installed by `hstack init` automatically. The `/hstack:telemetry` Skill shells out to `python3 hstack/scripts/telemetry/report.py --window 30`, generating a markdown report at `hstack/telemetry/reports/<YYYY-MM-DD>.md`. The reports directory is git-tracked; per-change `.telemetry/` sidecar dirs are git-ignored (`hstack init` adds the `**/.telemetry/` line for you).
 
 Five Skills (`hstack-test-plan`, `hstack-implement`, `hstack-verify`, `hstack-adversarial-review`, `hstack-finalize`) emit small JSON sidecars at their existing terminal commits — schema in `hstack/templates/telemetry-sidecar.md`. The sidecars are derivative — re-runnable from git + frontmatter + transcripts — and exist only to make per-change attribution cheap. Deleting them is harmless.
+
+Coord usage rides the same discipline: `coord_scan.py` appends one JSON line per `scan` / `hook` / `ack` invocation to `hstack/.telemetry/coord/events.jsonl` (covered by the same `**/.telemetry/` gitignore line) — per-worktree measurement of hit-rate and hook latency, never authoritative, safe to delete. `send` usage needs no log: every send is a `chore(coord): message <id>` commit already visible in git history.
 
 #### Platform support
 
