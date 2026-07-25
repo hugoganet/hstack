@@ -35,6 +35,14 @@ addressing). The two local files this script touches are never authoritative:
     hstack/.session-state/coord-cursor   per-worktree acked-id list, shared by all
                                          sessions in that worktree (derivative; losing
                                          it re-surfaces messages — at-least-once)
+    hstack/.session-state/coord-scan-cache.json
+                                         per-worktree scan cache keyed on a refs-state
+                                         fingerprint (derivative; losing it costs one
+                                         full branch walk). Messages only appear via
+                                         commits and commits only move refs, so an
+                                         unchanged fingerprint proves the walk would
+                                         find the same set — the cache never changes
+                                         WHAT surfaces, only how fast.
     hstack/.telemetry/coord/events.jsonl per-worktree usage log (gitignored via the
                                          consumer's `**/.telemetry/` line; measurement
                                          only, never authoritative, safe to delete)
@@ -46,6 +54,7 @@ No network calls. Reads git only via `git show` / `git ls-tree` /
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -59,6 +68,7 @@ from pathlib import Path
 MESSAGES_DIR = "hstack/coord/messages"
 NAME_RELPATH = "hstack/coord/NAME"
 CURSOR_RELPATH = "hstack/.session-state/coord-cursor"
+CACHE_RELPATH = "hstack/.session-state/coord-scan-cache.json"
 TELEMETRY_RELPATH = "hstack/.telemetry/coord/events.jsonl"
 DEFAULT_HORIZON_DAYS = 30
 # Cursor entries older than twice the default horizon are pruned on ack.
@@ -279,13 +289,8 @@ def sanitize_ref(text: str, limit: int = 60) -> str:
     return re.sub(r"[^A-Za-z0-9._/-]", "_", text)[:limit]
 
 
-def collect_messages(
-    self_name: str,
-    self_main: str,
-    current_branch: str,
-    horizon_days: int,
-) -> list[dict[str, str]]:
-    """Return unacked-agnostic candidate messages addressed to this repo."""
+def resolve_sources(self_name: str, self_main: str) -> list[tuple[str, str]]:
+    """Scan sources: this repo plus every reachable registered peer."""
     registry = load_registry()
     sources: list[tuple[str, str]] = [(self_name, self_main)]
     self_real = os.path.realpath(self_main)
@@ -299,6 +304,19 @@ def collect_messages(
             )
             continue
         sources.append((r["name"], r["path"]))
+    return sources
+
+
+def collect_messages(
+    self_name: str,
+    self_main: str,
+    current_branch: str,
+    horizon_days: int,
+    sources: list[tuple[str, str]] | None = None,
+) -> list[dict[str, str]]:
+    """Return unacked-agnostic candidate messages addressed to this repo."""
+    if sources is None:
+        sources = resolve_sources(self_name, self_main)
 
     horizon = datetime.now() - timedelta(days=horizon_days)
     seen_ids: set[str] = set()
@@ -370,6 +388,88 @@ def collect_messages(
     return found
 
 
+# -------------------------------------------------------- refs-state cache
+
+
+def scan_fingerprint(
+    sources: list[tuple[str, str]],
+    self_name: str,
+    current_branch: str,
+    horizon_days: int,
+) -> str:
+    """Fingerprint of everything the branch walk's result depends on.
+
+    Messages exist only as committed files, and commits only become visible
+    by moving a ref — so if no local ref of any source repo moved, the walk
+    would return byte-identical results. The remaining inputs (identity,
+    branch, horizon, and today's date for the expires/horizon filters) are
+    folded in; the date term bounds cache lifetime at one day.
+
+    The cursor (ack state) is deliberately NOT part of the fingerprint —
+    acked-filtering happens after collection, so acks never require a
+    re-walk.
+    """
+    parts = [
+        "schema=1",
+        f"self={self_name}",
+        f"branch={current_branch}",
+        f"horizon={horizon_days}",
+        f"date={date.today().isoformat()}",
+    ]
+    for name, path in sources:
+        refs = try_git(
+            ["for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"],
+            cwd=path,
+        )
+        parts.append(f"repo={name}:{os.path.realpath(path)}\n{refs or ''}")
+    return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
+
+
+def collect_messages_cached(
+    root: str,
+    self_name: str,
+    self_main: str,
+    current_branch: str,
+    horizon_days: int,
+) -> tuple[list[dict[str, str]], bool]:
+    """collect_messages behind the refs-state cache.
+
+    Returns (messages, cache_hit). The cache is derivative in the strict
+    sense: deleting it costs one full branch walk and changes nothing else.
+    Corrupt or mismatched cache falls through to a full walk (fail open to
+    the slow-but-correct path).
+    """
+    sources = resolve_sources(self_name, self_main)
+    fingerprint = scan_fingerprint(sources, self_name, current_branch, horizon_days)
+    cache_file = Path(root) / CACHE_RELPATH
+    try:
+        cached = json.loads(cache_file.read_text())
+        if (
+            cached.get("schema_version") == 1
+            and cached.get("fingerprint") == fingerprint
+            and isinstance(cached.get("messages"), list)
+        ):
+            return cached["messages"], True
+    except Exception:
+        pass
+    found = collect_messages(
+        self_name, self_main, current_branch, horizon_days, sources=sources
+    )
+    try:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache_file.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(
+                {"schema_version": 1, "fingerprint": fingerprint, "messages": found},
+                ensure_ascii=False,
+            )
+        )
+        os.replace(tmp, cache_file)  # atomic; concurrent scans race last-write-wins
+    except Exception:
+        pass  # cache write failure only costs the next caller a full walk
+    return found, False
+
+
 def cmd_scan(horizon_days: int) -> int:
     started = time.monotonic()
     root = repo_root()
@@ -378,16 +478,16 @@ def cmd_scan(horizon_days: int) -> int:
     self_name = resolve_self_name(root, self_main, load_registry())
     acked = load_acked(root)
 
-    new = [
-        m
-        for m in collect_messages(self_name, self_main, current_branch, horizon_days)
-        if m["id"] not in acked
-    ]
+    found, cache_hit = collect_messages_cached(
+        root, self_name, self_main, current_branch, horizon_days
+    )
+    new = [m for m in found if m["id"] not in acked]
     log_usage(
         root,
         "scan",
         new_count=len(new),
         duration_ms=int((time.monotonic() - started) * 1000),
+        cache="hit" if cache_hit else "miss",
     )
     if not new:
         return 0  # silent — the zero-cost path
@@ -437,11 +537,10 @@ def cmd_hook(horizon_days: int) -> int:
         current_branch = try_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or "HEAD"
         self_name = resolve_self_name(root, self_main, load_registry())
         acked = load_acked(root)
-        new = [
-            m
-            for m in collect_messages(self_name, self_main, current_branch, horizon_days)
-            if m["id"] not in acked
-        ]
+        found, cache_hit = collect_messages_cached(
+            root, self_name, self_main, current_branch, horizon_days
+        )
+        new = [m for m in found if m["id"] not in acked]
         log_usage(
             root,
             "hook",
@@ -449,6 +548,7 @@ def cmd_hook(horizon_days: int) -> int:
             session_id=session_id,
             new_count=len(new),
             duration_ms=int((time.monotonic() - started) * 1000),
+            cache="hit" if cache_hit else "miss",
         )
         if new:
             print(
@@ -469,11 +569,10 @@ def cmd_ack(ids: list[str], ack_all: bool, horizon_days: int) -> int:
         self_main = main_worktree(root)
         current_branch = try_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root) or "HEAD"
         self_name = resolve_self_name(root, self_main, load_registry())
-        ids = [
-            m["id"]
-            for m in collect_messages(self_name, self_main, current_branch, horizon_days)
-            if m["id"] not in acked
-        ]
+        found, _ = collect_messages_cached(
+            root, self_name, self_main, current_branch, horizon_days
+        )
+        ids = [m["id"] for m in found if m["id"] not in acked]
     if not ids:
         print("hstack-coord: nothing to ack")
         return 0

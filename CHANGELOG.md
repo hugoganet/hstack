@@ -2,6 +2,12 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.7.1] - 2026-07-25
+
+### Fixed
+
+- **Coord scan cost ~6 s per prompt — now ~50 ms when nothing changed (~120× on real repos).** First-day telemetry from `events.jsonl` (190 hook runs across 4 worktrees) showed the hook's branch walk costing median 5.9 s / p90 8.2 s per prompt — the ADR-0006 "sub-second" assumption was off by 10× on branch-heavy repos, and this ran on *every* prompt. This is the "cache keyed on ref state" mitigation ADR-0007 named. `coord_scan.py` now keeps a per-worktree cache at `hstack/.session-state/coord-scan-cache.json` keyed on a fingerprint of every source repo's local refs (plus identity, branch, horizon, and the current date, bounding cache life at one day). Messages only appear via commits and commits only move refs, so an unchanged fingerprint proves the walk would return the same set — the cache changes how fast, never what surfaces. Acks filter after collection and never invalidate; a corrupt or stale cache fails open to the full walk; deleting the file costs one re-walk. `scan`/`hook` telemetry events now carry `"cache": "hit"|"miss"` to keep the improvement measurable.
+
 ## [0.7.0] - 2026-07-24
 
 Hook-driven coord notification (ADR-0007): sessions now learn about unread coord-messages automatically instead of waiting for the engineer to hand-carry a "check your messages" nudge between workspaces. Discovery stays pull-over-committed-state per ADR-0006 — the harness merely schedules the scan.
