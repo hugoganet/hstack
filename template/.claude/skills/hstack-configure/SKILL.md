@@ -42,7 +42,7 @@ Invoke when the engineer wants to change a config field after init has completed
 
 ## Inputs
 
-- `--interview <doc-name>` (optional): re-run the conversational interview for one of `vision`, `glossary`, `mvp-scope`, `personas`, `data-architecture`, `tech-stack`, `ci-cd`, `infrastructure`, `threat-model`, `hardening-checklist`, `incident-runbook`.
+- `--interview <doc-name>` (optional): re-run the conversational interview for one of `vision`, `glossary`, `roadmap`, `personas`, `data-architecture`, `tech-stack`, `ci-cd`, `infrastructure`, `threat-model`, `hardening-checklist`, `incident-runbook`.
 - `--migrate` (optional): detect the gap between `hstack/config.yaml`'s `schemaVersion` and the version declared by the current hstack release, and apply the declarative migration steps.
 - No flag: open an interactive config editor that walks the engineer through `hstack/config.yaml` field by field, confirming or correcting each.
 
@@ -69,7 +69,7 @@ Before any work:
 
 1. Read the existing `hstack/context/<doc-name>.md`.
 2. Invoke the doc's canonical author via Task with `subagent_type` set per the routing table below. Context = [kernel, template, existing instance]. The subagent walks the document's fields, treating the existing values as the proposal layer and the engineer's responses as accept-or-correct. The routing must match the authoring agent used by `hstack-init` for the same document — same author at init time and at refresh time, different cadence:
-   - `vision`, `glossary`, `mvp-scope`, `personas`, `data-architecture`, `tech-stack`, `ci-cd` → `product-manager`.
+   - `vision`, `glossary`, `roadmap`, `personas`, `data-architecture`, `tech-stack`, `ci-cd` → `product-manager`.
    - `infrastructure`, `incident-runbook` → `spec-author`.
    - `threat-model`, `hardening-checklist` → `security-reviewer`.
 3. Updated document is written incrementally per the kernel's per-field write rule. Status moves to `drafted` if it had been `current`, then back to `current` at the end. Prompt source-cleanup per the subagent's contract.

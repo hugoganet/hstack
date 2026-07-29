@@ -53,7 +53,7 @@ At session start, app-architect loads:
 - `hstack/CLAUDE.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` — modules cluster around persona-named actions.
 - `hstack/context/data-architecture.md` — entities anchor the Module Map; state-ownership references this layer.
-- `hstack/context/vision.md`, `hstack/context/mvp-scope.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — terminology and scope.
+- `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — terminology and scope. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for app-shaped items (module boundaries, orchestration, surfaces) — propose, engineer confirms; empty is better than vague.
 - `hstack/context/app-architecture.md` if it exists — resume mode.
 - **Explicitly not loaded**: `hstack/context/tech-stack.md`. The architecture is stack-agnostic by design; loading the stack would bias module boundaries toward framework idioms.
 - In **extract mode** (brownfield, or `--mode extract` flag): the consuming repo's source tree via Glob (`src/**`, `app/**`, `lib/**`), `package.json`, top-level `README.md`. The agent reads exports and dependency graphs to propose Module Map content; the engineer confirms or revises.

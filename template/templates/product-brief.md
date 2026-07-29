@@ -5,7 +5,7 @@ status: draft                          # draft | current | needs-refresh | archi
 owner: <git-handle>
 technique-used: <brainstorm | forcing-questions | project-brief>
 derived-from: []                       # always empty — product-brief is Phase 1, no upstream
-downstream: [vision, mvp-scope, personas, glossary]
+downstream: [vision, roadmap, personas, glossary]
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
 schema-version: 1

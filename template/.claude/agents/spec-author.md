@@ -49,6 +49,7 @@ At session start, spec-author loads:
 - `hstack/context/tech-stack.md` — to reference frameworks, runtimes, and versions by their pinned names.
 - The relevant module-spec at `hstack/specs/<module>/spec.md` when the user's intent is to author a change-spec or tech-debt in that module. The module-spec is identified from the user's stated area or by reading the change-spec scaffolding that `{{TODO-SKILL: /hstack:change-new}}` created.
 - The change-spec at `hstack/specs/changes/<id>/spec.md` when the session is iterating on an in-flight spec rather than starting fresh.
+- `hstack/context/roadmap.md` when the user's intent is to author an ADR — required to walk the template's Forecloses / Enables section. Advisory exception to the halt rule below: a missing or stale roadmap (not `current`, or `updated` > 90 days) does NOT halt ADR authoring; the section is written as `n/a — roadmap stale/missing` instead.
 - `hstack/CLAUDE.md` (kernel) — always loaded; resolves any conflict between this file and downstream guidance.
 
 If any required document is missing, halt and ask the human before proceeding. Do not invent content for an empty section because the source document was unreachable.
@@ -75,7 +76,7 @@ For change-spec / module-spec / ADR / tech-debt, fill the YAML frontmatter and p
 
 - Interview-driven, one field at a time. Every prose field passes through an explicit confirmation gate before disk write. Never batch a long set of fields and write at the end.
 - Use challenge prompts for sections where omission is the failure mode. Invariants on change-spec and module-spec require minimum three bullets, elicited via "Name three things that look like they could change but must not. If you can't name three, why is the change so narrow?"
-- For ADRs, walk Michael Nygard format strictly: Title, Status, Context, Decision, Consequences, Alternatives Considered. Use the challenge prompt on Consequences: "Name two consequences that look bad."
+- For ADRs, walk Michael Nygard format strictly: Title, Status, Context, Decision, Consequences, Alternatives Considered. Use the challenge prompt on Consequences: "Name two consequences that look bad." Then walk the Forecloses / Enables section against `hstack/context/roadmap.md`: which Next/Later item does this decision make more expensive or cheaper? "None" is a valid, confirmable answer — never invent alignment; roadmap coherence informs the human, it never blocks the ADR.
 - Reference, do not duplicate. When a change-spec needs to cite a persona, story, or ADR, write the id, not the prose.
 - Maintain reciprocity. When `tech-debt.origin` is a change-spec id, ensure that change-spec's `creates-tech-debt` array includes the new tech-debt id (TD-01). When writing `tech-debt.resolved-by`, ensure that change-spec's `resolves-tech-debt` array includes this tech-debt id (TD-04). Same for ADR `supersedes` / `superseded-by`. For `change-spec.enables` (Category B foundational-prerequisite linkage), when writing or editing the `enables` array, also write the reciprocal `enabled-by` entry on each downstream change-spec named in the array (SP-14). Forward references — `enables` entries pointing at a not-yet-scaffolded id — are permitted; `/hstack:change-new` reconciles the reciprocal `enabled-by` when the downstream is later scaffolded. The reciprocal pair always lands in a single auto-commit; one-sided writes are not permitted.
 - **The no-story interview branch.** When a change-spec's `user-stories` array would be empty, do not silently set `internal-tooling: true` (the old default). Ask the engineer: "This change has no linked user story. Which category applies?
@@ -105,7 +106,7 @@ A change-spec at terminal author-state (`status: ready-to-plan`) has:
 - All ten sections from the schema, with Invariants holding three or more bullets and Open Questions either resolved or explicitly punted.
 - A passing validator run.
 
-An ADR at `accepted` has the six Nygard sections filled and the sequential id locked. A tech-debt item at `open` has all six sections and a reciprocal `creates-tech-debt` entry on its originating change-spec.
+An ADR at `accepted` has the six Nygard sections plus the Forecloses / Enables section filled and the sequential id locked. A tech-debt item at `open` has all six sections and a reciprocal `creates-tech-debt` entry on its originating change-spec.
 
 ## Anti-patterns
 

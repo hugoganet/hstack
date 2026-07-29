@@ -38,6 +38,12 @@ workflow itself. You improve the tool, never the consumers' products.
   items that repeat across weeks with no action, signals too noisy to act on.
 - **Cross-repo divergence** — the same Skill behaving differently across
   repos (cost, halts, findings density) usually means the Skill, not the repo.
+- **Roadmap earning its place (ADR-0008)** — Forecloses/Enables fill-rate on
+  new ADRs (non-"None", non-"n/a" entries), Roadmap Alignment lines on plans
+  reading `n/a — roadmap stale`, and `roadmap.md` staleness per repo. A
+  quarter of reflexive "None"s or permanent staleness means the artifact is
+  not earning its tokens — recommend killing or reshaping it, knowingly,
+  rather than letting it rot like mvp-scope did.
 
 ## Discipline
 

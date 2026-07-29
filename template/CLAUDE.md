@@ -186,7 +186,7 @@ Claude Code's native conversation persistence (under `~/.claude/projects/`) is t
 Almost every hstack artifact is produced by a subagent through a conversational interview. The human's role is to answer questions and confirm fields, not to write.
 
 - Subagents **never** write a field silently. Every artifact field passes through an explicit confirmation gate before disk write.
-- For low-stakes templates (story, ui-brief, vision, glossary, mvp-scope, persona, tech-debt) the interview is confirmation-driven: the agent proposes, the human accepts or revises.
+- For low-stakes templates (story, ui-brief, vision, glossary, roadmap, persona, tech-debt) the interview is confirmation-driven: the agent proposes, the human accepts or revises.
 - For high-stakes templates (security-review, data-review, adversarial-review, threat-model) the templates carry **challenge prompts** that probe for omissions — what the human did not think to mention. This is the v1 mitigation for the known asymmetry that humans miss what's missing. v2 moves the challenge logic into subagent prompts.
 
 **Mechanical operations adapt this contract.** Mechanical writes (per the Mechanical operations section below) do not have field-level interviews because the values are determined by the Skill's preconditions, the engineer's invocation arguments, or a structured-elicitation loop (per-question confirmation, see the Mechanical operations section). The "confirm before write" gate is preserved at the **Skill-invocation level**: before performing the writes, the Skill prints the **proposed diff** (the actual file changes that will be staged) and a Y/n prompt. A precise per-field summary is NOT a sufficient substitute — until `validate-spec.ts` ships as a real script (it is currently a `{{TODO-SCRIPT}}` placeholder), the proposed-diff preview is the only mechanical contract check between the Edit and the auto-commit; the engineer must see exactly what will land. The v1 mitigations are (a) the proposed-diff preview, (b) the precondition checks each Skill performs before any write, (c) idempotency on re-run, and (d) `validate-spec.ts` post-write *once it exists*. Subagent invocations remain field-level confirmation-gated as before. Structured-elicitation loops (Pre-conditions walks, wontfix-reason elicitation) are per-question confirmation-gated by their own y/n prompts; they do NOT replace the final proposed-diff preview before commit.
@@ -303,10 +303,10 @@ Subagents and Skills in v1 must not falsely assert v2 guarantees. The `security-
 
 The product context layer lives at `hstack/context/`:
 
-- `product/product-brief.md` — the durable thinking artifact capturing the project's product reasoning. Produced by `product-discovery` via one of three techniques (Brainstorm, Forcing-Questions, Project-Brief). Upstream of `vision.md`, `mvp-scope.md`, `personas/`, `glossary.md` — those are refreshed from the brief by `product-manager` via auto-route.
+- `product/product-brief.md` — the durable thinking artifact capturing the project's product reasoning. Produced by `product-discovery` via one of three techniques (Brainstorm, Forcing-Questions, Project-Brief). Upstream of `vision.md`, `roadmap.md`, `personas/`, `glossary.md` — those are refreshed from the brief by `product-manager` via auto-route.
 - `vision.md` — what the product is, what it does, what it is not.
 - `glossary.md` — terms with non-obvious meaning.
-- `mvp-scope.md` — in MVP, in v2, deferred.
+- `roadmap.md` — the medium-term trajectory: Now / Next / Later / Not on the path, each item carrying a one-line architectural implication (ADR-0008 in the hstack dev repo). Fuzzy horizons, no dates. During the MVP phase, Now IS the MVP scope. Advisory context for one-way-door decisions — never a gate; no validator blocks on roadmap grounds. Frontmatter `source: local | rhizome` marks who owns the truth. Stale beyond 90 days: daily-loop consumers surface staleness (`n/a — roadmap stale`) instead of pretending.
 - `personas/` — one file per persona, or one row per persona in the configured store.
 - `data-architecture.md` — five-section foundational design (Tenancy, Entities, RLS, RAG, Migration Sketches). Produced by `data-architect`. Carries `assumes-database: postgres` in frontmatter (or alternative with explicit rationale).
 - `app-architecture.md` — five-section internal-architecture design (Module Map, Agent Orchestration, Deterministic-vs-LLM Split, State-Ownership, Surface Boundaries). Produced by `app-architect`. Stack-agnostic by design; does not name frameworks.
@@ -320,13 +320,13 @@ The product context layer lives at `hstack/context/`:
 Load-at-session-start rules by subagent:
 
 - `product-discovery`: kernel, the chosen technique script (`hstack/templates/discovery/<technique>.md`), `product-brief.md` if it exists (resume mode), and in extract mode any source documents the engineer points at.
-- `product-manager`: vision, personas, mvp-scope, glossary. In auto-route from `product-discovery`: also the brief.
-- `data-architect`: kernel, product-brief, vision, mvp-scope, personas, glossary, data-architecture if it exists. In extract mode: live schema via Supabase MCP and `supabase/migrations/`.
-- `app-architect`: kernel, product-brief, data-architecture, vision, mvp-scope, personas, glossary, app-architecture if it exists. Explicitly NOT `tech-stack.md` — app-architecture is stack-agnostic by design. In extract mode: consuming-repo source tree.
-- `stack-architect`: kernel, product-brief, data-architecture, app-architecture, `hstack/config.yaml`'s default-stack declaration, all existing ADRs, threat-model and hardening-checklist if they exist. In standalone mode (`--layer <name>`): additionally `infrastructure.md`.
-- `spec-author`: glossary, tech-stack, the relevant module-spec.
+- `product-manager`: vision, personas, roadmap, glossary. In auto-route from `product-discovery`: also the brief.
+- `data-architect`: kernel, product-brief, vision, roadmap, personas, glossary, data-architecture if it exists. In extract mode: live schema via Supabase MCP and `supabase/migrations/`.
+- `app-architect`: kernel, product-brief, data-architecture, vision, roadmap, personas, glossary, app-architecture if it exists. Explicitly NOT `tech-stack.md` — app-architecture is stack-agnostic by design. In extract mode: consuming-repo source tree.
+- `stack-architect`: kernel, product-brief, data-architecture, app-architecture, roadmap, `hstack/config.yaml`'s default-stack declaration, all existing ADRs, threat-model and hardening-checklist if they exist. In standalone mode (`--layer <name>`): additionally `infrastructure.md`.
+- `spec-author`: glossary, tech-stack, the relevant module-spec. When authoring an ADR: additionally `roadmap.md`, to walk the Forecloses / Enables section (missing or stale roadmap → the section reads `n/a — roadmap stale/missing`, never invented).
 - `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope.
-- `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present).
+- `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present), roadmap (for the plan's one-line Roadmap Alignment statement; missing or stale roadmap is surfaced in that line, never a halt).
 - `ui-ux-briefer`: configured design system docs, change-spec, linked stories.
 - `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd, infrastructure.
 - `data-specialist`: data-architecture, tech-stack, ci-cd, infrastructure, current schema (via MCP).

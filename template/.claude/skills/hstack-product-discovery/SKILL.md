@@ -60,13 +60,13 @@ tools:
 3. **Invoke `product-discovery` subagent.** Via the Task tool with `subagent_type: product-discovery`. Pass mode, technique, optional section, and the canonical session-start context (kernel, template, technique script, source docs in extract mode).
 4. **Walk sections.** The subagent runs the chosen technique's script and walks the brief sections with confirmation gates. Each confirmed section writes to disk and auto-commits.
 5. **Run forcing prompts.** The three required reframes (Who pays? What's the wedge? What would falsify this?) fire before terminal state regardless of technique.
-6. **Auto-route at terminal state.** When the brief reaches `status: current`, the Skill prints the auto-route message (with alternative-path commands) and hands off to `product-manager` via the Task tool with `subagent_type: product-manager` to refresh `vision.md`, `mvp-scope.md`, `personas/`, `glossary.md`. If the engineer types `skip-routing`, the Skill commits the brief and exits cleanly — downstream Skills will halt on missing context docs.
+6. **Auto-route at terminal state.** When the brief reaches `status: current`, the Skill prints the auto-route message (with alternative-path commands) and hands off to `product-manager` via the Task tool with `subagent_type: product-manager` to refresh `vision.md`, `roadmap.md`, `personas/`, `glossary.md`. If the engineer types `skip-routing`, the Skill commits the brief and exits cleanly — downstream Skills will halt on missing context docs.
 
 ## Outputs
 
 - `hstack/context/product/product-brief.md` at `status: current`.
 - `hstack/.session-state/<session-id>.yaml` (transient).
-- Via auto-route: `vision.md`, `mvp-scope.md`, `personas/*`, `glossary.md` refreshed (unless skip-routing).
+- Via auto-route: `vision.md`, `roadmap.md`, `personas/*`, `glossary.md` refreshed (unless skip-routing).
 
 ## Auto-commit triggers
 
@@ -95,7 +95,7 @@ tools:
 
 ## Anti-patterns
 
-- Never write to `vision.md`, `mvp-scope.md`, `personas/`, `glossary.md` from this Skill directly. Those refreshes belong to `product-manager` via the auto-route.
+- Never write to `vision.md`, `roadmap.md`, `personas/`, `glossary.md` from this Skill directly. Those refreshes belong to `product-manager` via the auto-route.
 - Never bypass the three required forcing prompts, even in Project-Brief mode (the lightest touch).
 - Never silently switch techniques mid-session.
 - Never advance the brief to `current` while the Explicitly NOT section has fewer than two bullets.
