@@ -59,13 +59,13 @@ Before any work:
 - If the parent change-spec carries `internal-tooling: true`, halt and surface: "Story not required — change is Category A (internal tooling, never on a user path)."
 - If the parent change-spec carries `enables` non-empty, halt and surface: "Story not required — change is Category B (foundational prerequisite; user value lives in <enables-ids>). Draft a story against the downstream spec instead."
 - If the parent change-spec carries BOTH `internal-tooling: true` AND `enables` non-empty, halt with SP-13 violation: "Categories A and B are mutually exclusive. Pick one via `spec-author`."
-- Read `hstack/context/vision.md`, `mvp-scope.md`, and the personas index (required by `product-manager`'s session-start protocol).
+- Read `hstack/context/vision.md`, `roadmap.md`, and the personas index (required by `product-manager`'s session-start protocol).
 
 ## Orchestration steps
 
 1. **Determine mode.** Draft a new story (no `--story` argument) or refine an existing one (`--story <id>` argument). Read the existing story when refining.
 
-2. **Invoke `product-manager`.** Use the Task tool with `subagent_type: product-manager` and context = [kernel, `hstack/templates/story.md`, vision, mvp-scope, personas store, parent change-spec when known, existing story when refining]. The subagent runs the five-section interview — Who and Why, What Shipping Looks Like, Success Metric, Edge Cases the User Cares About, Out of Scope for This Story — with confirmation gates.
+2. **Invoke `product-manager`.** Use the Task tool with `subagent_type: product-manager` and context = [kernel, `hstack/templates/story.md`, vision, roadmap, personas store, parent change-spec when known, existing story when refining]. The subagent runs the five-section interview — Who and Why, What Shipping Looks Like, Success Metric, Edge Cases the User Cares About, Out of Scope for This Story — with confirmation gates.
 
 3. **Verify the persona anchor exists.** Per ST-01, the story's `persona` field must reference an existing persona at `current`. If the engineer names a persona that does not exist, `product-manager` halts and runs a sub-interview to author it first (or the engineer chooses an existing one).
 
@@ -102,7 +102,7 @@ Beyond the kernel's general stop conditions:
 - The configured story-store MCP is unreachable. Halt.
 - The named persona does not exist and the engineer declines the sub-interview to author it.
 - The success metric the engineer offers is not concretely measurable. `product-manager` re-prompts; the Skill halts after a reasonable number of re-prompts.
-- The story would drift outside `mvp-scope.md`. `product-manager` flags; the Skill asks whether to update mvp-scope (via `hstack-configure --interview mvp-scope`) or defer the story.
+- The story would drift outside the roadmap's Now horizon. `product-manager` flags; the Skill asks whether to update the roadmap (via `hstack-configure --interview roadmap`) or defer the story.
 
 ## Failure modes
 

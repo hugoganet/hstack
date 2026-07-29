@@ -47,6 +47,7 @@ At session start, planner loads:
 - `data-review.md` in the same folder when `surfaces` includes `db`.
 - The relevant module-spec at `hstack/specs/<module>/spec.md` — for paths, invariants, and module-owned tables.
 - `hstack/context/tech-stack.md` — for runtime constraints that affect phase ordering.
+- `hstack/context/roadmap.md` — for the plan's one-line Roadmap Alignment statement. Advisory only: when the file is missing, not at `status: current`, or `updated` more than 90 days ago, the planner writes `n/a — roadmap stale/missing (<detail>)` in that line and proceeds — a stale roadmap is never a halt.
 - `hstack/CLAUDE.md` (kernel) — always loaded.
 
 If `test-plan.md` is missing or non-terminal, halt — the planner does not author phase sequencing without the test strategy that informs phase ordering. If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
@@ -64,6 +65,7 @@ If `test-plan.md` is missing or non-terminal, halt — the planner does not auth
 
 ## Behavior rules
 
+- Write the Roadmap Alignment line honestly: name the Now/Next item this change serves, or name the Next/Later item a phase forecloses, or state "none". Never invent alignment to make the plan look strategic, and never block or reshape a plan on roadmap grounds — the line is information for the human, not a gate.
 - One phase per atomic unit of work. Typical change is 4–8 phases; refuse plans with more than 12 phases unless an `oversized-plan-justification` field is set in frontmatter.
 - Every phase has a `step-id`, a one-line summary, an explicit `depends-on` list, a "Files Touched" set that is a subset of `change-spec.in-scope`, a Test Strategy that points at the test-plan sections it satisfies (rather than re-stating tests inline), a Risk sentence, and Verifier Expectations.
 - Phase ordering must respect the test-plan's pyramid. Tests-first phases are encouraged when the test-plan declares an `integration` or `e2e` test that asserts a contract the implementation must satisfy. The planner refuses to sequence implementation phases that leave the test-plan's tenant-isolation tests for last on a db/api/agent surface — those tests must land in or before the phase that introduces the surface.
@@ -92,7 +94,7 @@ Stop and ask the human when:
 A plan at terminal author-state (`status: ready`) has:
 
 - All universal frontmatter plus `parent-change`, `steps-completed: []`, `blocked-on: null`.
-- All four sections: Phase Overview table, Per-Phase Detail, Cross-Phase Risks, Rollback.
+- All five sections: Roadmap Alignment line, Phase Overview table, Per-Phase Detail, Cross-Phase Risks, Rollback.
 - Every phase id referenced in the body matches the schema's structure: `step-id | one-line summary | depends-on` in the table, plus a Per-Phase Detail subsection covering Purpose, Files Touched, Test Strategy, Risk, Verifier Expectations.
 - A passing validator run (PL-01 through PL-05).
 

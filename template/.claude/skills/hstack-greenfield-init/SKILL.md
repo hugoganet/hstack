@@ -100,7 +100,7 @@ At the boundary between Phase 1 and Phase 2, the Skill writes `hstack/config.yam
 
 - Prompts the engineer to pick a technique (Brainstorm / Forcing-Questions / Project-Brief).
 - Runs the technique to completion, producing `hstack/context/product/product-brief.md` at `status: current`.
-- Auto-routes to `product-manager` to refresh `vision.md`, `mvp-scope.md`, `personas/`, `glossary.md` from the brief.
+- Auto-routes to `product-manager` to refresh `vision.md`, `roadmap.md`, `personas/`, `glossary.md` from the brief.
 
 Greenfield-init proceeds to Phase 2 only when the brief AND all four refreshed context docs are at `status: current`.
 
@@ -130,7 +130,7 @@ After Phase 6, `hstack/config.yaml`'s `init-status` advances to `complete` and t
 
 - `hstack/config.yaml` at `init-status: complete`.
 - `hstack/context/product/product-brief.md` at `current` (Phase 1).
-- `hstack/context/vision.md`, `mvp-scope.md`, `personas/*`, `glossary.md` at `current` (Phase 1 auto-route).
+- `hstack/context/vision.md`, `roadmap.md`, `personas/*`, `glossary.md` at `current` (Phase 1 auto-route).
 - `hstack/context/data-architecture.md` at `current` (Phase 2).
 - `hstack/context/app-architecture.md` at `current` plus module-spec stubs (Phase 3).
 - `hstack/adr/ADR-*` files — rollup + per-layer (Phase 4).

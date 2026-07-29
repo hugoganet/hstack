@@ -68,7 +68,7 @@ Before any work:
 
 ### Default mode
 
-1. **Invoke `researcher`.** Use the Task tool with `subagent_type: researcher` and context = [kernel, query, mode-relevant context docs per the researcher's contract — tech-stack for API/documentation modes, vision/mvp-scope for competitive/AI-native modes, threat-model/hardening-checklist for security-CVE mode]. The subagent classifies the query, applies the mode's source bias, and writes findings incrementally.
+1. **Invoke `researcher`.** Use the Task tool with `subagent_type: researcher` and context = [kernel, query, mode-relevant context docs per the researcher's contract — tech-stack for API/documentation modes, vision/roadmap for competitive/AI-native modes, threat-model/hardening-checklist for security-CVE mode]. The subagent classifies the query, applies the mode's source bias, and writes findings incrementally.
 
 2. **Source discipline.** Per the `researcher` contract:
    - API-lookup: canonical vendor docs over tutorials; 12-month recency window.

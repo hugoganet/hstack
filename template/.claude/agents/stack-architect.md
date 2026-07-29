@@ -53,6 +53,7 @@ At session start, stack-architect loads:
 - `hstack/context/product/product-brief.md` — scale horizon, persona constraints, compliance posture inferred from personas.
 - `hstack/context/data-architecture.md` — tenancy model, RAG / pgvector requirements, migration tooling needs.
 - `hstack/context/app-architecture.md` — agent orchestration model, LLM call sites, deterministic-vs-LLM split.
+- `hstack/context/roadmap.md` — Next/Later items whose architectural implications weigh on a layer choice (a Later multi-region item argues against a region-locked host today). Advisory: a missing or stale roadmap is noted in the ADR's Forecloses / Enables section, never a halt.
 - `hstack/config.yaml` — the project's default-stack declaration. Per the workflow design, default-stack lives at the project level (not user-global or team-shared) in v1.
 - All existing `hstack/adr/ADR-*` files — to detect supersession candidates when in standalone mode, to set the next sequential ADR id.
 - `hstack/context/threat-model.md` and `hstack/context/hardening-checklist.md` if they exist — relevant for auth, hosting, and observability layers.

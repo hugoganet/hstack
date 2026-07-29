@@ -61,7 +61,7 @@ Before any work:
 
 1. **Compute the next id.** `ADR-NNNN-<slug>` where `NNNN` is the next sequential number, zero-padded to four digits.
 
-2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, the superseded ADR when `--supersedes`, the research session when `--from-research`, the kernel-fit finding when `--from-kernel-fit` (Evidence + Kernel surface + Proposed direction extracted as Context seed; Counter-explanations excluded)]. The subagent walks the six Nygard sections.
+2. **Invoke `spec-author`.** Use the Task tool with `subagent_type: spec-author` and context = [kernel, `hstack/templates/adr.md`, glossary, tech-stack, `hstack/context/roadmap.md` when present, the superseded ADR when `--supersedes`, the research session when `--from-research`, the kernel-fit finding when `--from-kernel-fit` (Evidence + Kernel surface + Proposed direction extracted as Context seed; Counter-explanations excluded)]. The subagent walks the six Nygard sections plus the Forecloses / Enables section.
 
 3. **Interview discipline.** Per the `spec-author` contract:
    - Title — short noun phrase. One field, one confirmation.
@@ -70,6 +70,7 @@ Before any work:
    - Decision — one paragraph, stated as an active sentence.
    - Consequences — 2–4 paragraphs, exercised via the challenge prompt: "Name two consequences that look bad. If you can't, what alternative would have made them visible?"
    - Alternatives Considered — one paragraph per alternative.
+   - Forecloses / Enables — one line each against the roadmap's Next/Later horizons: what does this decision make more expensive, what does it make cheaper? "None" is a valid, confirmable answer. When `roadmap.md` is missing, not `current`, or `updated` > 90 days, write `n/a — roadmap stale/missing` — advisory only, never a reason to halt or reject the ADR.
 
 4. **Supersession reciprocity.** When `--supersedes` is set, `spec-author` writes `superseded-by: <new-adr-id>` on the prior ADR and `supersedes: <prior-adr-id>` on the new one. AD-02 enforces reciprocity.
 

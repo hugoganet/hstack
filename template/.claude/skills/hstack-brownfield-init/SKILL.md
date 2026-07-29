@@ -6,7 +6,7 @@ description: |
   <example>
   Context: A six-month-old codebase has thin docs and no hstack/. The engineer wants to adopt hstack against the existing source.
   user: "Start /hstack:brownfield-init on this repo."
-  assistant: "I'll read CLAUDE.md, README, package.json, and the source tree to seed proposals. Then mini-session 0 (config), product context via product-manager (vision, glossary, mvp-scope, personas) reading existing docs in extract+confirm mode. For data-architecture and app-architecture I'll delegate to the standalone atoms running in extract mode against the live schema and src/ tree."
+  assistant: "I'll read CLAUDE.md, README, package.json, and the source tree to seed proposals. Then mini-session 0 (config), product context via product-manager (vision, glossary, roadmap, personas) reading existing docs in extract+confirm mode. For data-architecture and app-architecture I'll delegate to the standalone atoms running in extract mode against the live schema and src/ tree."
   <commentary>
   Brownfield init's distinct mode is extract+confirm against existing sources. Where source docs are thin, the engineer can opt into running /hstack:product-discovery as a follow-up enrichment step after init completes.
   </commentary>
@@ -14,7 +14,7 @@ description: |
 
   <example>
   Context: Init was started two days ago, three documents were committed, and a session crash dropped the fourth. The engineer wants to resume rather than restart.
-  user: "Resume /hstack:brownfield-init — vision, glossary, and mvp-scope are already done."
+  user: "Resume /hstack:brownfield-init — vision, glossary, and the roadmap are already done."
   assistant: "I'll read hstack/.session-state/<session-id>.yaml, confirm which documents are at status `current`, and resume with the next missing one — personas, based on what I see on disk."
   <commentary>
   Idempotency is load-bearing here: the Skill reads disk state, recognizes which documents are already terminal, and continues at the next empty mini-session boundary rather than re-running completed interviews.
@@ -80,7 +80,7 @@ Init is split into discrete mini-sessions, each commitable independently. The or
 
 3. **Mini-session 2 — glossary.** Same orchestration with `hstack/templates/glossary.md`. Output: `hstack/context/glossary.md` at `current`. Commit.
 
-4. **Mini-session 3 — mvp-scope.** Same orchestration with `hstack/templates/mvp-scope.md`. Output: `hstack/context/mvp-scope.md` at `current`. Commit.
+4. **Mini-session 3 — roadmap.** Same orchestration with `hstack/templates/roadmap.md`. Output: `hstack/context/roadmap.md` at `current`. When a legacy `mvp-scope.md` exists, `product-manager` offers the extract+confirm conversion (In MVP → Now, v2 → Next, Deferred → Later or Not on the path) and prompts deletion of the legacy file after the roadmap lands. Commit.
 
 5. **Mini-session 4 — personas.** For each persona the engineer names, the `product-manager` subagent runs a persona sub-interview against `hstack/templates/persona.md`, including the challenge prompt "What is this persona explicitly not?" Personas are written to the configured store (typically `hstack/context/personas/<slug>.md`). Commit after each persona individually so partial completion is durable.
 
@@ -105,7 +105,7 @@ The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, upda
 - `hstack/config.yaml` (status field on the config carries `init-status: minimal-complete` once mini-session 0 ends, advancing to `complete` only when every required context document is at `current`).
 - `hstack/context/vision.md` at `current`.
 - `hstack/context/glossary.md` at `current`.
-- `hstack/context/mvp-scope.md` at `current`.
+- `hstack/context/roadmap.md` at `current`.
 - `hstack/context/personas/<slug>.md` per persona, or sync stubs when the store is Notion / Linear.
 - `hstack/context/tech-stack.md`, `ci-cd.md`, `infrastructure.md`, `threat-model.md`, `hardening-checklist.md` — all at `current`.
 - `hstack/context/data-architecture.md` at `current` (produced by the delegated `/hstack:data-architecture` atom, five-section structure).

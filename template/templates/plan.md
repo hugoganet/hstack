@@ -12,6 +12,10 @@ updated: <YYYY-MM-DD>
 schema-version: 1
 ---
 
+## Roadmap Alignment
+
+_One line, written by the planner against `hstack/context/roadmap.md`: does this change serve a Now/Next item, and does any phase foreclose a Next/Later item? When the roadmap is missing, not `current`, or `updated` > 90 days ago, write `n/a — roadmap stale/missing (<detail>)`. Advisory — never a gate._
+
 ## Phase Overview
 
 _Table of phases. Three columns max._

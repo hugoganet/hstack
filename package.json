@@ -1,6 +1,6 @@
 {
   "name": "hstack",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "A spec-driven engineering workflow that ships as Claude Code Skills and subagents.",
   "keywords": [
     "claude-code",

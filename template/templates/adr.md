@@ -37,3 +37,10 @@ _Positive, negative, and neutral outcomes. Particularly the trade-offs accepted.
 ## Alternatives Considered
 
 _What was on the table; why each was rejected. One paragraph per alternative._
+
+## Forecloses / Enables
+
+_Against `hstack/context/roadmap.md`: which Next/Later item does this decision make more expensive (foreclose) or cheaper (enable)? One line each. "None" is a valid answer. When the roadmap is missing or stale, write `n/a — roadmap stale/missing` instead of guessing. Advisory — never a merge gate._
+
+- Forecloses:
+- Enables:

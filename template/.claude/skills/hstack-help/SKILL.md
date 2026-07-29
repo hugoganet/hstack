@@ -84,11 +84,11 @@ No subagents are invoked. Every step is a direct file read or shell call.
    - Glob `hstack/adr/ADR-*.md`, count those at `status: proposed`. List ids.
    - Glob `hstack/tech-debt/TD-*.md`. For `status: open`: count and list the top 3 by severity, with the suggested command `/hstack:tech-debt-resolve <td-id>` for each. For `status: in-progress`: list each with its resolving change-spec id (from the Resolution Log) and the change-spec's current status — flag any inconsistency where the change-spec is `shipped` but the TD is still `in-progress` as "run /hstack:finalize <change-id> to complete resolution".
    - Glob `hstack/research/sessions/*.md`, count those within the 30-day retention window. List the most recent 3.
-   - **Context docs.** Walk the canonical list from the kernel's "Product context" section: `vision`, `glossary`, `mvp-scope`, `personas/`, `data-architecture`, `tech-stack`, `ci-cd`, `infrastructure`, `threat-model`, `hardening-checklist`, `incident-runbook`. For each, classify:
+   - **Context docs.** Walk the canonical list from the kernel's "Product context" section: `vision`, `glossary`, `roadmap`, `personas/`, `data-architecture`, `tech-stack`, `ci-cd`, `infrastructure`, `threat-model`, `hardening-checklist`, `incident-runbook`. For each, classify:
      - Missing entirely → "Run `/hstack:configure --interview <name>` (or `/hstack:init` if `init-status != complete`)."
      - Status not `current` (e.g., `drafted`, `needs-refresh`) → flag with the same routing.
      Author routing mirrors `/hstack:configure` §`--interview`:
-     - `vision`, `glossary`, `mvp-scope`, `personas`, `data-architecture`, `tech-stack`, `ci-cd` → `product-manager`.
+     - `vision`, `glossary`, `roadmap`, `personas`, `data-architecture`, `tech-stack`, `ci-cd` → `product-manager`.
      - `infrastructure`, `incident-runbook` → `spec-author`.
      - `threat-model`, `hardening-checklist` → `security-reviewer`.
    - Glob `hstack/specs/*/spec.md`, list any module-spec at `status: needs-refresh`.

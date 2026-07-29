@@ -6,7 +6,7 @@ description: |
   <example>
   Context: Phase 3 of greenfield-init opens after data-architecture is current.
   user: "/hstack:app-architecture"
-  assistant: "Loading product-brief, data-architecture, vision, mvp-scope. Stack-agnostic interview — I won't ask about frameworks here; that's Phase 4. Section 3 (Deterministic-vs-LLM Split) is the load-bearing AI-native decision: per user-facing flow, what's code and what's prompt, with rationale tied to a measurable property."
+  assistant: "Loading product-brief, data-architecture, vision, roadmap. Stack-agnostic interview — I won't ask about frameworks here; that's Phase 4. Section 3 (Deterministic-vs-LLM Split) is the load-bearing AI-native decision: per user-facing flow, what's code and what's prompt, with rationale tied to a measurable property."
   <commentary>
   Internal architecture is stack-agnostic by design. Section 3 is where AI-native teams most often get architecture wrong by leaving the LLM/code split implicit. The atom forces per-step declaration.
   </commentary>

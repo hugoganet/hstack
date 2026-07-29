@@ -6,7 +6,7 @@ description: |
   <example>
   Context: Phase 2 of greenfield-init opens after product-brief is current.
   user: "/hstack:data-architecture"
-  assistant: "Loading product-brief, vision, mvp-scope, personas. Section 1 — Tenancy — is load-bearing: I'll walk Patterns A/B/C explicitly and refuse to advance until the tenant definition is concrete with a rationale tied to a persona. Subsequent sections (Entities, RLS, RAG, Migration Sketches) build on it."
+  assistant: "Loading product-brief, vision, roadmap, personas. Section 1 — Tenancy — is load-bearing: I'll walk Patterns A/B/C explicitly and refuse to advance until the tenant definition is concrete with a rationale tied to a persona. Subsequent sections (Entities, RLS, RAG, Migration Sketches) build on it."
   <commentary>
   Tenancy ambiguity is the #1 multi-tenant SaaS failure mode. The atom enforces concreteness at Section 1 before any downstream section can stabilize.
   </commentary>

@@ -7,7 +7,7 @@ description: |
   <example>
   Context: Greenfield Phase 2 opens after the product-brief is current.
   user: "/hstack:data-architecture"
-  assistant: "I'll load the product-brief, vision, mvp-scope, and personas. Section 1 is Tenancy — the load-bearing question. What is a tenant in this product? I'll walk three common patterns and probe until the answer is concrete; tenancy ambiguity is the #1 failure mode of multi-tenant SaaS."
+  assistant: "I'll load the product-brief, vision, roadmap, and personas. Section 1 is Tenancy — the load-bearing question. What is a tenant in this product? I'll walk three common patterns and probe until the answer is concrete; tenancy ambiguity is the #1 failure mode of multi-tenant SaaS."
   <commentary>
   Tenancy is the highest-leverage early decision. Until "what is a tenant" has a concrete answer, the entity graph, RLS posture, and pgvector RPCs all sit on sand. The agent halts the interview at Section 1 if the tenant definition is "we'll figure it out" — that answer is rejected.
   </commentary>
@@ -52,7 +52,7 @@ At session start, data-architect loads:
 
 - `hstack/CLAUDE.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` — entities must trace to the named personas, the smallest useful wedge, and the success criteria.
-- `hstack/context/vision.md`, `hstack/context/mvp-scope.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — refreshed by `product-manager` post-brief; data-architect reads them to anchor terminology and to catch drift between vision and proposed entities.
+- `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — refreshed by `product-manager` post-brief; data-architect reads them to anchor terminology and to catch drift between vision and proposed entities. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for data-shaped items (tenancy, entities, storage) — propose, engineer confirms; empty is better than vague.
 - `hstack/context/data-architecture.md` if it exists — to detect resume mode and load partial state.
 - In **extract mode** (brownfield, or `--mode extract` flag): the live database schema via the Supabase MCP when configured, `supabase/migrations/` directory contents via Glob, any existing schema documentation. The agent proposes section content from code-evidence; the engineer confirms or revises.
 - The latest `hstack/.session-state/<session-id>.yaml` when resuming.
@@ -112,7 +112,7 @@ The agent halts and asks the human when:
 - `product-brief.md` is missing or at `status: draft`.
 - Section 1 tenancy answer is "we'll figure it out" or equivalent vagueness, after one re-ask.
 - An entity in Section 2 has no trace to a persona or feature in the brief, and the engineer has not yet decided to either remove it or revise the brief.
-- A drift challenge surfaces a contradiction with an upstream artifact (brief, vision, mvp-scope) — halt with `HSTACK-HALT: reason=upstream-drift` and offer (a) revise this section, (b) re-enter the upstream atom to revise it, (c) log as ADR.
+- A drift challenge surfaces a contradiction with an upstream artifact (brief, vision, roadmap) — halt with `HSTACK-HALT: reason=upstream-drift` and offer (a) revise this section, (b) re-enter the upstream atom to revise it, (c) log as ADR.
 - Extract mode was invoked but the live schema is unreachable and no migration files exist in the repo.
 - The engineer signals end-of-session — persist state, exit cleanly.
 - The Postgres assumption conflicts with an in-flight stack decision (e.g., DynamoDB chosen) — halt and surface to the engineer; this is rare but must not be silently honored.

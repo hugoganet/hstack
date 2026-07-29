@@ -54,12 +54,13 @@ Before any work:
 - When `surfaces` includes `db`: verify `data-review.md` at `status: passed` or `concerns-acknowledged`. Halt otherwise.
 - Verify the relevant module-spec at `status: current`.
 - Read `hstack/context/tech-stack.md` (loaded by `planner` for pinned runtime constraints).
+- Read `hstack/context/roadmap.md` for the plan's Roadmap Alignment line. Advisory, never a precondition: missing or stale (`status` ≠ `current`, or `updated` > 90 days) yields `n/a — roadmap stale/missing (<detail>)` in that line — no halt.
 
 The security-review is not a planner precondition — security-review and the plan can be produced in either order, since neither depends on the other's content (the implementer reads both at session start). The test-plan, by contrast, IS a planner precondition: the planner's phase ordering and per-phase Test Strategy entries reference test-plan sections, so the test-plan must already be terminal.
 
 ## Orchestration steps
 
-1. **Invoke `planner`.** Use the Task tool with `subagent_type: planner` and context = [kernel, `hstack/templates/plan.md`, change-spec, test-plan, ui-brief and figma-handoff if applicable, data-review if applicable, module-spec, tech-stack]. The subagent walks the four plan sections — Phase Overview, Per-Phase Detail, Cross-Phase Risks, Rollback. Per-phase Test Strategy entries point at test-plan sections rather than re-stating tests inline.
+1. **Invoke `planner`.** Use the Task tool with `subagent_type: planner` and context = [kernel, `hstack/templates/plan.md`, change-spec, test-plan, ui-brief and figma-handoff if applicable, data-review if applicable, module-spec, tech-stack, roadmap when present]. The subagent walks the five plan sections — Roadmap Alignment (one honest line, per the planner contract: information for the human, never a gate), Phase Overview, Per-Phase Detail, Cross-Phase Risks, Rollback. Per-phase Test Strategy entries point at test-plan sections rather than re-stating tests inline.
 
 2. **Phase decomposition.** Per the `planner` contract, typical plans hold 4–8 phases; > 12 phases requires an `oversized-plan-justification` frontmatter field. Each phase has a `step-id`, one-line summary, `depends-on` list, Files Touched (subset of `change-spec.in-scope`), Test Strategy, Risk sentence, and Verifier Expectations.
 

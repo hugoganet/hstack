@@ -130,7 +130,7 @@ Open a fresh Claude Code session in the consuming repo. Pick the right entry poi
 
 Six phases of conversational design, each ending at a commit point. Total elapsed time is founder-paced — typically 4–8 hours of conversation across multiple sessions. Phases:
 
-1. **Product discovery** — `product-discovery` agent runs one of three techniques (Brainstorm, Forcing-Questions, Project-Brief) and produces `hstack/context/product/product-brief.md`, then auto-routes to `product-manager` to refresh vision, mvp-scope, personas, glossary.
+1. **Product discovery** — `product-discovery` agent runs one of three techniques (Brainstorm, Forcing-Questions, Project-Brief) and produces `hstack/context/product/product-brief.md`, then auto-routes to `product-manager` to refresh vision, roadmap, personas, glossary.
 2. **Data architecture** — `data-architect` agent walks five sections (Tenancy, Entities, RLS, RAG, Migration Sketches) and produces a deeper `hstack/context/data-architecture.md`.
 3. **App architecture** — `app-architect` agent walks five sections (Module Map, Agent Orchestration, Deterministic-vs-LLM Split, State-Ownership, Surface Boundaries) and produces `hstack/context/app-architecture.md`. Scaffolds module-spec stubs.
 4. **Stack decisions** — `stack-architect` agent runs the constraint interview, routes ADRs through `spec-author` with pre-populated Context / Decision / Alternatives. Default-stack fast-path collapses confirmed defaults into one rollup ADR.
@@ -145,7 +145,7 @@ Six phases of conversational design, each ending at a commit point. Total elapse
 
 Conversational, split into mini-sessions of ten-to-fifteen minutes each — one per product-context document. Each mini-session ends at a commit point. Total elapsed time is 60–90 minutes for a fresh adoption. No other per-change Skill runs until init completes.
 
-Brownfield-init produces `hstack/config.yaml` and every required document under `hstack/context/`: vision, glossary, mvp-scope, personas (via `product-manager` reading existing docs in extract+confirm mode), data-architecture and app-architecture (delegated to the standalone atoms running in extract mode against the live schema and source tree), tech-stack, ci-cd, threat-model, hardening-checklist, infrastructure, incident-runbook. If the consuming repo has existing source documents (Notion pages, repo markdown, Google Docs), point the agents at them and they will map content into the canonical templates before walking field-by-field confirmation.
+Brownfield-init produces `hstack/config.yaml` and every required document under `hstack/context/`: vision, glossary, roadmap, personas (via `product-manager` reading existing docs in extract+confirm mode), data-architecture and app-architecture (delegated to the standalone atoms running in extract mode against the live schema and source tree), tech-stack, ci-cd, threat-model, hardening-checklist, infrastructure, incident-runbook. If the consuming repo has existing source documents (Notion pages, repo markdown, Google Docs), point the agents at them and they will map content into the canonical templates before walking field-by-field confirmation.
 
 After brownfield-init, run `/hstack:module-spec <area>` once per critical module to reverse-engineer baseline module-specs from the stubs scaffolded by `/hstack:app-architecture`.
 
@@ -199,7 +199,7 @@ hstack/
       product-brief.md     # discovery synthesis (Phase 1 output)
     app-architecture.md    # internal architecture (Phase 3 output)
     data-architecture.md   # five-section foundational data design (Phase 2 output)
-    ...                    # vision, mvp-scope, personas, glossary, tech-stack, ci-cd, infrastructure, threat-model, hardening-checklist, incident-runbook
+    ...                    # vision, roadmap, personas, glossary, tech-stack, ci-cd, infrastructure, threat-model, hardening-checklist, incident-runbook
   specs/
     <module>/spec.md       # module baseline (stubs scaffolded by app-architect; reverse-engineered post-bootstrap)
     changes/<id>/          # per-change artifacts (including the one-time bootstrap change-spec)

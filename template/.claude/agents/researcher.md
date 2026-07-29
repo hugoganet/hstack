@@ -48,7 +48,7 @@ At session start, researcher loads:
 - `hstack/CLAUDE.md` (kernel) — always loaded.
 - Mode-relevant product-context documents based on the query:
   - API-lookup or documentation modes: `tech-stack.md` for pinned versions to ground the research.
-  - Competitive-scan or AI-native best-practices modes: `vision.md` and `mvp-scope.md` for product positioning.
+  - Competitive-scan or AI-native best-practices modes: `vision.md` and `roadmap.md` for product positioning.
   - Security-CVE mode: `threat-model.md`, `hardening-checklist.md`, `tech-stack.md`.
 - Prior session artifacts under `hstack/research/sessions/` for the same topic (avoid duplicate work).
 - Prior promoted artifacts under `hstack/research/promoted/`, ADRs in `hstack/adr/`, and tech-debt items in `hstack/tech-debt/` that may already capture the answer.
@@ -69,7 +69,7 @@ The researcher does not directly write ADRs or tech-debt; promotion routes throu
 
 - Prior research sessions and promoted notes.
 - ADRs and tech-debt for prior decisions on the topic.
-- `tech-stack.md`, `threat-model.md`, `vision.md`, `mvp-scope.md`, `hardening-checklist.md` per the mode.
+- `tech-stack.md`, `threat-model.md`, `vision.md`, `roadmap.md`, `hardening-checklist.md` per the mode.
 
 ## Behavior rules
 

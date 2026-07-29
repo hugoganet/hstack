@@ -2,6 +2,34 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.8.0] - 2026-07-29
+
+`roadmap.md` replaces `mvp-scope.md` and enters the daily loop (ADR-0008): the medium-term product trajectory now reaches the moments where one-way-door architecture decisions are made — planning, ADR authoring, stack decisions — as advisory context with visible staleness, never a gate.
+
+### Added
+
+- **`templates/roadmap.md`** — fuzzy horizons Now / Next / Later / Not on the path, each item carrying a one-line **architectural implication** (proposed by `app-architect` / `data-architect` for their halves, confirmed by the engineer). No dates. During the MVP phase, Now IS the MVP scope — the artifact survives past MVP where mvp-scope died. Frontmatter `source: local | rhizome` marks who owns the truth (anticipating rhizome as the external product brain); `reviewed-on` feeds the 90-day staleness threshold.
+- **`Forecloses / Enables` section on `templates/adr.md`** — which roadmap Next/Later item does this decision make more expensive or cheaper? "None" is a valid answer; a missing or stale roadmap reads `n/a — roadmap stale/missing`. Advisory — no validator rule blocks an ADR on roadmap grounds.
+- **`Roadmap Alignment` section on `templates/plan.md`** — one honest line written by the `planner`; stale/missing roadmap yields `n/a — roadmap stale/missing (<detail>)` instead of pretending. This visible line is the staleness heartbeat mvp-scope never had.
+- **Daily-loop reading-list entries** — `planner`, `spec-author` (when authoring an ADR), and `stack-architect` load `roadmap.md` at session start. Explicit carve-out from the kernel's missing-context halt rule: a stale or absent roadmap is surfaced in the output line, never a halt.
+- **Brain signal "Roadmap earning its place"** (`brain/ANALYSIS.md`) — Forecloses/Enables fill-rate, `n/a` alignment lines, and per-repo roadmap staleness. If a quarter of data shows the artifact not earning its tokens, the recommendation is to kill or reshape it knowingly — unlike mvp-scope, which died unobserved.
+- **New ADR** `adr/ADR-0008-roadmap-replaces-mvp-scope.md` — the autopsy of mvp-scope (in the reading lists of init-time atoms only; the daily loop loaded no product context; nothing ever surfaced its staleness) and the three design lessons baked into the replacement.
+
+### Changed
+
+- **Kernel § Product context** — `mvp-scope.md` entry replaced by `roadmap.md`; load-at-session-start rules updated for `product-manager`, `data-architect`, `app-architect`, `stack-architect`, `spec-author`, `planner`.
+- **All `mvp-scope` references** (~30 across kernel, 8 subagents, 12 Skills, README) now point at `roadmap` — including `product-manager`'s story-drift check, which now flags stories drifting outside the **Now** horizon.
+- **`product-manager`** — owns `roadmap.md` when `source: local`; refuses local edits when `source: rhizome`. Product lines are the engineer's; architectural-implication lines are proposed by the architect agents, never invented ("empty is better than vague").
+
+### Removed
+
+- **`templates/mvp-scope.md`** — superseded by `templates/roadmap.md`. `hstack update` removes the framework copy in consuming repos; the user-content `hstack/context/mvp-scope.md` is never touched by the installer (see migration below).
+
+### Consumer action required
+
+- Run `npx hstack@latest update` to receive the new template, kernel, agent, and Skill updates (this also removes the now-orphan `hstack/templates/mvp-scope.md`).
+- Then run `/hstack:configure roadmap` — when a legacy `hstack/context/mvp-scope.md` exists with no `roadmap.md`, `product-manager` offers an extract+confirm conversion (In MVP → Now, v2 → Next, Deferred → Later or Not on the path) and prompts deletion of the legacy file once the roadmap lands at `current`.
+
 ## [0.7.1] - 2026-07-25
 
 ### Fixed
