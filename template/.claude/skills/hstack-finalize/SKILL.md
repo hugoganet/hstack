@@ -122,6 +122,25 @@ At the change-spec `shipped` commit (the final write in the finalize sequence), 
 
 The finalize sidecar is the most valuable of the three — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`finalize` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `the change-spec at shipped and the resolved tech-debt` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: finalize complete — cut recommended before the next change.
+  → new session (preferred), or: /compact keep nothing — the session can be closed, drop everything
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 Under the TDs-first-then-change-spec ordering, the legitimate resume cases are:

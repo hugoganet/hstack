@@ -139,6 +139,25 @@ At the phase-completion auto-commit above, write `hstack/specs/changes/<change-i
 
 `.telemetry/` is git-ignored in the consuming repo. The sidecar write must not introduce any new LLM turn or confirmation gate — it is a deterministic write bundled with the existing commit. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`implement` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `plan.md (steps-completed) and the committed code` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: implement complete — cut recommended before verify.
+  → new session (preferred), or: /compact keep the implementation decisions and any departures from the plan, drop the test, lint and typecheck output and the file reads
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running with the same `<task-id>` after the phase already landed: the subagent reads `steps-completed`, recognizes the phase as done, and produces a no-op diff. Re-running on a partially applied phase: the subagent reads current file state and applies only the remaining diff.

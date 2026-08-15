@@ -99,6 +99,25 @@ The Skill does not auto-commit any artifact status transitions. `pr-body.md` is 
 
 - One commit when `pr-body.md` is written or updated. Commit message: `ship(<change-id>): pr-body`.
 
+## Session boundary
+
+`ship` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `pr-body.md and the scorecard` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: ship complete — cut recommended before the merge, then finalize.
+  → new session (preferred), or: /compact keep the scorecard and the PR body, drop everything else
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running on the same change: re-reads every artifact and recomputes the scorecard. `pr-body.md` is rewritten if any artifact has changed since the prior run; otherwise a no-op.

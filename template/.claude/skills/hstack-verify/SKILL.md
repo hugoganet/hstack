@@ -115,6 +115,25 @@ At the change-spec advance commit (only when verification status is `passed`), w
 
 When verification ends at `ran` or `failed`, the sidecar still lands with `status` reflecting the canonical artifact status; the change-spec advance commit does not happen, so the sidecar piggybacks on the `verification(<change-id>): ran` (or `failed`) commit instead. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`verify` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `verification.md` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: verify complete — cut recommended before adversarial-review.
+  → new session (preferred), or: /compact keep the discrepancies and their recommended actions, drop the raw runner output
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running on a `passed` verification: the subagent re-runs the canonical commands; identical outcomes produce a no-op aside from `updated` timestamps; different outcomes (newly failing test on a flake) update the artifact accordingly.

@@ -85,6 +85,25 @@ The security-review is not a planner precondition — security-review and the pl
 - Status transition to `draft` after the Phase Overview table lands.
 - Status transition to `ready` at end of authoring. Commit message: `plan(<change-id>): ready`.
 
+## Session boundary
+
+`change-plan` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `plan.md` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: change-plan complete — cut recommended before implement.
+  → new session (preferred), or: /compact keep the plan, its phases and their Verifier Expectations, drop the code exploration and upstream-artifact reads
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running on an existing `ready` plan without spec changes: the subagent reads the existing plan as the proposal layer; identical re-confirmation is a no-op.

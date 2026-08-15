@@ -140,6 +140,25 @@ At the terminal-status auto-commit above (`test-plan(<change-id>): passed` or `c
 
 Reason this sidecar matters: it makes the test-strategist's rubber-stamp signal cheap. A `passed` test-plan with `tenant_isolation_tests_count: 0` despite `tenant_isolation_required: true`, or `challenge_prompts_answered: 3` paired with zero invariants-mapped diff against declared, are the cases the telemetry layer's WS-2 and QO-1 metrics exist to surface. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`test-plan` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `test-plan.md` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, print this as the last line of output, verbatim:
+
+```
+HSTACK-CUT: test-plan complete — cut recommended before change-plan.
+  → new session (preferred), or: /compact keep the test-plan and the coverage decisions, drop the test-file reads and exploration output
+```
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running on a terminal test-plan without spec changes: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps.
