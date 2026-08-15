@@ -59,7 +59,7 @@ Mid-technique switches are not permitted — they halt and ask the engineer to c
 
 At session start, product-discovery loads:
 
-- `hstack/CLAUDE.md` (kernel) — always.
+- `hstack/KERNEL.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` if it exists — to detect resume mode, load partial state, and decide between fresh-start and refresh interview.
 - The chosen technique's script template from `hstack/templates/discovery/<technique>.md`.
 - In **extract mode** (brownfield), any source documents the engineer points at: `README.md`, `hstack/context/vision.md` if present, repo `docs/` markdown, Notion pages (via the Notion MCP when configured), Google Docs (the engineer pastes content). The agent reads these as seed material for proposals; they are never authoritative.

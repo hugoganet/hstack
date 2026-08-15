@@ -1,7 +1,7 @@
 ---
 name: hstack-kernel-fit-scan
 description: |
-  Use this skill when the engineer wants to scan for kernel-fit gaps — patterns in shipped practice suggesting the kernel itself (CLAUDE.md, templates, validators, Skill flows) needs revision. The Skill runs the detection layer (`scripts/telemetry/run_kernel_fit.py`), invokes the `kernel-fit-analyst` subagent to synthesize one finding file per fired pattern, then nudges Slack on `high`/`medium` confidence findings with a 14-day dedup gate. Findings land at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`; the disk artifact is canonical, Slack is a side-channel pointer with graceful degradation when MCP is unwired. Promotion to a kernel change is human-gated via `/hstack:kernel-fit-promote`. See ADR-0004.
+  Use this skill when the engineer wants to scan for kernel-fit gaps — patterns in shipped practice suggesting the kernel itself (KERNEL.md, templates, validators, Skill flows) needs revision. The Skill runs the detection layer (`scripts/telemetry/run_kernel_fit.py`), invokes the `kernel-fit-analyst` subagent to synthesize one finding file per fired pattern, then nudges Slack on `high`/`medium` confidence findings with a 14-day dedup gate. Findings land at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`; the disk artifact is canonical, Slack is a side-channel pointer with graceful degradation when MCP is unwired. Promotion to a kernel change is human-gated via `/hstack:kernel-fit-promote`. See ADR-0004.
 
   <example>
   Context: The engineer wants a weekly kernel-fit scan after shipping several changes.

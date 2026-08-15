@@ -50,7 +50,7 @@ The agent does not run per-change reviews — that is `data-specialist`'s job. T
 
 At session start, data-architect loads:
 
-- `hstack/CLAUDE.md` (kernel) — always.
+- `hstack/KERNEL.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` — entities must trace to the named personas, the smallest useful wedge, and the success criteria.
 - `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — refreshed by `product-manager` post-brief; data-architect reads them to anchor terminology and to catch drift between vision and proposed entities. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for data-shaped items (tenancy, entities, storage) — propose, engineer confirms; empty is better than vague.
 - `hstack/context/data-architecture.md` if it exists — to detect resume mode and load partial state.

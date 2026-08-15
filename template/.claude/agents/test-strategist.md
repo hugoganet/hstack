@@ -57,7 +57,7 @@ At session start, test-strategist loads:
 - `hstack/context/data-architecture.md` when `surfaces` includes `db` — for RLS conventions and tenant scoping rules.
 - Existing test files within the change-spec's `in-scope` allowlist plus adjacent test directories — to mirror precedent for fixture style, factory patterns, naming.
 - Adjacent prior test-plans on the same module for precedent on layer split and budget calibration.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If any required context document is missing or at `needs-refresh`, halt and ask.
 

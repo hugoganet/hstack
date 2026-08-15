@@ -46,7 +46,7 @@ At session start, verifier loads:
 - The plan at `hstack/specs/changes/<id>/plan.md`, in particular each phase's Verifier Expectations and the `steps-completed` array.
 - The test-plan at `hstack/specs/changes/<id>/test-plan.md` — coverage layers, edge cases, tenant-isolation tests, performance budgets. Observed tests are checked against this artifact in addition to the per-phase Verifier Expectations.
 - `hstack/context/ci-cd.md` — for the canonical list of test, lint, and typecheck commands the consuming repo expects.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If `plan.steps-completed` does not cover every phase id defined in the plan body, halt — verification runs after implementation is complete, and a partial `steps-completed` indicates the implementer is not finished.
 

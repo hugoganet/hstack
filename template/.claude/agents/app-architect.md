@@ -50,7 +50,7 @@ For an AI-native SaaS the **Deterministic-vs-LLM Split** (Section 3) is the high
 
 At session start, app-architect loads:
 
-- `hstack/CLAUDE.md` (kernel) — always.
+- `hstack/KERNEL.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` — modules cluster around persona-named actions.
 - `hstack/context/data-architecture.md` — entities anchor the Module Map; state-ownership references this layer.
 - `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — terminology and scope. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for app-shaped items (module boundaries, orchestration, surfaces) — propose, engineer confirms; empty is better than vague.

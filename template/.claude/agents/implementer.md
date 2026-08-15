@@ -60,7 +60,7 @@ At session start, implementer loads:
 - For each entry in `change-spec.resolves-tech-debt`: the referenced tech-debt artifact at `hstack/tech-debt/<td-id>.md`, in particular its Acceptance section. The implementer's diff must satisfy each Acceptance bullet; the adversarial-reviewer later audits this via AR-07.
 - `hstack/context/tech-stack.md` — for pinned framework versions and Trigger.dev v4 conventions.
 - The relevant module-spec at `hstack/specs/<module>/spec.md` — for module-wide invariants the change must preserve.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If any required upstream artifact is missing or non-terminal, halt. The implementer is the last line of defense against shipping work that has not been gated.
 

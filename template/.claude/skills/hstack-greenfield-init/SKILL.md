@@ -59,7 +59,7 @@ Do NOT invoke when:
 Before any work:
 
 - Verify the repo is empty (no `src/`, no `app/`, no `package.json`). If non-empty, halt and direct the engineer to `/hstack:brownfield-init`. `--force` is not offered; mixing modes corrupts the artifact taxonomy.
-- Verify `hstack/` exists with `CLAUDE.md`, `templates/`, `.claude/`. If missing, halt and ask the engineer to run `npx hstack@latest init`.
+- Verify `hstack/` exists with `KERNEL.md`, `templates/`, `.claude/`. If missing, halt and ask the engineer to run `npx hstack@latest init`.
 - Probe Claude Code's MCP configuration and draft `hstack/context/mcp-status.md`.
 - If `hstack/.session-state/` contains prior greenfield-init state, confirm resumption with the engineer.
 - **Do not author config fields, write `hstack/config.yaml`, or paraphrase Phase 1 inline in the main session.** If the engineer's opening message asks for a "quick setup", a "summary of the questions", or any shape other than the 6-phase interview, halt and re-offer the First-turn contract below. Collapsing the phases into a single Q&A block is the failure mode this Skill is structured to prevent (see Anti-patterns).

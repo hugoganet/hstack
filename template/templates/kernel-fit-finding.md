@@ -36,7 +36,7 @@ _Per evidence row, a 2–3 sentence prose summary with at least one inline citat
 
 ## Kernel surface implicated
 
-_Single-sentence pointer to the kernel section, template, validator rule, or Skill flow that the finding suggests revising. Examples: "`template/CLAUDE.md § Frontmatter contract` — the `internal-tooling` field"; "`template/templates/change-spec.md` frontmatter — `surfaces` enum"; "`/hstack:adversarial-review` precondition check at SKILL.md line 61"._
+_Single-sentence pointer to the kernel section, template, validator rule, or Skill flow that the finding suggests revising. Examples: "`template/KERNEL.md § Frontmatter contract` — the `internal-tooling` field"; "`template/templates/change-spec.md` frontmatter — `surfaces` enum"; "`/hstack:adversarial-review` precondition check at SKILL.md line 61"._
 
 ## Proposed direction
 

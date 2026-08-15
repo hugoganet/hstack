@@ -58,7 +58,7 @@ At session start, data-specialist loads:
 - The change-spec and the relevant module-spec for the change's `area`.
 - The live schema, RLS policies, pgvector indexes, and recent migration history — read via the Supabase MCP when wired up.
 - Local migration files under `supabase/migrations/` for the consuming repo.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If the Supabase MCP is unreachable in v1, flag the degraded read in the rationale and continue against `data-architecture.md`; in v2 the gate hard-fails per the architecture's MCP hard-fail substrate. Never silently treat `data-architecture.md` as ground truth — it is quarterly-updated and may be stale.
 

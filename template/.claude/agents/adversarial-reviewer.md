@@ -56,7 +56,7 @@ At session start, adversarial-reviewer loads:
 - The full diff for the change's branch.
 - `hstack/context/threat-model.md`, `hardening-checklist.md`, `data-architecture.md`, `tech-stack.md` — to evaluate the change against canonical context.
 - The relevant module-spec for module-wide invariants.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 Explicitly NOT loaded: any conversation transcript or scratchpad from the implementer's session. The agent self-attests this in section 1 (Methodology) and in the frontmatter `fresh-session-attestation` field.
 

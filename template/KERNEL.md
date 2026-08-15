@@ -3,7 +3,7 @@ hstack-version: v0.6.0
 authority: kernel
 ---
 
-# hstack — Kernel (CLAUDE.md)
+# hstack — Kernel (KERNEL.md)
 
 This file is the kernel of the hstack engineering workflow. When a Claude Code session, Skill, or subagent operates under hstack, this file is the contract.
 
@@ -333,7 +333,7 @@ Load-at-session-start rules by subagent:
 - `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack, infrastructure (when surfaces includes infra).
 - `verifier`: change-spec, plan, test-plan, ci-cd.
 - `adversarial-reviewer`: all change artifacts (including test-plan); explicitly no implementer transcripts.
-- `kernel-fit-analyst`: hstack/CLAUDE.md (the artifact under analysis), the latest hstack/telemetry/reports/<date>.md, every prior finding at hstack/kernel-fit/findings/, all change-specs at status: shipped (full bodies), all ADRs, all tech-debt, all module-specs; explicitly no implementer transcripts and no scratchpads from in-flight authoring sessions.
+- `kernel-fit-analyst`: hstack/KERNEL.md (the artifact under analysis), the latest hstack/telemetry/reports/<date>.md, every prior finding at hstack/kernel-fit/findings/, all change-specs at status: shipped (full bodies), all ADRs, all tech-debt, all module-specs; explicitly no implementer transcripts and no scratchpads from in-flight authoring sessions.
 - `researcher`: query context plus relevant product-context docs as the query requires.
 
 A subagent that cannot reach a required context document halts and asks the human, rather than proceeding without it.

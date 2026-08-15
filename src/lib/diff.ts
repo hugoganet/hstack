@@ -49,7 +49,7 @@ export type FileDiff =
  * Only paths under FRAMEWORK_PATHS are considered.
  *
  * `frameworkPaths` is the list of framework subpaths (relative to template root
- * and to consumer hstack root). Both top-level files (e.g., "CLAUDE.md") and
+ * and to consumer hstack root). Both top-level files (e.g., "KERNEL.md") and
  * directories (e.g., "templates/") are supported.
  */
 export async function diffFramework(

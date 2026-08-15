@@ -81,7 +81,7 @@ Field rules:
 - `files_touched_count` — count of distinct files modified by the phase's commit. Computed mechanically; not a judgment.
 - `tests_written_count` — count of test files newly created in the phase (kernel test-immutability rule allows new tests without authorization).
 - `scope_amendment_emitted` — `true` only when the implementer halted and surfaced a scope-amendment request during this phase.
-- `halt_reasons` — array of enum values from the kernel halt sentinel (see CLAUDE.md § Halt sentinel).
+- `halt_reasons` — array of enum values from the kernel halt sentinel (see KERNEL.md § Halt sentinel).
 - `test_immutability_authorizations` — array of canonical authorization phrases echoed during this phase (e.g., `"Ok to change test foo"`).
 
 ## Schema — `verify.json`

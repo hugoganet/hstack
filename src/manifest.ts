@@ -6,16 +6,20 @@
  * On `hstack update` only paths in `FRAMEWORK_PATHS` are overwritten; paths
  * in `USER_CONTENT_PATHS` are NEVER touched by the installer.
  *
- * The boundary is load-bearing — see CLAUDE.md "Mechanical operations" and
+ * The boundary is load-bearing — see KERNEL.md "Mechanical operations" and
  * the README installation section.
  */
 
 /**
  * Paths the installer owns. `hstack update` overwrites these.
  * Relative to `<consumer>/hstack/`.
+ *
+ * `KERNEL.md` was `CLAUDE.md` until ADR-0010 — a consumer still carrying the
+ * old name is migrated by `hstack update`, not by this diff (the old path is no
+ * longer a framework path, so nothing here would ever remove it).
  */
 export const FRAMEWORK_PATHS = [
-  "CLAUDE.md",
+  "KERNEL.md",
   "templates/",
   ".claude/agents/",
   ".claude/skills/",

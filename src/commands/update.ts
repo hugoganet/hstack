@@ -96,7 +96,12 @@ export async function runUpdate(opts: UpdateOptions): Promise<number> {
   renderSummary(summary);
   console.log("");
 
-  if (opts.verbose || summary["remove-file"] || summary["remove-symlink"]) {
+  if (
+    opts.verbose ||
+    summary["remove-file"] ||
+    summary["remove-symlink"] ||
+    summary["migrate-kernel-filename"]
+  ) {
     console.log(pc.dim("Detail:"));
     console.log(filterDetailedActions(actions, opts.verbose ?? false, gitRoot));
     console.log("");
@@ -147,6 +152,11 @@ function renderSummary(summary: Record<string, number>): void {
     n > 0 ? `  ${color(`${n} ${label}`)}` : null;
 
   const lines = [
+    fmt(
+      "kernel rename migration, CLAUDE.md -> KERNEL.md (ADR-0010)",
+      summary["migrate-kernel-filename"] ?? 0,
+      pc.cyan,
+    ),
     fmt("framework file(s) added", summary["add-file"] ?? 0, pc.green),
     fmt("framework file(s) modified", summary["overwrite-file"] ?? 0, pc.yellow),
     fmt("framework file(s) removed", summary["remove-file"] ?? 0, pc.red),
@@ -169,7 +179,9 @@ function filterDetailedActions(
   const interesting = actions.filter((a) =>
     verbose
       ? true
-      : a.kind === "remove-file" || a.kind === "remove-symlink",
+      : a.kind === "remove-file" ||
+        a.kind === "remove-symlink" ||
+        a.kind === "migrate-kernel-filename",
   );
   return renderPlan(interesting, consumerRoot);
 }
