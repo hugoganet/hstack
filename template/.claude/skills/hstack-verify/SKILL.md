@@ -65,6 +65,8 @@ Before any work:
 
 ## Orchestration steps
 
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+
 1. **Invoke `verifier`.** Use the Task tool with `subagent_type: verifier` and context = [kernel, `hstack/templates/verification.md`, change-spec, plan, test-plan, ci-cd]. The subagent runs the canonical commands declared in `ci-cd.md` (or orchestrates `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}`).
 
 2. **Capture output.** The subagent writes captured stdout/stderr to a pointer file at `hstack/specs/changes/<change-id>/test-output.txt` and references it from `verification.artifacts.test-output`.
@@ -101,9 +103,12 @@ At the change-spec advance commit (only when verification status is `passed`), w
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-verify",
   "change_id": "<change-id>",
+  "session_id": "<session id from step 0, or null>",
+  "phase_opened_at": "<ISO-8601 from step 0, or null>",
+  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
   "ran_at": "<ISO-8601, when canonical commands started>",
   "test_suite_runtime_s": <float seconds, wall clock across canonical commands>,
   "phase_coverage": {<mirror of verification.md frontmatter>},
@@ -114,6 +119,8 @@ At the change-spec advance commit (only when verification status is `passed`), w
 ```
 
 When verification ends at `ran` or `failed`, the sidecar still lands with `status` reflecting the canonical artifact status; the change-spec advance commit does not happen, so the sidecar piggybacks on the `verification(<change-id>): ran` (or `failed`) commit instead. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
+`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
 
 ## Session boundary
 

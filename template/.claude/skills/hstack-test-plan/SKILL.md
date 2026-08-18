@@ -71,6 +71,8 @@ Before any work:
 
 ## Orchestration steps
 
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+
 1. **Invoke `test-strategist`.** Use the Task tool with `subagent_type: test-strategist` and context = [kernel, `hstack/templates/test-plan.md`, change-spec, module-spec, tech-stack, ci-cd, data-architecture when applicable]. The subagent walks the eight sections — Surfaces and Risk Profile, Test Pyramid, Edge Cases, Tenant Isolation Tests, Test Data and Fixture Strategy, Performance and Regression Budgets, Challenge Prompts, Open Concerns.
 
 2. **Pyramid bias.** Per the subagent's contract, bias is unit-for-pure-functions, integration-for-multi-module-behavior, e2e-only-for-user-journeys-that-span-the-stack. The Skill rejects any pyramid where the bulk of behavior coverage lands in e2e — that is the slow-and-flaky failure mode the strategist exists to prevent.
@@ -118,9 +120,12 @@ At the terminal-status auto-commit above (`test-plan(<change-id>): passed` or `c
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-test-plan",
   "change_id": "<change-id>",
+  "session_id": "<session id from step 0, or null>",
+  "phase_opened_at": "<ISO-8601 from step 0, or null>",
+  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
   "completed_at": "<ISO-8601, when terminal status reached>",
   "status": "passed | concerns-acknowledged",
   "coverage_layers": {<mirror of frontmatter coverage-layers map>},
@@ -139,6 +144,8 @@ At the terminal-status auto-commit above (`test-plan(<change-id>): passed` or `c
 ```
 
 Reason this sidecar matters: it makes the test-strategist's rubber-stamp signal cheap. A `passed` test-plan with `tenant_isolation_tests_count: 0` despite `tenant_isolation_required: true`, or `challenge_prompts_answered: 3` paired with zero invariants-mapped diff against declared, are the cases the telemetry layer's WS-2 and QO-1 metrics exist to surface. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
+`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
 
 ## Session boundary
 

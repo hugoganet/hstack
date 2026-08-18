@@ -75,13 +75,11 @@ Do NOT invoke for:
    - `git rev-parse --abbrev-ref HEAD` → `branch`
    - `pwd` → `workspace`
 
-2. **Resolve the session-id.** Heuristic per ADR-0005 (v2 substrate will replace this with a harness-exposed mechanism):
-   - Compute the encoded workspace path: replace `/` with `-` in the absolute cwd path, prefix with `-`. Example: `/Users/jane/code/moso` → `-Users-jane-code-moso`.
-   - Glob `~/.claude/projects/<encoded-cwd>/*.jsonl`.
-   - If at least one match: pick the most recently modified (`stat -f %m` on macOS, `stat -c %Y` on Linux) and extract its `session-id` from the filename (basename minus `.jsonl`). Set `session-transcript-path` to its absolute path.
-   - If zero matches: set `session-id` to `fallback-<short-uuid>` (generate a short random hex), set `session-transcript-path` to the literal string `fallback-cwd:<workspace>` so the analyst can detect the fallback at scan time. Do NOT halt — the pin still has audit value (timestamp + branch + HEAD), and the analyst's `transcript-truncated` classification is the safety net.
+2. **Resolve the session-id.** Run `python3 hstack/scripts/telemetry/session_id.py`. It applies the ADR-0005 heuristic — most recently modified `*.jsonl` under `~/.claude/projects/<encoded-cwd>/` — and prints JSON. Since ADR-0009 this resolver is shared code rather than prose duplicated per Skill; the five sidecar-emitting Skills call the same script, so the heuristic changes in one place when the harness exposes a real session id (v2 substrate).
+   - `"source": "transcript"` → use its `session_id` and set `session-transcript-path` to its `transcript_path`.
+   - `"source": "unresolved"` (or the script fails to run at all) → set `session-id` to `fallback-<fallback_id>` using the short random hex the script returns (generate your own if the script did not run), and set `session-transcript-path` to the literal string `fallback-cwd:<workspace>` so the analyst can detect the fallback at scan time. Do NOT halt — the pin still has audit value (timestamp + branch + HEAD), and the analyst's `transcript-truncated` classification is the safety net.
 
-3. **Capture pre-compaction message count.** Count lines in `session-transcript-path` if it points at a real jsonl file (`wc -l < <path>`); else set to 0. The analyst compares this to the file's line count at scan-time to detect compaction.
+3. **Capture pre-compaction message count.** Use the script's `message_count` (it counts the transcript's lines); it is 0 on the fallback path. The analyst compares this to the file's line count at scan-time to detect compaction.
 
 4. **Read and normalize the hint.** If the engineer passed an argument: take the first whitespace-delimited token, truncate to 32 characters, store as `hint`. If multi-word was passed, note in stdout "hint truncated to first token: <hint>". If no argument: `hint: null`.
 
@@ -122,7 +120,7 @@ No halt sentinel is emitted by this Skill in the success path. The success path 
 ## Failure modes
 
 - **`~/.claude/projects/<encoded-cwd>/` does not exist or is empty.** Fall back as described in step 2; write the pin with `session-transcript-path: fallback-cwd:<workspace>`. The analyst will classify `transcript-truncated` at scan-time.
-- **Multiple `.jsonl` files in the encoded directory.** Pick the most recently modified. This is the v1 heuristic; v2 will replace it with a harness-exposed session-id.
+- **Multiple `.jsonl` files in the encoded directory.** `session_id.py` picks the most recently modified. This is the v1 heuristic; v2 will replace it with a harness-exposed session-id — in one file now, rather than in six Skills' prose.
 - **Engineer flags many times in rapid succession.** Each flag produces a distinct pin (timestamp granularity + session-id-short suffix prevents collisions). The high flag-rate itself becomes signal in the next scan's Slack tail summary.
 - **Engineer flags from inside a subagent's session.** The encoded-cwd heuristic resolves to the main-session jsonl (subagents do not get their own jsonl under `~/.claude/projects/`), which is correct — the analyst wants the main session's transcript. No special handling required.
 - **Engineer passes a quoted multi-word hint.** Truncate to the first token, note it in stdout, write the pin. Do not halt.

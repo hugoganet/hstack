@@ -2,6 +2,37 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.10.0] - 2026-08-18
+
+Phase cost becomes measurable (ADR-0009). The five sidecar-emitting Skills now stamp a session id and a phase time-window on their sidecar; the telemetry parser sums the transcript's assistant-turn usage between those bounds; and Skill attribution stops matching free text. "What did this phase cost?" and "what did this change cost?" are answerable from data the harness already writes — no new measurement channel, two timestamps and an id written where a file was already being written.
+
+### Added
+
+- **Phase window on every sidecar — `session_id`, `phase_opened_at`, `phase_closed_at`** (`templates/telemetry-sidecar.md`, `schema_version: 2`, plus the five emitting Skills: `test-plan`, `implement`, `verify`, `adversarial-review`, `finalize`). `phase_opened_at` is stamped the moment preconditions pass, before any subagent invocation; `phase_closed_at` at the terminal state, in the same write that lands the sidecar. Best-effort by contract: an unresolvable session id writes `null` and the phase reports as **unmeasured, never as zero** — a phase whose transcript was swept still spent tokens, and a zero would fold it into the averages as if it were free. The sidecar stays derivative, gitignored, never authoritative, and rides the commit that was happening anyway.
+- **`scripts/telemetry/session_id.py`** — the session-id heuristic as shared code instead of prose duplicated per Skill. Prints `session_id`, `transcript_path`, `message_count` and a UTC `now` stamp in one read, so a Skill opening a phase gets both fields from one call. `/hstack:flag` now calls it rather than carrying its own copy of the heuristic (ADR-0005's v1 mechanism is unchanged — it just lives in one file, which is where the v2 harness-exposed session id will land).
+- **`parsers/transcripts.py:phase_usage(sidecar)`** — opens the transcript named by `session_id` and sums `input + cache_creation_input + cache_read_input + output` over assistant records whose `timestamp` falls in `[phase_opened_at, phase_closed_at]`. Returns `null` on a missing transcript, a null session id, a v1 sidecar, or an inverted window. Read-only.
+- **`parsers/sidecars.py`** — loads `hstack/specs/changes/*/.telemetry/*.json`. A malformed sidecar is skipped, never repaired.
+- **TE-4 (cost per phase) and TE-5 (cost per change)** in `insights/token_economics.py`, rendered in the markdown report and the JSON twin. Both print an explicit **coverage fraction** — measured phases over emitted sidecars — because only five of the 27 Skills emit: `change-new`, `change-plan`, `security-review`, `data-review`, `ship` and the whole `configure` family contribute nothing to these sums, and subagent spend still lands in its host's window. Both notes point the reader at QO-4 and WS-2: cost without an outcome beside it can only argue for spending less, never for spending well. A new watch-list line fires when any emitted sidecar is unmeasured, so partial coverage is surfaced rather than inferred.
+- **`scripts/test-telemetry-parsers.py`** (dev repo only, not shipped) — fixture tests for the bounded summation, the four null paths, and the structured-marker classifier. The dev repo is not a consumer, so these fixtures are the only place the parsers run against known-answer input.
+
+### Fixed
+
+- **Skill attribution no longer matches prose.** `classify_session` dropped the `/hstack:([a-z…])` regex over message text; it reads only structured markers the harness emits — `<command-name>` tags and `Skill` tool_use blocks — and classifies a session with neither as `(unattributed)`. Measured on 30 days of moso-app transcripts (760 sessions): 104 sessions move out of Skill buckets they never invoked, and the buckets built almost entirely from prose collapse — `tech-debt-new` 37 → 6 sessions, `finalize` 31 → 3, `configure` 27 → 1, `ship` 15 → 2, `tech-debt-stale` 3 → 0. On the hstack dev repo — which discusses these commands constantly and invokes none of them — every bucket goes to zero, including `/hstack:flag`'s phantom 35.5M tokens across 247 turns.
+- **Honest correction to ADR-0009's own prediction:** `coord` does **not** shrink. It goes 81 → 92 sessions, because ADR-0007's hook makes the agent genuinely invoke `/hstack:coord` at session start — a real structured marker, not a quoted string. What credits `coord` with half the measured cache-read tokens is the missing end marker, not the regex; that is what TE-4/TE-5 supersede, and TE-1/TE-2 now say so in their notes rather than implying a per-Skill total.
+
+### Changed
+
+- **TE-1 and TE-2 keep their shape and gain a session-scoped note** naming what they can and cannot answer, the unattributed count, and their supersession by TE-4/TE-5 wherever sidecars exist. TE-2's `(non-hstack)` bucket is renamed `(unattributed)` — it now holds hstack sessions with no structured marker as well as plain non-hstack work.
+- **JSON twin `schema_version` 1 → 2** (`counts.phase_sidecars`, `te_4_cost_per_phase`, `te_5_cost_per_change`). Additive: every v1 key keeps its shape.
+- **`ui/lib/report.ts`** — `TelemetryReport` carries the new blocks as optional so a v1 report on disk still renders; `ui/components/repo-dashboard.tsx` renders TE-4/TE-5 cards with the coverage fraction in the card description, not below the table.
+- **`hstack-telemetry` Skill** — the six-bucket summary names TE-4/TE-5, their coverage caveat, and the unmeasured-never-zero rule.
+
+### Consumer action required
+
+- Run `npx hstack@latest update`, then commit. No migration: sidecars written before this release stay at `schema_version: 1`, carry no window, and read as unmeasured — the timestamps they would need were never recorded. Coverage climbs from zero as new phases land.
+- If `.telemetry/` is not gitignored in your repo, fix that before the next phase lands: sidecars now carry a local session id, and the discipline that keeps it out of git history is that one line.
+- Transcript retention is now load-bearing for history. `cleanupPeriodDays` defaults to 30 days; a repo left at the default cannot recompute phase cost for changes older than a month, and the sidecar keeps pointing at a file that no longer exists (reported as unmeasured, never as zero).
+
 ## [0.9.0] - 2026-08-15
 
 The consumer-side kernel is renamed `hstack/CLAUDE.md` → `hstack/KERNEL.md` (ADR-0010). Claude Code was loading it twice: once via the `@hstack/CLAUDE.md` import in the consumer's root `CLAUDE.md` (expanded at launch) and again via nested-`CLAUDE.md` discovery, which keys on the literal filename and injects the whole file on the first read of *any* artifact under `hstack/`. Measured at ~15k tokens in 46% of sessions on a real workload. Discovery cannot see `KERNEL.md`, so the import is now the single load path — the one that survives compaction and that subagents inherit. Filename only: the kernel's authority, content, precedence, and the "everything under `hstack/`" layout rule are unchanged.

@@ -61,7 +61,7 @@ def _render_token_economics(lines: list[str], te: dict) -> None:
     _h(lines, 2, "Token economics")
 
     te1 = te.get("te_1_cost_per_change", {})
-    _h(lines, 3, "TE-1 — cost-score per Skill (proxy for per-change cost)")
+    _h(lines, 3, "TE-1 — cost-score per Skill (session-scoped)")
     _p(lines, te1.get("note", ""))
     _table(
         lines,
@@ -71,9 +71,10 @@ def _render_token_economics(lines: list[str], te: dict) -> None:
     )
 
     te2 = te.get("te_2_cache_hit_per_subagent", {})
-    _h(lines, 3, "TE-2 — cache-hit ratio (per Skill, v1 coarse grain)")
+    _h(lines, 3, "TE-2 — cache-hit ratio (per Skill, session-scoped)")
     _p(lines, "ratio = cache_read / (cache_read + cache_creation). Below 0.5 → context "
               "is being rebuilt rather than reused. Above 0.8 → cross-session reuse is healthy.")
+    _p(lines, te2.get("note", ""))
     _table(
         lines,
         ["skill", "turns", "cache_read", "cache_creation", "ratio"],
@@ -92,6 +93,61 @@ def _render_token_economics(lines: list[str], te: dict) -> None:
           r["host_cache_creation_per_invocation"]]
          for r in te3.get("rows", [])],
     )
+
+    te4 = te.get("te_4_cost_per_phase", {})
+    _h(lines, 3, "TE-4 — cost per phase (sidecar phase window)")
+    _p(lines, _coverage_line(te4, "phase"))
+    _p(lines, te4.get("note", ""))
+    rows4 = te4.get("rows", [])
+    measured4 = [r for r in rows4 if r["measured"]]
+    _table(
+        lines,
+        ["skill", "change", "phase", "tokens", "turns", "wall-clock (h)"],
+        [[r["skill"], r["change"], r["phase_id"] or "-",
+          f"{r['tokens']:,}", r["turns"], r["wall_clock_h"]]
+         for r in measured4[:40]],
+    )
+    unmeasured4 = [r for r in rows4 if not r["measured"]]
+    if unmeasured4:
+        by_reason: dict[str, int] = {}
+        for r in unmeasured4:
+            by_reason[r["unmeasured_reason"] or "unknown"] = by_reason.get(r["unmeasured_reason"] or "unknown", 0) + 1
+        _p(lines, f"**{len(unmeasured4)} unmeasured phase(s)** — counted as nothing, never as zero:")
+        _table(
+            lines,
+            ["reason", "phases"],
+            [[reason, count] for reason, count in sorted(by_reason.items(), key=lambda kv: -kv[1])],
+        )
+
+    te5 = te.get("te_5_cost_per_change", {})
+    _h(lines, 3, "TE-5 — cost per change (sum of measured phases)")
+    _p(lines, _coverage_line(te5, "phase"))
+    _p(lines, te5.get("note", ""))
+    _table(
+        lines,
+        ["change", "tokens", "turns", "wall-clock (h)", "phases measured / emitted", "coverage"],
+        [[r["change"],
+          f"{r['tokens']:,}" if r["tokens"] is not None else "unmeasured",
+          r["turns"] if r["turns"] is not None else "-",
+          r["wall_clock_h"] if r["wall_clock_h"] is not None else "-",
+          f"{r['phases_measured']} / {r['phases_emitted']}",
+          f"{r['coverage_fraction']:.0%}" if r["coverage_fraction"] is not None else "-"]
+         for r in te5.get("rows", [])[:20]],
+    )
+
+
+def _coverage_line(block: dict, unit: str) -> str:
+    emitted = block.get("phases_emitted", 0)
+    measured = block.get("phases_measured", 0)
+    frac = block.get("coverage_fraction")
+    if not emitted:
+        return (f"**Coverage: 0 sidecars in this repo.** No {unit} is measurable — "
+                "either no change has reached a sidecar-emitting terminal state yet, "
+                "or the sidecars pre-date ADR-0009's phase window.")
+    return (f"**Coverage: {measured} of {emitted} emitted sidecars measurable"
+            + (f" ({frac:.0%})" if frac is not None else "") + ".** "
+            "Emitted sidecars come from five Skills only, so this is a subset of the "
+            "change's real cost — read the fraction before reading the totals.")
 
 
 def _render_workflow_shape(lines: list[str], ws: dict) -> None:
@@ -344,6 +400,15 @@ def watch_items(metrics: dict) -> list[str]:
     for r in te2.get("rows", []):
         if r.get("ratio") is not None and r["ratio"] < 0.5 and r["turns"] > 5:
             items.append(f"Low cache-hit on `{r['skill']}` ({r['ratio']:.0%}) — context is being rebuilt.")
+
+    # TE-4: emitted sidecars the parser could not measure
+    te4 = metrics.get("token_economics", {}).get("te_4_cost_per_phase", {})
+    emitted = te4.get("phases_emitted", 0)
+    measured = te4.get("phases_measured", 0)
+    if emitted and measured < emitted:
+        items.append(f"{emitted - measured} of {emitted} phase sidecars are unmeasured "
+                     "(no phase window, or the session transcript is gone) — TE-4/TE-5 "
+                     "totals are a subset, not a total.")
 
     # QO-2 smells
     smells = metrics.get("quality_outcomes", {}).get("qo_2_severity_resolution_mix", {}).get("high_severity_in_prose_smells", [])

@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-/** Shape of the JSON twin emitted by scripts/telemetry/report.py (schema_version 1). */
+/**
+ * Shape of the JSON twin emitted by scripts/telemetry/report.py.
+ *
+ * schema_version 2 (ADR-0009) adds `te_4_cost_per_phase` / `te_5_cost_per_change`
+ * and `counts.phase_sidecars`. Both are optional here so a version-1 report on
+ * disk still renders.
+ */
 export interface TelemetryReport {
   schema_version: number
   repo: string
@@ -14,13 +20,19 @@ export interface TelemetryReport {
     module_specs: number
     commits: number
     sessions: number
+    /** schema_version ≥ 2 */
+    phase_sidecars?: number
   }
   watch_list: string[]
   metrics: {
     token_economics: {
-      te_1_cost_per_change: { rows: Te1Row[]; note?: string }
-      te_2_cache_hit_per_subagent: { rows: Te2Row[] }
+      te_1_cost_per_change: { rows: Te1Row[]; note?: string; unattributed_sessions?: number }
+      te_2_cache_hit_per_subagent: { rows: Te2Row[]; note?: string }
       te_3_subagent_entry_tax: { rows: Te3Row[]; note?: string }
+      /** schema_version ≥ 2 — phase-scoped, supersedes TE-1 where sidecars exist. */
+      te_4_cost_per_phase?: PhaseCoverage & { rows: Te4Row[]; note?: string }
+      /** schema_version ≥ 2 — sum over a change's measured phases only. */
+      te_5_cost_per_change?: PhaseCoverage & { rows: Te5Row[]; note?: string }
     }
     workflow_shape: {
       ws_1_phase_duration: {
@@ -103,6 +115,44 @@ export interface Te3Row {
   appearances: number
   host_cache_creation_total: number
   host_cache_creation_per_invocation: number
+}
+/**
+ * Coverage is not decoration: only five Skills emit sidecars, and a sidecar
+ * whose transcript aged out is unmeasured. Render the fraction next to the
+ * totals or the subset reads as a total.
+ */
+export interface PhaseCoverage {
+  phases_emitted: number
+  phases_measured: number
+  coverage_fraction: number | null
+}
+/** One sidecar. `tokens === null` means unmeasured — never zero. */
+export interface Te4Row {
+  skill: string | null
+  change: string | null
+  phase_id: string | null
+  sidecar: string | null
+  schema_version: number | null
+  session_id: string | null
+  opened_at: string | null
+  closed_at: string | null
+  measured: boolean
+  unmeasured_reason: string | null
+  tokens: number | null
+  cost_score: number | null
+  turns: number | null
+  wall_clock_h: number | null
+}
+export interface Te5Row {
+  change: string
+  phases_measured: number
+  phases_emitted: number
+  coverage_fraction: number | null
+  skills_measured: string[]
+  tokens: number | null
+  cost_score: number | null
+  turns: number | null
+  wall_clock_h: number | null
 }
 export interface KernelFitPattern {
   fired: boolean
