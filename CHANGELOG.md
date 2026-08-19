@@ -2,6 +2,27 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.9.0] - 2026-08-15
+
+The consumer-side kernel is renamed `hstack/CLAUDE.md` → `hstack/KERNEL.md` (ADR-0010). Claude Code was loading it twice: once via the `@hstack/CLAUDE.md` import in the consumer's root `CLAUDE.md` (expanded at launch) and again via nested-`CLAUDE.md` discovery, which keys on the literal filename and injects the whole file on the first read of *any* artifact under `hstack/`. Measured at ~15k tokens in 46% of sessions on a real workload. Discovery cannot see `KERNEL.md`, so the import is now the single load path — the one that survives compaction and that subagents inherit. Filename only: the kernel's authority, content, precedence, and the "everything under `hstack/`" layout rule are unchanged.
+
+### Changed
+
+- **`template/CLAUDE.md` → `template/KERNEL.md`**, and `KERNEL.md` replaces `CLAUDE.md` in `FRAMEWORK_PATHS` (`src/manifest.ts`).
+- **`src/lib/wire.ts`** — the appended import line becomes `See @hstack/KERNEL.md.` and the idempotency probe becomes `@hstack/KERNEL.md`, on both the `init` and `update` call sites. The old strings survive as `LEGACY_KERNEL_IMPORT_PROBE` / `LEGACY_KERNEL_PATH_PROBE` for the migration and for `doctor`.
+- **~40 path references across 25 files** now point at the new name: the 14 subagent session-start context-load lists, the Skills that name the kernel (notably `hstack-brownfield-init`, `hstack-kernel-fit-scan`, `hstack-greenfield-init`, `hstack-configure`, `hstack-product-discovery`, `hstack-help`), the kernel's own heading and `kernel-fit-analyst` reading list, the telemetry renderer and templates, and `README.md`. The telemetry entry points (`report.py`, `run_kernel_fit.py`) accept either filename when run against an hstack-shaped tree, so an un-migrated repo keeps reporting.
+
+### Added
+
+- **`hstack update` migrates a pre-ADR-0010 install** — `git mv hstack/CLAUDE.md hstack/KERNEL.md` (falling back to a plain rename when the file is untracked) plus a probe-matched rewrite of the import line in the root `CLAUDE.md`. The rewrite is a substring swap of `@hstack/CLAUDE.md` → `@hstack/KERNEL.md`: everything else in that engineer-owned file is preserved verbatim. Both halves are one action so they land in one commit — a repo with the file renamed but the import still pointing at the old path has no kernel in context at all. The migration is planned only when the legacy state is on disk, so re-running `update` is a no-op. A hand-edited import that the probe does not match is **never** rewritten: `update` warns and `doctor` keeps flagging it, mirroring ADR-0007's settings-ownership contract.
+- **`hstack doctor` finding `kernel-filename`** (level `error`) — fires when `hstack/CLAUDE.md` is still present (nested discovery still injects a second copy of the kernel) or when the root import still points at `@hstack/CLAUDE.md`, with the one-command fix `npx hstack update`. A root `CLAUDE.md` that mentions `hstack/CLAUDE.md` in a form the migration will not rewrite gets a distinct finding naming the manual fix.
+- **New ADR** `adr/ADR-0010-kernel-file-renamed-to-avoid-double-load.md` — the measurements behind both load paths, why `claudeMdExcludes` was tested and rejected (it suppresses both paths rather than deduplicating), and the honest cost: the redundancy being removed was an accidental fail-safe, so a broken import now means an unkerneled session that looks completely normal.
+
+### Consumer action required
+
+- Run `npx hstack@latest update`, then commit. The rename, the import-line rewrite, and the framework sync land in that single commit. Verify with `npx hstack doctor` — a clean run means no `kernel-filename` finding.
+- If `update` warns that it left your `CLAUDE.md` untouched, the import line was hand-edited: point it at `@hstack/KERNEL.md` yourself. `doctor` flags it until you do.
+
 ## [0.8.0] - 2026-07-29
 
 `roadmap.md` replaces `mvp-scope.md` and enters the daily loop (ADR-0008): the medium-term product trajectory now reaches the moments where one-way-door architecture decisions are made — planning, ADR authoring, stack decisions — as advisory context with visible staleness, never a gate.

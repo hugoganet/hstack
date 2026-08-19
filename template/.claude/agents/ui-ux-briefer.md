@@ -46,7 +46,7 @@ At session start, ui-ux-briefer loads:
 - The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being briefed against.
 - Linked user stories from the change-spec's `user-stories` array, read from the configured story store.
 - The relevant persona(s) referenced by the linked stories — to ground copy and accessibility decisions in a real user context.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If a required design-system resource is unreachable for the brief (in-repo path missing; Figma / Notion MCP unreachable; submodule not pulled; npm package not installed), halt and ask the human rather than producing a brief that floats free of the design system. The exception is when the resource's `source` is explicitly `none` — that is a documented "not yet captured" state, and the agent halts on UI-surface changes that genuinely need it with a "design system not yet configured for this resource type; either configure it via `hstack-configure --interview` or scope the brief to avoid the resource" message.
 

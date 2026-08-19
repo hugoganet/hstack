@@ -50,7 +50,7 @@ At session start, product-manager loads:
 - `hstack/context/personas/` (or the configured personas store) — to anchor every story on an existing persona; if the relevant persona does not exist, the agent halts and asks the human whether to author it first via a sub-interview.
 - `hstack/context/roadmap.md` — to keep stories scoped to the Now horizon, and to flag stories that drift into Next/Later territory.
 - `hstack/context/glossary.md` — to use canonical terms.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 During `/hstack:init`, product-manager additionally reads any existing source documents the user points to (Notion pages, repo markdown, Google Docs surfaced via paste) and maps the content to the canonical template fields before walking the human through field-by-field confirmation.
 

@@ -122,6 +122,42 @@ At the change-spec `shipped` commit (the final write in the finalize sequence), 
 
 The finalize sidecar is the most valuable of the three — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`finalize` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `the change-spec at shipped and the resolved tech-debt` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
+The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
+session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+
+```
+HSTACK-CUT: finalize complete — cut recommended before the next change.
+
+Paste into a fresh session:
+────────────────────────────────────────────────
+/hstack:help <change-id>
+
+Context from the previous session (not in any artifact):
+- <what was decided that no artifact records>
+- open: <question raised and unresolved, with the artifact that is silent on it>
+- ruled out: <approach rejected, and why, with the artifact reference>
+────────────────────────────────────────────────
+```
+
+Rules for the context block: only facts that no artifact already carries — never
+restate the spec, the plan, or the phase output, which the next Skill loads from
+disk anyway. Three bullets maximum. If nothing qualifies, print the command line
+alone and say so; an empty context block is the correct output for a clean phase,
+not a failure to fill it in.
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 Under the TDs-first-then-change-spec ordering, the legitimate resume cases are:

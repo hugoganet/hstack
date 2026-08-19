@@ -48,7 +48,7 @@ At session start, planner loads:
 - The relevant module-spec at `hstack/specs/<module>/spec.md` — for paths, invariants, and module-owned tables.
 - `hstack/context/tech-stack.md` — for runtime constraints that affect phase ordering.
 - `hstack/context/roadmap.md` — for the plan's one-line Roadmap Alignment statement. Advisory only: when the file is missing, not at `status: current`, or `updated` more than 90 days ago, the planner writes `n/a — roadmap stale/missing (<detail>)` in that line and proceeds — a stale roadmap is never a halt.
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 If `test-plan.md` is missing or non-terminal, halt — the planner does not author phase sequencing without the test strategy that informs phase ordering. If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
 

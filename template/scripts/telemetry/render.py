@@ -274,7 +274,7 @@ def _render_contract_drift(lines: list[str], cd: dict) -> None:
 
 def _render_kernel_fit(lines: list[str], kf: dict) -> None:
     _h(lines, 2, "Kernel-fit candidates")
-    _p(lines, "Patterns suggesting the kernel itself (CLAUDE.md, templates, validators, Skill "
+    _p(lines, "Patterns suggesting the kernel itself (KERNEL.md, templates, validators, Skill "
               "flows) may need revision. Each fired pattern is also written as a durable finding "
               "by `/hstack:kernel-fit-scan` at `hstack/kernel-fit/findings/KF-NNNN-*.md`. The "
               "table below is a rollup; the findings are the canonical artifact. See ADR-0004.")

@@ -45,7 +45,7 @@ The researcher is hstack's grounded inquiry agent. Its job is to take an enginee
 
 At session start, researcher loads:
 
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 - Mode-relevant product-context documents based on the query:
   - API-lookup or documentation modes: `tech-stack.md` for pinned versions to ground the research.
   - Competitive-scan or AI-native best-practices modes: `vision.md` and `roadmap.md` for product positioning.

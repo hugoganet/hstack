@@ -139,6 +139,42 @@ At the phase-completion auto-commit above, write `hstack/specs/changes/<change-i
 
 `.telemetry/` is git-ignored in the consuming repo. The sidecar write must not introduce any new LLM turn or confirmation gate — it is a deterministic write bundled with the existing commit. If the sidecar write fails, log and continue; the canonical commit must still land.
 
+## Session boundary
+
+`implement` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `plan.md (steps-completed) and the committed code` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
+The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
+session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+
+```
+HSTACK-CUT: implement complete — cut recommended before the next phase, or verify once every phase is done.
+
+Paste into a fresh session:
+────────────────────────────────────────────────
+/hstack:implement <next-phase-id> <change-id>
+
+Context from the previous session (not in any artifact):
+- <what was decided that no artifact records>
+- open: <question raised and unresolved, with the artifact that is silent on it>
+- ruled out: <approach rejected, and why, with the artifact reference>
+────────────────────────────────────────────────
+```
+
+Rules for the context block: only facts that no artifact already carries — never
+restate the spec, the plan, or the phase output, which the next Skill loads from
+disk anyway. Three bullets maximum. If nothing qualifies, print the command line
+alone and say so; an empty context block is the correct output for a clean phase,
+not a failure to fill it in.
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running with the same `<task-id>` after the phase already landed: the subagent reads `steps-completed`, recognizes the phase as done, and produces a no-op diff. Re-running on a partially applied phase: the subagent reads current file state and applies only the remaining diff.

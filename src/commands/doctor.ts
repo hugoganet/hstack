@@ -4,7 +4,16 @@ import { readFileSync } from "node:fs";
 import { resolve, basename } from "node:path";
 import { findGitRoot } from "../lib/git.js";
 import { packageTemplateDir, packageVersionFile } from "../lib/paths.js";
-import { planUpdate, pruneNoopActions, coordHooksState, type Action } from "../lib/wire.js";
+import {
+  planUpdate,
+  pruneNoopActions,
+  coordHooksState,
+  kernelFilenameState,
+  KERNEL_IMPORT_PROBE,
+  LEGACY_KERNEL_IMPORT_PROBE,
+  LEGACY_KERNEL_PATH_PROBE,
+  type Action,
+} from "../lib/wire.js";
 
 export interface DoctorOptions {
   verbose?: boolean;
@@ -70,6 +79,39 @@ export async function runDoctor(opts: DoctorOptions): Promise<number> {
       level: "warn",
       category: "version",
       message: `installed v${installedVersion}, package v${packageVersion} — run \`npx hstack update\``,
+    });
+  }
+
+  // Kernel filename (ADR-0010). An `hstack/CLAUDE.md` left on disk is loaded a
+  // second time by nested-CLAUDE.md discovery on the first read of anything
+  // under hstack/ (~15k tokens); an import line still pointing at the old path
+  // means the kernel may not be loaded at all once the file is renamed. Both
+  // are errors, not drift.
+  const kernelFile = await kernelFilenameState(gitRoot);
+  if (kernelFile.legacyKernelFile || kernelFile.legacyImport) {
+    const parts: string[] = [];
+    if (kernelFile.legacyKernelFile) {
+      parts.push(
+        "hstack/CLAUDE.md is still present — nested-CLAUDE.md discovery injects a second full copy of the kernel",
+      );
+    }
+    if (kernelFile.legacyImport) {
+      parts.push(
+        `the root CLAUDE.md import still points at ${LEGACY_KERNEL_IMPORT_PROBE}`,
+      );
+    }
+    findings.push({
+      level: "error",
+      category: "kernel-filename",
+      message: `${parts.join("; ")} (ADR-0010) — fix: \`npx hstack update\``,
+    });
+  } else if (kernelFile.legacyImportUnrewritable) {
+    findings.push({
+      level: "error",
+      category: "kernel-filename",
+      message:
+        `CLAUDE.md references the old kernel path \`${LEGACY_KERNEL_PATH_PROBE}\` in a form hstack will not rewrite (ADR-0010) — ` +
+        `fix by hand: the import must read \`${KERNEL_IMPORT_PROBE}\``,
     });
   }
 

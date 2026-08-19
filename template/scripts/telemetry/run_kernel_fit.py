@@ -49,8 +49,12 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo.resolve()
     hstack_root = repo / "hstack"
     if not hstack_root.is_dir():
-        # Permit running against the template repo itself.
-        if (repo / "specs").is_dir() and (repo / "CLAUDE.md").is_file():
+        # Permit running against the template repo itself. CLAUDE.md is the
+        # pre-ADR-0010 kernel name — still accepted so an un-migrated tree
+        # keeps scanning.
+        if (repo / "specs").is_dir() and (
+            (repo / "KERNEL.md").is_file() or (repo / "CLAUDE.md").is_file()
+        ):
             hstack_root = repo
         else:
             print(f"error: no hstack/ directory at {repo}", file=sys.stderr)

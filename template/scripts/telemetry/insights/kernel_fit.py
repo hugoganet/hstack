@@ -4,7 +4,7 @@ This module is the detection layer of the kernel-fit closed-loop system. It
 pattern-matches across shipped artifacts and emits evidence rows; an LLM
 subagent (`kernel-fit-analyst`) then synthesizes findings from these rows.
 
-See ADR-0004 for the full design rationale and `template/CLAUDE.md` § How
+See ADR-0004 for the full design rationale and `template/KERNEL.md` § How
 hstack improves itself for the loop contract.
 
 Three starter patterns:

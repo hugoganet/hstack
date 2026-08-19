@@ -6,7 +6,7 @@ hstack sits between an engineer's intent and a merged commit. Scoping, gating, a
 
 ## What hstack is
 
-A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. ~34 Skills, ~16 subagents, ~32 canonical templates, and one kernel (`CLAUDE.md`) that wins every conflict. AI writes; humans confirm. Artifacts on disk are the state machine — no parallel tracker, no separate dashboard.
+A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. ~34 Skills, ~16 subagents, ~32 canonical templates, and one kernel (`KERNEL.md`) that wins every conflict. AI writes; humans confirm. Artifacts on disk are the state machine — no parallel tracker, no separate dashboard.
 
 Two entry points cover the project lifecycle:
 
@@ -42,10 +42,12 @@ The CLI ships three commands:
 | Command | What it does |
 | --- | --- |
 | `npx hstack init` | First-time install. Halts if `<consumer>/hstack/` already exists. |
-| `npx hstack update` | Sync framework files to the package version. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Surfaces a diff plan before writing. |
-| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines, missing coord-notification hooks. Exits 1 on any finding. |
+| `npx hstack update` | Sync framework files to the package version. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Surfaces a diff plan before writing. Migrates a pre-ADR-0010 install (`hstack/CLAUDE.md` → `hstack/KERNEL.md` plus the import line). |
+| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines, missing coord-notification hooks, and a stale pre-ADR-0010 kernel filename. Exits 1 on any finding. |
 
-The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/CLAUDE.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/scripts/coord/`, `hstack/VERSION`, plus the two probe-matched hook entries in `.claude/settings.json`. **What they never touch**: anything under the user-content paths above, and every engineer-owned key in `settings.json`.
+The kernel is installed at `hstack/KERNEL.md`, not `hstack/CLAUDE.md` (ADR-0010): Claude Code discovers *any* nested file named `CLAUDE.md` and injects it on the first read of a file in its directory, which loaded the whole kernel a second time on top of the `@`-import. The import in the consumer's root `CLAUDE.md` is the single load path — it fires at launch, survives compaction, and is inherited by subagents.
+
+The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/KERNEL.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/scripts/coord/`, `hstack/VERSION`, plus the two probe-matched hook entries in `.claude/settings.json`. **What they never touch**: anything under the user-content paths above, and every engineer-owned key in `settings.json`.
 
 ### Manual install (legacy)
 
@@ -60,7 +62,7 @@ for d in hstack/.claude/skills/hstack-*/; do
   name=$(basename "$d")
   ln -s "../../hstack/.claude/skills/$name" ".claude/skills/$name"
 done
-echo '> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/CLAUDE.md.' >> CLAUDE.md
+echo '> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/KERNEL.md.' >> CLAUDE.md
 echo '**/.telemetry/' >> .gitignore
 git add hstack .claude CLAUDE.md .gitignore && git commit -m "vendor hstack"
 ```
@@ -192,7 +194,7 @@ After init the consuming repo has:
 ```
 hstack/
   config.yaml              # repo-level configuration
-  CLAUDE.md                # the kernel (authority)
+  KERNEL.md                # the kernel (authority)
   README.md                # this file
   context/                 # slow-changing product context
     product/
@@ -234,7 +236,7 @@ The full v2 roadmap lives in the architecture document.
 
 ## Reference
 
-- [`CLAUDE.md`](./CLAUDE.md) — the kernel. Authority over every Skill, subagent, and template.
+- [`template/KERNEL.md`](./template/KERNEL.md) — the kernel. Authority over every Skill, subagent, and template.
 - [Architecture document](https://www.notion.so/360d6791656c813d955af822cb8814d1) — long-form companion to the kernel.
 - [Template schemas and frontmatter contracts](https://www.notion.so/361d6791656c8178bbbbc812fa6426e0) — per-template fields, sections, lifecycle, validation rules.
 - [Adversarial review of the architecture](https://www.notion.so/361d6791656c81f78eb3c97ba4aecbb4) — the 21-finding pressure test that shaped the v1 / v2 split.

@@ -59,7 +59,7 @@ At session start, security-reviewer loads:
 - `hstack/context/infrastructure.md` — the operational ground truth (hosting, secrets, environments, blast-radius matrix, access control, third-party dependencies). The threat-model and hardening-checklist score policy; infrastructure.md describes the system being scored. If infrastructure.md is missing or at `needs-refresh`, halt — the security-reviewer cannot honestly score a system whose actual shape is undocumented.
 - The change-spec at `hstack/specs/changes/<id>/spec.md`.
 - The In-Scope diff (read via Grep / Glob against the In-Scope file list).
-- `hstack/CLAUDE.md` (kernel) — always loaded.
+- `hstack/KERNEL.md` (kernel) — always loaded.
 
 ## Templates this subagent writes
 
@@ -96,7 +96,7 @@ Stop and ask the human when:
 - A load-bearing MCP whose v2 status will be hard-fail (Supabase MCP for db-surface live schema) is unreachable, and `surfaces` includes `db`. In v1 a graceful note is permitted; flag the degraded scoring in section 2.
 - A challenge prompt cannot be answered without information the user has not provided.
 - A score would require evidence (a test result, a runtime check) that does not yet exist. Mark as CONCERNS with the missing evidence named, do not synthesize a PASS.
-- `concerns-acknowledged-by` is requested but the human has not actually acknowledged. Per CLAUDE.md, never write a confirmation the human did not give.
+- `concerns-acknowledged-by` is requested but the human has not actually acknowledged. Per KERNEL.md, never write a confirmation the human did not give.
 - The change touches a forbidden surface (service_role Supabase key in agent code, raw shell against production DB, Pipedream Connect against live customer accounts). Halt and surface as a kernel-level stop condition.
 
 ## Output expectations

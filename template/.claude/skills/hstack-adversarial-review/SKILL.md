@@ -148,6 +148,42 @@ At the change-spec advance commit (only when adversarial-review status is `findi
 
 When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. This is the most directly Goodhart-resistant of the five v1 sidecars — `category_counts` + `severity_counts` + `resolution_mix` jointly surface findings-quota-gaming patterns no single field could detect.
 
+## Session boundary
+
+`adversarial-review` is a natural session cut. The auto-commit above has already written the
+durable state to disk — `adversarial-review.md` carries everything the next phase loads at session
+start, so the conversation itself holds nothing downstream needs. Long contexts
+degrade model performance well before the window limit, so cutting here costs
+nothing and buys accuracy back.
+
+At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
+The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
+session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+
+```
+HSTACK-CUT: adversarial-review complete — cut recommended before ship.
+
+Paste into a fresh session:
+────────────────────────────────────────────────
+/hstack:ship <change-id>
+
+Context from the previous session (not in any artifact):
+- <what was decided that no artifact records>
+- open: <question raised and unresolved, with the artifact that is silent on it>
+- ruled out: <approach rejected, and why, with the artifact reference>
+────────────────────────────────────────────────
+```
+
+Rules for the context block: only facts that no artifact already carries — never
+restate the spec, the plan, or the phase output, which the next Skill loads from
+disk anyway. Three bullets maximum. If nothing qualifies, print the command line
+alone and say so; an empty context block is the correct output for a clean phase,
+not a failure to fill it in.
+
+Never cut mid-phase. A phase in flight has no committed state, and a summary
+produced mid-reasoning loses the chain it was built on. The boundary is the
+commit, not the context pressure.
+
 ## Idempotency contract
 
 - Re-running on a `findings-resolved` review: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps, unless new code or artifacts have landed since the prior run (in which case new findings may be generated and the status drops back to `findings-open`).

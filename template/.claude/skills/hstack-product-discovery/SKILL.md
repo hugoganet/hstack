@@ -49,7 +49,7 @@ tools:
 ## Preconditions
 
 - `hstack/config.yaml` exists and `init-status` is at least `minimal-complete` — the atom does not run standalone until config exists.
-- `hstack/CLAUDE.md` and `hstack/templates/product-brief.md` are present.
+- `hstack/KERNEL.md` and `hstack/templates/product-brief.md` are present.
 - `hstack/templates/discovery/{brainstorm,forcing-questions,project-brief}.md` are present.
 - In extract mode, at least one source document must be reachable; otherwise halt and ask the engineer to either supply source pointers or fall back to elicit mode.
 

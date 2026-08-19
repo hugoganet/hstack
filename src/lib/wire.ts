@@ -1,11 +1,40 @@
 import fs from "fs-extra";
-import { resolve, relative, dirname } from "node:path";
+import { resolve, relative, dirname, join } from "node:path";
 import { readdir, symlink, readlink, lstat, unlink } from "node:fs/promises";
 import { diffFramework } from "./diff.js";
+import { gitMove } from "./git.js";
 import { FRAMEWORK_PATHS } from "../manifest.js";
 
+/**
+ * ADR-0010: the consumer-side kernel lives at `hstack/KERNEL.md`, not
+ * `hstack/CLAUDE.md`. Claude Code loads a file named `CLAUDE.md` twice — once
+ * via the `@`-import in the consumer's root `CLAUDE.md` (at launch) and again
+ * via nested-`CLAUDE.md` discovery (on the first read of any file under
+ * `hstack/`). Discovery keys on the literal filename, so renaming the file
+ * leaves the import as the single load path. Filename only — nothing about the
+ * kernel's authority, content, or precedence changes.
+ */
+export const KERNEL_FILENAME = "KERNEL.md";
+/** Pre-ADR-0010 filename. Retained for the `update` migration and `doctor`. */
+export const LEGACY_KERNEL_FILENAME = "CLAUDE.md";
+
 export const KERNEL_IMPORT_LINE =
-  "> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/CLAUDE.md.";
+  "> **Engineering workflow:** all changes in this repo are governed by hstack. See @hstack/KERNEL.md.";
+
+/** Idempotency probe for the kernel-import line in the consumer's root CLAUDE.md. */
+export const KERNEL_IMPORT_PROBE = "@hstack/KERNEL.md";
+/**
+ * The pre-ADR-0010 import, and the only form `update` rewrites in place: an
+ * unambiguous `@`-import of the old path, replaced substring-for-substring so
+ * the rest of an engineer-owned file survives verbatim.
+ */
+export const LEGACY_KERNEL_IMPORT_PROBE = "@hstack/CLAUDE.md";
+/**
+ * Any surviving mention of the old kernel path. Deliberately wider than what
+ * `update` rewrites: a hand-edited line (backticked, `@` dropped, a relative
+ * prefix) is never rewritten, so `doctor` has to keep flagging it.
+ */
+export const LEGACY_KERNEL_PATH_PROBE = "hstack/CLAUDE.md";
 
 export const GITIGNORE_TELEMETRY_LINE = "**/.telemetry/";
 export const GITIGNORE_KERNEL_FIT_FLAGS_LINE = "hstack/kernel-fit/flags/";
@@ -57,6 +86,17 @@ export type Action =
        */
       kind: "merge-hooks";
       file: string;
+    }
+  | {
+      /**
+       * ADR-0010 migration for a consumer installed before the rename:
+       * `git mv hstack/CLAUDE.md hstack/KERNEL.md` plus a probe-matched
+       * rewrite of the import line in the consumer's root CLAUDE.md. Only
+       * planned when the legacy state is actually on disk, so it is a no-op
+       * by construction on an already-migrated repo.
+       */
+      kind: "migrate-kernel-filename";
+      consumerRoot: string;
     };
 
 /**
@@ -104,7 +144,7 @@ export async function planInit(
     file: resolve(consumerRoot, "CLAUDE.md"),
     line: KERNEL_IMPORT_LINE,
     createIfMissing: true,
-    matchOn: "@hstack/CLAUDE.md",
+    matchOn: KERNEL_IMPORT_PROBE,
   });
 
   // 5. Append telemetry gitignore line (create if missing)
@@ -171,6 +211,13 @@ export async function planUpdate(
   const actions: Action[] = [];
   const consumerHstack = resolve(consumerRoot, "hstack");
 
+  // 0. ADR-0010 kernel rename. Planned first on purpose: it rewrites the
+  //    import line the append-line check below probes for, so running it
+  //    afterwards would leave the repo with two import lines.
+  if (kernelFilenameNeedsMigration(await kernelFilenameState(consumerRoot))) {
+    actions.push({ kind: "migrate-kernel-filename", consumerRoot });
+  }
+
   // 1. File-level diff for framework paths.
   const fileDiffs = await diffFramework(
     templateDir,
@@ -221,7 +268,7 @@ export async function planUpdate(
     file: resolve(consumerRoot, "CLAUDE.md"),
     line: KERNEL_IMPORT_LINE,
     createIfMissing: true,
-    matchOn: "@hstack/CLAUDE.md",
+    matchOn: KERNEL_IMPORT_PROBE,
   });
 
   // 5. .gitignore telemetry line — idempotent re-check.
@@ -262,6 +309,96 @@ export async function planUpdate(
   });
 
   return actions;
+}
+
+/**
+ * Where a consumer stands relative to the ADR-0010 kernel rename.
+ */
+export interface KernelFilenameState {
+  /** `hstack/CLAUDE.md` is still on disk — nested discovery still matches it. */
+  legacyKernelFile: boolean;
+  /** The root CLAUDE.md still carries the rewritable `@hstack/CLAUDE.md` import. */
+  legacyImport: boolean;
+  /**
+   * The root CLAUDE.md mentions the old kernel path in a form the migration
+   * refuses to rewrite (hand-edited: no `@`, a relative prefix, prose). Never
+   * touched by `update`; surfaced by `doctor` for the engineer to fix by hand.
+   */
+  legacyImportUnrewritable: boolean;
+}
+
+export async function kernelFilenameState(
+  consumerRoot: string,
+): Promise<KernelFilenameState> {
+  const legacyKernelFile = await fs.pathExists(
+    resolve(consumerRoot, "hstack", LEGACY_KERNEL_FILENAME),
+  );
+  const rootClaudeMd = resolve(consumerRoot, "CLAUDE.md");
+  const content = (await fs.pathExists(rootClaudeMd))
+    ? await fs.readFile(rootClaudeMd, "utf8")
+    : "";
+  const legacyImport = content.includes(LEGACY_KERNEL_IMPORT_PROBE);
+  return {
+    legacyKernelFile,
+    legacyImport,
+    legacyImportUnrewritable:
+      !legacyImport && content.includes(LEGACY_KERNEL_PATH_PROBE),
+  };
+}
+
+/** True when `update` has migration work it can actually perform. */
+export function kernelFilenameNeedsMigration(s: KernelFilenameState): boolean {
+  return s.legacyKernelFile || s.legacyImport;
+}
+
+/**
+ * Move the kernel to its ADR-0010 name and repoint the consumer's import line.
+ * Both halves are deliberately in one action so they land in one commit: a repo
+ * with the file renamed but the import still pointing at the old path has no
+ * kernel in context at all.
+ */
+async function migrateKernelFilename(consumerRoot: string): Promise<void> {
+  const legacyRel = join("hstack", LEGACY_KERNEL_FILENAME);
+  const kernelRel = join("hstack", KERNEL_FILENAME);
+  const legacyAbs = resolve(consumerRoot, legacyRel);
+  const kernelAbs = resolve(consumerRoot, kernelRel);
+
+  if (await fs.pathExists(legacyAbs)) {
+    if (await fs.pathExists(kernelAbs)) {
+      // Half-migrated repo. KERNEL.md is authoritative and installer-owned
+      // (update overwrites it from the template either way), so the stale copy
+      // goes — leaving it in place would keep the double-load bug alive.
+      await fs.remove(legacyAbs);
+      console.error(
+        `hstack: removed stale ${legacyRel} — ${kernelRel} is already present and is the kernel (ADR-0010).`,
+      );
+    } else {
+      const renamed = await gitMove(consumerRoot, legacyRel, kernelRel);
+      console.error(
+        `hstack: ${renamed ? "git mv" : "moved"} ${legacyRel} -> ${kernelRel} (ADR-0010).`,
+      );
+    }
+  }
+
+  const rootClaudeMd = resolve(consumerRoot, "CLAUDE.md");
+  if (!(await fs.pathExists(rootClaudeMd))) return;
+  const content = await fs.readFile(rootClaudeMd, "utf8");
+  if (content.includes(LEGACY_KERNEL_IMPORT_PROBE)) {
+    // Substring swap, not a line rewrite: everything the engineer wrote around
+    // the import — their own prose, their own ordering — survives verbatim.
+    await fs.writeFile(
+      rootClaudeMd,
+      content.split(LEGACY_KERNEL_IMPORT_PROBE).join(KERNEL_IMPORT_PROBE),
+    );
+    console.error(
+      `hstack: rewrote the kernel import in CLAUDE.md -> ${KERNEL_IMPORT_PROBE} (ADR-0010).`,
+    );
+  } else if (content.includes(LEGACY_KERNEL_PATH_PROBE)) {
+    console.error(
+      `hstack: CLAUDE.md mentions ${LEGACY_KERNEL_PATH_PROBE} but not as an \`${LEGACY_KERNEL_IMPORT_PROBE}\` import — left untouched. ` +
+        `hstack never rewrites a hand-edited import. Point it at \`${KERNEL_IMPORT_PROBE}\` yourself; \`hstack doctor\` will keep flagging it until you do.`,
+    );
+  }
 }
 
 /**
@@ -361,6 +498,11 @@ export async function pruneNoopActions(
   packageVersion: string,
 ): Promise<Action[]> {
   const out: Action[] = [];
+  // The ADR-0010 migration rewrites the import line before the append-line
+  // action runs, so a legacy import is "already wired" for pruning purposes —
+  // without this, update would list a phantom CLAUDE.md append and doctor would
+  // report a wiring error on top of the kernel-filename finding.
+  const migrating = actions.some((a) => a.kind === "migrate-kernel-filename");
   for (const a of actions) {
     if (a.kind === "symlink") {
       const stat = await lstat(a.to).catch(() => null);
@@ -374,6 +516,13 @@ export async function pruneNoopActions(
         const content = await fs.readFile(a.file, "utf8");
         const probe = a.matchOn ?? a.line;
         if (content.includes(probe)) continue;
+        if (
+          migrating &&
+          probe === KERNEL_IMPORT_PROBE &&
+          content.includes(LEGACY_KERNEL_IMPORT_PROBE)
+        ) {
+          continue;
+        }
       }
     } else if (a.kind === "write-version") {
       const exists = await fs.pathExists(a.to);
@@ -437,6 +586,8 @@ export function renderPlan(actions: Action[], consumerRoot: string): string {
           return `  check  ${rel(a.file, consumerRoot)}  (idempotent append)`;
         case "merge-hooks":
           return `  hooks  ${rel(a.file, consumerRoot)}  (coord notification hooks, ADR-0007)`;
+        case "migrate-kernel-filename":
+          return `  move   hstack/${LEGACY_KERNEL_FILENAME} -> hstack/${KERNEL_FILENAME} + CLAUDE.md import line  (ADR-0010)`;
         case "write-version":
           return `  write  ${rel(a.to, consumerRoot)}  (${a.version})`;
       }
@@ -534,6 +685,9 @@ export async function executePlan(actions: Action[]): Promise<void> {
         break;
       case "merge-hooks":
         await mergeCoordHooks(a.file);
+        break;
+      case "migrate-kernel-filename":
+        await migrateKernelFilename(a.consumerRoot);
         break;
       case "write-version":
         await fs.ensureDir(dirname(a.to));

@@ -49,7 +49,7 @@ The agent is **sonnet, not opus**. Stack decisions are research-heavy and tradeo
 
 At session start, stack-architect loads:
 
-- `hstack/CLAUDE.md` (kernel) — always.
+- `hstack/KERNEL.md` (kernel) — always.
 - `hstack/context/product/product-brief.md` — scale horizon, persona constraints, compliance posture inferred from personas.
 - `hstack/context/data-architecture.md` — tenancy model, RAG / pgvector requirements, migration tooling needs.
 - `hstack/context/app-architecture.md` — agent orchestration model, LLM call sites, deterministic-vs-LLM split.

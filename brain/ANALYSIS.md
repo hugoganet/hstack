@@ -18,7 +18,7 @@ workflow itself. You improve the tool, never the consumers' products.
 3. **Every existing recommendation** under `brain/recommendations/`. You must
    not re-state an open one; append evidence to it instead (update its
    `updated:` date and add a dated bullet under Observation).
-4. **The kernel** at `template/CLAUDE.md` — recommendations about the workflow
+4. **The kernel** at `template/KERNEL.md` — recommendations about the workflow
    must be grounded in what the kernel actually promises.
 5. **Kernel-fit findings** in each repo at `hstack/kernel-fit/findings/`, when
    present. The brain is the cross-repo synthesis layer above kernel-fit: a

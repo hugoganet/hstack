@@ -53,7 +53,7 @@ Invoke when the engineer wants to change a config field after init has completed
 Before any work:
 
 - Verify `hstack/config.yaml` exists and contains a valid `init-status: complete` value. If init has not completed, halt and surface the message to run `hstack-init` first.
-- Read `hstack/CLAUDE.md` (kernel) and `hstack/templates/`.
+- Read `hstack/KERNEL.md` (kernel) and `hstack/templates/`.
 - For `--interview <doc-name>`: verify the named document template exists under `hstack/templates/` and the corresponding instance exists under `hstack/context/`. Read the existing instance's current state to seed the interview.
 - For `--migrate`: read the current `hstack/config.yaml schemaVersion` and the target version declared by the installed hstack release. If they match, halt with a "no migration needed" message.
 

@@ -138,7 +138,7 @@ Just the Skills cheat sheet. No state computation. Useful when typing in muscle 
 
 ### `--explain <concept>` mode
 
-Grep `hstack/CLAUDE.md`, `hstack/context/glossary.md`, and (if available) the cached template schemas for the concept. Print the most relevant paragraph plus a pointer to the source file. If the concept is not found in any source, print: "Not in the kernel, glossary, or template schemas. Try the architecture doc at the URL in `hstack/README.md`, or ask in natural language and I'll pull from kernel context."
+Grep `hstack/KERNEL.md`, `hstack/context/glossary.md`, and (if available) the cached template schemas for the concept. Print the most relevant paragraph plus a pointer to the source file. If the concept is not found in any source, print: "Not in the kernel, glossary, or template schemas. Try the architecture doc at the URL in `hstack/README.md`, or ask in natural language and I'll pull from kernel context."
 
 ### `--validate` mode
 

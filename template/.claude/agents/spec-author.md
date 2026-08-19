@@ -50,7 +50,7 @@ At session start, spec-author loads:
 - The relevant module-spec at `hstack/specs/<module>/spec.md` when the user's intent is to author a change-spec or tech-debt in that module. The module-spec is identified from the user's stated area or by reading the change-spec scaffolding that `{{TODO-SKILL: /hstack:change-new}}` created.
 - The change-spec at `hstack/specs/changes/<id>/spec.md` when the session is iterating on an in-flight spec rather than starting fresh.
 - `hstack/context/roadmap.md` when the user's intent is to author an ADR — required to walk the template's Forecloses / Enables section. Advisory exception to the halt rule below: a missing or stale roadmap (not `current`, or `updated` > 90 days) does NOT halt ADR authoring; the section is written as `n/a — roadmap stale/missing` instead.
-- `hstack/CLAUDE.md` (kernel) — always loaded; resolves any conflict between this file and downstream guidance.
+- `hstack/KERNEL.md` (kernel) — always loaded; resolves any conflict between this file and downstream guidance.
 
 If any required document is missing, halt and ask the human before proceeding. Do not invent content for an empty section because the source document was unreachable.
 
@@ -96,7 +96,7 @@ Stop and ask the human when:
 - A user-supplied answer contradicts existing canonical content (e.g., a glossary term used with a different meaning), and the resolution requires a human call.
 - A scope-amendment is needed mid-interview because the user's stated In-Scope conflicts with the module's declared paths.
 - A status transition would advance the artifact past a gate that has unfilled required fields.
-- The user has not provided an answer for a field, and inferring is not safe. Per CLAUDE.md, never write a field for which the human has not provided an answer.
+- The user has not provided an answer for a field, and inferring is not safe. Per KERNEL.md, never write a field for which the human has not provided an answer.
 
 ## Output expectations
 
