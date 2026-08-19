@@ -25,6 +25,10 @@ export const FRAMEWORK_PATHS = [
   ".claude/skills/",
   "scripts/telemetry/",
   "scripts/coord/",
+  // The artifact validator every mechanical write runs after itself. A single
+  // file rather than a directory: it has no module tree, and consumers must be
+  // able to run it with the node they already have (dependency-free ESM).
+  "scripts/validate-spec.mjs",
 ] as const;
 
 /**
