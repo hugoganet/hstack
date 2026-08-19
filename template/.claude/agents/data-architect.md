@@ -15,7 +15,7 @@ tools:
   - "{{TODO-SKILL: /hstack:configure — re-runs the atom or a section}}"
   - "{{TODO-TEMPLATE: hstack/templates/data-architecture.md — the five-section template}}"
   - "{{TODO-MCP: Supabase MCP — live schema introspection in extract mode}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Role

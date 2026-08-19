@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan frontmatter and PL-01..PL-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates plan frontmatter and PL-01..PL-05"
 ---
 
 ## Purpose
@@ -59,7 +59,7 @@ The security-review is not a planner precondition — security-review and the pl
 
 6. **Leave `steps-completed: []`.** Per architecture amendment A3 and the planner's contract, `steps-completed` is owned by the implementer; the planner never populates it.
 
-7. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — PL-01 (parent-change matches), PL-02 (phase count), PL-03 (steps-completed entries match plan phase ids), PL-04 (Files Touched is subset of in-scope), PL-05 (status advance gating).
+7. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — PL-01 (parent-change matches), PL-02 (phase count), PL-03 (steps-completed entries match plan phase ids), PL-04 (Files Touched is subset of in-scope), PL-05 (status advance gating).
 
 8. **Transition.** When the validator passes, `planner` advances status from `draft` to `ready`. Auto-commit fires.
 

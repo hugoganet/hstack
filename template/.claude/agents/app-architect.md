@@ -15,7 +15,7 @@ tools:
   - "{{TODO-SKILL: /hstack:configure — re-runs the atom or a section}}"
   - "{{TODO-SKILL: /hstack:module-spec — reverse-engineers module-spec stubs post-scaffold}}"
   - "{{TODO-TEMPLATE: hstack/templates/app-architecture.md — the five-section template}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Role

@@ -11,7 +11,7 @@ tools:
   - Bash
   - "{{TODO-SKILL: /hstack:security-review — invokes security-reviewer against a change-spec at ready-to-plan or later}}"
   - "{{TODO-SCRIPT: hstack/scripts/score-security-review.ts — computes overall scoring status from the scores map}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates security-review frontmatter, SR-01 through SR-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates security-review frontmatter, SR-01 through SR-05"
   - "{{TODO-MCP: Supabase MCP — optional in v1 for live RLS introspection; v2 substrate will hard-fail when unreachable for db-surface changes}}"
 ---
 

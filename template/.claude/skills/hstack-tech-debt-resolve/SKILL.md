@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the TD frontmatter flip and the scaffolded change-spec frontmatter}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the TD frontmatter flip and the scaffolded change-spec frontmatter"
 ---
 
 ## Purpose
@@ -68,7 +68,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
    - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs authored before the template included this section), append `\n## Resolution Log\n` to the end of the file first.
    - Edit frontmatter: `status: open → in-progress`, `resolution-attempted-at: <today>`, `updated: <today>`.
    - Append the Resolution Log entry: `status: open → in-progress on <today> by <owner>. Resolution change-spec: <change-id>.`
-   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. On validation failure, halt — do NOT proceed to step 7. Unstaged changes can be reverted via `git checkout -- <td-file>`.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. On validation failure, halt — do NOT proceed to step 7. Unstaged changes can be reverted via `git checkout -- <td-file>`.
 
 7. **Scaffold the resolution change folder.** (Do not call `/hstack:change-new` to avoid duplicate interview prompts.)
    - Create `hstack/specs/changes/<change-id>/`.
@@ -76,7 +76,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
    - Pre-populate the "Resolves Tech-Debt" prose section: a pointer to `../../tech-debt/<td-id>.md` followed by the TD's Acceptance section quoted verbatim under the heading "Acceptance from TD-NNNN".
    - Pre-populate the Open Questions section with the Pre-conditions confirmation log from step 2 (the `(bullet, met, justification)` triples), so the adversarial-reviewer can later verify the team did not rationalize away an unmet pre-condition.
    - Pre-populate Problem section opener: "Resolves [<td-id>](../../tech-debt/<td-id>.md): <TD Title>. The TD was introduced by <introduced-by> and has been at `open` since <created>."
-   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the seeded change-spec. On validation failure, halt — the TD write from step 6 must be reverted manually via `git checkout -- <td-file>` before re-running the Skill.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the seeded change-spec. On validation failure, halt — the TD write from step 6 must be reverted manually via `git checkout -- <td-file>` before re-running the Skill.
 
 8. **Offer branch creation.** Mirror `/hstack:change-new`'s branch hygiene step: offer to create `change/<change-id>` from the current branch. Default Yes.
 
@@ -99,7 +99,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
 
 - Re-running on a TD already at `in-progress`: the Skill reads the TD's Resolution Log to find the existing resolving change-spec id, verifies the change folder exists, and reports its current state ("Resolution in progress at `<change-id>`; current change-spec status: `<status>`. Continue with `<next-skill>`."). No new scaffold is created.
 - Re-running mid-interview after a halt: the Skill reads `hstack/.session-state/td-resolve-<td-id>.yaml` and resumes at the next un-confirmed Pre-condition.
-- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency. Reconciliation is manual: either (a) `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state if the inconsistency came from an interrupted finalize, or (b) directly edit the TD frontmatter to set `resolved-by: null` and re-run `validate-spec.ts`. Do not invoke `spec-author` for this reconciliation — the kernel forbids it for reciprocal-back-reference writes.
+- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency. Reconciliation is manual: either (a) `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state if the inconsistency came from an interrupted finalize, or (b) directly edit the TD frontmatter to set `resolved-by: null` and re-run `node hstack/scripts/validate-spec.mjs <path>`. Do not invoke `spec-author` for this reconciliation — the kernel forbids it for reciprocal-back-reference writes.
 
 ## Stop conditions
 

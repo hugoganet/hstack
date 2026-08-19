@@ -15,7 +15,7 @@ tools:
   - "{{TODO-MCP: Notion MCP — required when configured story or persona store is Notion}}"
   - "{{TODO-MCP: Linear MCP — required when configured story store is Linear}}"
   - "{{TODO-MCP: GitHub MCP — required when configured story store is GitHub Issues}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator for stories and context docs}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator for stories and context docs"
 ---
 
 ## Role

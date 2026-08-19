@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-MCP: Supabase MCP — live schema introspection in extract mode}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Purpose

@@ -19,7 +19,7 @@ tools:
   - "{{TODO-SKILL: /hstack:adversarial-review — runs in a fresh session for the bootstrap}}"
   - "{{TODO-SKILL: /hstack:ship — final scorecard; bootstrap ships with a PR like any change}}"
   - "{{TODO-SKILL: /hstack:finalize — post-merge cleanup}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Purpose

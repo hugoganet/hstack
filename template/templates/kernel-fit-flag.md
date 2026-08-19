@@ -24,8 +24,8 @@ A kernel-fit-flag is a frontmatter-only pin. There is no body. Engineer
 interpretation of the friction is deliberately excluded — the analyst reads
 the transcript window and forms its own classification at processing time.
 
-Validator rules (enforced by the proposed-diff preview in v1; validate-spec.ts
-is still a {{TODO-SCRIPT}} placeholder):
+Validator rules (`node hstack/scripts/validate-spec.mjs <path>`; the pin itself
+lands regardless — see `/hstack:flag` § does NOT halt on):
 
 - FL-01: at pin-time (status: pending) every field marked above as
   "non-null at pin-time" must be populated. `hint` may be null; the four

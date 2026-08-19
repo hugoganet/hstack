@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02/V-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates verification.md frontmatter and V-01/V-02/V-05"
 ---
 
 ## Purpose
@@ -53,9 +53,9 @@ Before any work:
 
 7. **Status transition.** When every `phase-coverage` entry is PASS, every `test-results` entry is `pass`, every `test-plan-coverage` value is `all-observed` / `all-within-budget` / `not-applicable`, the subagent advances status to `passed`. When any test result is `failed`, when a tenant-isolation test is missing, or when a performance-budget regressed or did not execute, status moves to `ran` (not `passed`) and the Skill halts.
 
-8. **Change-spec advance (mechanical, only on `passed`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `verification.md` at `status: passed`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-implementation`, print a proposed-diff preview of the change-spec edit (`status: ready-for-implementation → ready-for-review`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-for-review`. This is a separate commit from the `verification(<change-id>): passed` commit — one commit per status transition, matching the finalize precedent. If the change-spec is already at `ready-for-review` or any downstream status, this step is a no-op (idempotent on re-runs). When verification status is `ran` or `failed`, this step does not run — the change-spec remains at `ready-for-implementation` until a subsequent re-run lands `passed`. Do NOT invoke `spec-author` for this write; per the kernel's Mechanical operations section, the value to write is fully determined by the verification postcondition and the change-spec's current status, so the Skill writes directly.
+8. **Change-spec advance (mechanical, only on `passed`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `verification.md` at `status: passed`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-implementation`, print a proposed-diff preview of the change-spec edit (`status: ready-for-implementation → ready-for-review`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-for-review`. This is a separate commit from the `verification(<change-id>): passed` commit — one commit per status transition, matching the finalize precedent. If the change-spec is already at `ready-for-review` or any downstream status, this step is a no-op (idempotent on re-runs). When verification status is `ran` or `failed`, this step does not run — the change-spec remains at `ready-for-implementation` until a subsequent re-run lands `passed`. Do NOT invoke `spec-author` for this write; per the kernel's Mechanical operations section, the value to write is fully determined by the verification postcondition and the change-spec's current status, so the Skill writes directly.
 
-9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — V-01, V-02, V-03, V-04, V-05.
+9. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — V-01, V-02, V-03, V-04, V-05.
 
 ## Outputs
 

@@ -16,7 +16,7 @@ tools:
   - "{{TODO-TEMPLATE: hstack/templates/discovery/brainstorm.md — Brainstorm technique script}}"
   - "{{TODO-TEMPLATE: hstack/templates/discovery/forcing-questions.md — Forcing-Questions technique script}}"
   - "{{TODO-TEMPLATE: hstack/templates/discovery/project-brief.md — Project-Brief technique script}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Role

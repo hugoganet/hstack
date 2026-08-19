@@ -10,7 +10,7 @@ tools:
   - Glob
   - Bash
   - "{{TODO-SKILL: /hstack:implement — invokes implementer against one task-id at a time}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan.steps-completed updates against PL-03 and PL-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates plan.steps-completed updates against PL-03 and PL-05"
   - "{{TODO-OTHER: in-scope-enforcement guard — runtime check at every Edit/Write that refuses paths outside change-spec.in-scope; v1 implemented inside this subagent's prompt; v2 substrate moves to a subagent-runtime hook}}"
 ---
 

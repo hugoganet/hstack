@@ -84,7 +84,7 @@ The Skill explicitly does NOT halt on:
 
 - Missing jsonl under `~/.claude/projects/<encoded-cwd>/` — falls back to `fallback-cwd` and writes the pin anyway.
 - Branch mismatch with an in-flight change-spec — flagging is orthogonal to lifecycle.
-- A `validate-spec.ts` failure on the pin frontmatter — until the validator ships, FL-01 and FL-02 are advisory only; the pin lands.
+- A validator failure on the pin frontmatter. The pin is a sub-second, no-commit write; blocking it on FL-01 would trade the friction signal for a lecture about the pin. Run `node hstack/scripts/validate-spec.mjs <path>` on the pin if you want the FL-01 / FL-02 report, but the pin lands either way.
 - Disk-write failure on the pin file. (If `mkdir -p` or `Write` errors, halt with the OS error — there is nothing useful the Skill can do.)
 
 No halt sentinel is emitted by this Skill in the success path. The success path is a clean exit-0 with the one-line stdout confirmation.

@@ -6,7 +6,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — invoked in --validate sub-mode to surface any artifact drift}}"
+  - "node hstack/scripts/validate-spec.mjs — invoked in --validate sub-mode to surface any artifact drift"
 ---
 
 ## Purpose
@@ -29,7 +29,7 @@ Safe to run repeatedly. Output is computed from current disk state.
 - `--change <id>`: detailed view of one change-spec, including the phase DAG.
 - `--commands`: print only the Skills cheat sheet (no current-state computation).
 - `--explain <concept>`: look up a concept from the kernel, the template schemas, or the glossary. Examples: `--explain invariant`, `--explain tenant-isolation`, `--explain trivial-tag`.
-- `--validate`: run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against every artifact under `hstack/` and report violations.
+- `--validate`: run `node hstack/scripts/validate-spec.mjs` against every artifact under `hstack/` and report violations.
 
 ## Preconditions
 
@@ -123,7 +123,7 @@ Grep `hstack/KERNEL.md`, `hstack/context/glossary.md`, and (if available) the ca
 
 ### `--validate` mode
 
-Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against every artifact under `hstack/`. Group failures by validation-rule id (SP-*, PL-*, AR-*, etc.) and name the offending file. Read-only — does not auto-fix anything.
+Run `node hstack/scripts/validate-spec.mjs` against every artifact under `hstack/`. Group failures by validation-rule id (SP-*, PL-*, AR-*, etc.) and name the offending file. Read-only — does not auto-fix anything.
 
 ## Outputs
 

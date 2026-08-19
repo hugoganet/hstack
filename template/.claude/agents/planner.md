@@ -10,7 +10,7 @@ tools:
   - Edit
   - Bash
   - "{{TODO-SKILL: /hstack:change-plan — invokes planner against a ready-to-plan change-spec}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan.md frontmatter and phase coverage}}"
+  - "node hstack/scripts/validate-spec.mjs — validates plan.md frontmatter and phase coverage"
 ---
 
 ## Role

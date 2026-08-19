@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates test-plan frontmatter and TS-01..TS-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates test-plan frontmatter and TS-01..TS-06"
 ---
 
 ## Purpose
@@ -71,7 +71,7 @@ Before any work:
 
 11. **Tech-debt for deferred coverage.** When a coverage layer is being deferred rather than addressed, the subagent prompts the engineer to invoke `hstack-tech-debt-new` to create the paper trail. The Skill does not file the tech-debt itself; it surfaces the recommendation.
 
-12. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — TS-01 (parent-change matches), TS-02 (challenge-prompts-answered == 3), TS-03 (tenant-isolation-tests non-empty when surfaces includes db/api/agent), TS-04 (status gating on partial layers), TS-05 (fixture-strategy-declared == true before passed), TS-06 (every invariant id is in `invariants-mapped`).
+12. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — TS-01 (parent-change matches), TS-02 (challenge-prompts-answered == 3), TS-03 (tenant-isolation-tests non-empty when surfaces includes db/api/agent), TS-04 (status gating on partial layers), TS-05 (fixture-strategy-declared == true before passed), TS-06 (every invariant id is in `invariants-mapped`).
 
 ## Outputs
 

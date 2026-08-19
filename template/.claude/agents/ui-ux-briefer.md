@@ -11,7 +11,7 @@ tools:
   - Bash
   - "{{TODO-SKILL: /hstack:ui-brief — invokes ui-ux-briefer against a change-spec with ui surface}}"
   - "{{TODO-MCP: Figma MCP — optional; enables frame reading when present, falls back to URL-only references when absent}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates ui-brief frontmatter and new-components justifications}}"
+  - "node hstack/scripts/validate-spec.mjs — validates ui-brief frontmatter and new-components justifications"
 ---
 
 ## Role

@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-MCP: Figma MCP — optional; enables richer reuse hints when present, falls back to URL-only references when absent}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates ui-brief frontmatter and UI-01/UI-02}}"
+  - "node hstack/scripts/validate-spec.mjs — validates ui-brief frontmatter and UI-01/UI-02"
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ Before any work:
 
 3. **Token-gap surfacing.** When the brief requires a value not in the design system's current token set, `ui-ux-briefer` names the gap and notes that a tech-debt item should be filed via `hstack-tech-debt-new` before implementation begins. The Skill does not file the tech-debt itself; it surfaces the recommendation and waits for the engineer to act.
 
-4. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the in-progress brief — UI-01 (every `new-components` entry has a section-4 justification paragraph), UI-02 (`design-system-version` matches config).
+4. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the in-progress brief — UI-01 (every `new-components` entry has a section-4 justification paragraph), UI-02 (`design-system-version` matches config).
 
 5. **Transition.** When every section is confirmed and the validator passes, `ui-ux-briefer` advances status from `draft` to `drafted`. Auto-commit fires.
 

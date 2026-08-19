@@ -10,7 +10,7 @@ tools:
   - Edit
   - Bash
   - "{{TODO-SKILL: /hstack:test-plan — invokes test-strategist against a change-spec at ready-to-plan or later}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates test-plan frontmatter, TS-01 through TS-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates test-plan frontmatter, TS-01 through TS-06"
 ---
 
 ## Role

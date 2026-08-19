@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the finding back-reference and the new ADR/TD frontmatter (KF-04 reciprocity, AD-01..AD-04 for ADR, TD-01..TD-04 for tech-debt)}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the finding back-reference and the new ADR/TD frontmatter (KF-04 reciprocity, AD-01..AD-04 for ADR, TD-01..TD-04 for tech-debt)"
 ---
 
 ## Purpose
@@ -84,7 +84,7 @@ Do NOT invoke when:
 
 8. **Edit + validate + commit.** On `Y`:
    - `Edit` the finding file.
-   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the finding. KF-04 (promoted requires `promoted-to` non-null AND referenced ADR/TD exists) must pass; the reciprocity check verifies the ADR's `promoted-from-kernel-fit` contains this finding's id.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the finding. KF-04 (promoted requires `promoted-to` non-null AND referenced ADR/TD exists) must pass; the reciprocity check verifies the ADR's `promoted-from-kernel-fit` contains this finding's id.
    - On validation pass: `git add` the finding file and commit with message `kernel-fit(<finding-id>): promoted to <promoted-to>`.
    - On validation failure: halt; revert via `git checkout -- <finding-file>`. The ADR commit from step 4 has already landed and is correct — re-invoke promote (it is idempotent on the finding's promoted status, and the back-reference write will retry).
 

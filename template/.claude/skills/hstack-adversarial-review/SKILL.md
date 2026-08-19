@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates adversarial-review frontmatter and AR-01..AR-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates adversarial-review frontmatter and AR-01..AR-06"
   - "{{TODO-OTHER: fresh-session-attestation — in v1, the subagent self-attests the session is fresh; v2 substrate captures and compares Claude Code session ids automatically}}"
 ---
 
@@ -63,9 +63,9 @@ Before any work:
 
 8. **Owner response loop.** For each finding, the engineer (the change owner) responds with a resolution. The Resolution Log section records each response. The Skill walks the engineer through every finding sequentially.
 
-9. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — AR-01 through AR-06.
+9. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — AR-01 through AR-06.
 
-10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. Do NOT invoke `spec-author` and do NOT delegate the write to the `adversarial-reviewer` subagent; per the kernel's Mechanical operations section and ADR-0002, the value to write is fully determined by the adversarial-review postcondition and the change-spec's current status, so the Skill orchestrator writes directly. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`.
+10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. Do NOT invoke `spec-author` and do NOT delegate the write to the `adversarial-reviewer` subagent; per the kernel's Mechanical operations section and ADR-0002, the value to write is fully determined by the adversarial-review postcondition and the change-spec's current status, so the Skill orchestrator writes directly. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`.
 
 ## Outputs
 

@@ -8,7 +8,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the TD status flip and TD-07 (stale requires both verification fields non-null)}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the TD status flip and TD-07 (stale requires both verification fields non-null)"
 ---
 
 ## Purpose
@@ -53,7 +53,7 @@ Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:te
    - Edit frontmatter: `stale-verified-at: <today>`, `stale-verification-method: <answer>`, `status: open → stale-no-longer-reproducible`, `updated: <today>`.
    - Append to the Resolution Log section: `status: open → stale-no-longer-reproducible on <today> by <owner>. Verification method: <answer>.`
 
-   Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. TD-07 (stale-no-longer-reproducible requires both `stale-verified-at` and `stale-verification-method` non-null) must pass once the validator ships; until then, the proposed-diff preview in step 4 is the v1 substitute per the kernel's AI writes / humans confirm clause. On validation pass (or v1 proposed-diff acknowledgement), `git add` the file and commit with message `tech-debt(<td-id>): stale-no-longer-reproducible`. The three frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
+   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-07 (stale-no-longer-reproducible requires both `stale-verified-at` and `stale-verification-method` non-null) must pass once the validator ships; until then, the proposed-diff preview in step 4 is the v1 substitute per the kernel's AI writes / humans confirm clause. On validation pass (or v1 proposed-diff acknowledgement), `git add` the file and commit with message `tech-debt(<td-id>): stale-no-longer-reproducible`. The three frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
 
 7. **Confirm completion.** Print: "TD-NNNN is now `stale-no-longer-reproducible`. Per TD-03, no further field rewrites are permitted on this artifact. If the original claim ever reappears, author a new tech-debt via `/hstack:tech-debt-new` rather than re-opening this one."
 

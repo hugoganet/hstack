@@ -11,7 +11,7 @@ tools:
   - Bash
   - "{{TODO-SKILL: /hstack:data-review — invokes data-specialist against a change-spec with db surface}}"
   - "{{TODO-MCP: Supabase MCP — required for live schema, RLS policies, and pgvector index introspection; v1 permits a degraded-with-flag fallback, v2 hard-fails when unreachable}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates data-review frontmatter and DR-01 through DR-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates data-review frontmatter and DR-01 through DR-06"
 ---
 
 ## Role

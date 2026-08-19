@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates ADR frontmatter and AD-01..AD-04}}"
+  - "node hstack/scripts/validate-spec.mjs — validates ADR frontmatter and AD-01..AD-04"
 ---
 
 ## Purpose
@@ -57,7 +57,7 @@ Before any work:
 
    **Kernel-fit reciprocity.** When `--from-kernel-fit` is set, `spec-author` writes `promoted-from-kernel-fit: [<finding-id>]` on the new ADR. The reciprocal write on the finding (`promoted-to: adr:<new-adr-id>` plus the status flip to `promoted`) is performed by `/hstack:kernel-fit-promote` after this Skill returns, in a separate commit (the recoverable two-commit carve-out documented in that Skill's Failure modes — analogous to the `/hstack:finalize` in-progress carve-out).
 
-5. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — AD-01 (sequential id), AD-02 (reciprocal supersession), AD-03 (fixed section structure), AD-04 (`superseded` requires `superseded-by`).
+5. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — AD-01 (sequential id), AD-02 (reciprocal supersession), AD-03 (fixed section structure), AD-04 (`superseded` requires `superseded-by`).
 
 6. **Status transition.** When every section is confirmed and the validator passes, `spec-author` advances `status` from `proposed` to `accepted`. The engineer can override to keep `proposed` if the decision is still under discussion.
 

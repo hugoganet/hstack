@@ -14,7 +14,7 @@ tools:
   - "{{TODO-SKILL: /hstack:adr-new — invokes spec-author for ADR authoring}}"
   - "{{TODO-SKILL: /hstack:tech-debt-new — invokes spec-author for tech-debt authoring}}"
   - "{{TODO-TOOL: RepoMix — packs module slice for module-spec reverse-engineering}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator run after every field write}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator run after every field write"
 ---
 
 ## Role
@@ -43,7 +43,7 @@ If any required document is missing, halt and ask the human before proceeding. D
 - `hstack/context/infrastructure.md` — authored during `/hstack:init` mini-session 6 and refreshed via `/hstack:configure --interview infrastructure`. Operational truth-gathering interview against the full template (hosting, networking, secrets, environments, IaC inventory, deploy pipeline, observability, cost, disaster recovery, blast-radius matrix, access control, **MCP access policy**, compliance, third-party dependencies, known gaps, unknowns). For engineers unfamiliar with infrastructure concepts, explain each section's intent before asking and spawn `researcher` for unfamiliar terms rather than asking the engineer to guess. Honest "we don't have this yet" answers are preferred over fabrication; the resulting gaps land as tech-debt items in the Known Gaps section. The Blast-Radius Matrix must have at least one row before status advances to `current` (INF-03); the Unknowns section must be present even when empty (INF-02). The MCP Access Policy section enforces INF-04 (no always-on write-capable MCP against prod) and INF-05 (no LLM session with a write-capable MCP active while reading user-generated tenant-scoped content) — the spec-author must walk each row of both tables explicitly and refuse to advance to `current` while any wired MCP lacks an access-mode value.
 - `hstack/context/incident-runbook.md` — authored during `/hstack:init` mini-session 7 (the incident-runbook half) and refreshed via `/hstack:configure --interview incident-runbook`. Written with `git-ignored: true` in its frontmatter; the file is not committed and is synced to an out-of-band destination.
 
-For change-spec / module-spec / ADR / tech-debt, fill the YAML frontmatter and prose sections per the schemas in the template schemas reference. Write incrementally: every confirmed field writes immediately to disk. Update `updated:` to today's date on every write. Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` after every field write to catch schema drift early. The same incremental-write discipline applies to the two context-layer artifacts above.
+For change-spec / module-spec / ADR / tech-debt, fill the YAML frontmatter and prose sections per the schemas in the template schemas reference. Write incrementally: every confirmed field writes immediately to disk. Update `updated:` to today's date on every write. Run `node hstack/scripts/validate-spec.mjs <path>` after every field write to catch schema drift early. The same incremental-write discipline applies to the two context-layer artifacts above.
 
 ## Templates this subagent reads
 

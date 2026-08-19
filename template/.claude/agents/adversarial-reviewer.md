@@ -10,7 +10,7 @@ tools:
   - Edit
   - Bash
   - "{{TODO-SKILL: /hstack:adversarial-review — invokes adversarial-reviewer in a fresh session}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates adversarial-review frontmatter and AR-01 through AR-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates adversarial-review frontmatter and AR-01 through AR-06"
   - "{{TODO-OTHER: fresh-session-attestation — in v1, the agent self-attests the session is fresh and no implementer transcripts are loaded; v2 substrate will capture and compare Claude Code session-ids automatically}}"
 ---
 
