@@ -1,25 +1,6 @@
 ---
 name: hstack-scaffold
-description: |
-  Use this skill as Phase 6 of `/hstack:greenfield-init` to bootstrap the consuming repository from empty to bootable. The Skill generates a **bootstrap change-spec** from `hstack/templates/bootstrap.md` (a change-spec variant with `area: bootstrap`, `surfaces: [infra]`), enumerates `in-scope` explicitly from the upstream artifacts (Module Map from app-architecture, Migration Sketches from data-architecture, stack ADRs from Phase 4), runs `data-review` and `security-review` in `--mode foundational` against the proposed posture, then drives the implementer through the planner's phased execution to produce the actual source files, migrations, CI config, and module shells. This is the only Skill (besides `/hstack:greenfield-init` which composes it) that ends with executable code landing in the consuming repo as part of init. Examples:
-
-  <example>
-  Context: Phases 1–5 of greenfield-init are complete; all context artifacts and stack ADRs are at terminal status.
-  user: "/hstack:scaffold"
-  assistant: "Generating bootstrap change-spec at hstack/specs/changes/<YYYY-MM>-bootstrap/spec.md. in-scope enumerated from app-architecture Section 1 (module shells) + data-architecture Section 5 (migration files) + standard infra files (package.json, tsconfig, CI workflow). Running foundational-mode security-review and data-review against the proposed posture. Then planner phases → implementer phase-by-phase → verifier. At terminal state the repo is bootable; build and test commands exit 0."
-  <commentary>
-  Scaffold's distinct property: it scores against a proposed posture (no diff yet) using --mode foundational on security-reviewer and data-specialist. After the bootstrap ships, those reviewers go back to per-change diff-scoring mode.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Scaffold was started two days ago; phase-3 (module shells) landed but phase-4 (CI workflow) hit a verifier failure.
-  user: "/hstack:scaffold"
-  assistant: "Resuming the bootstrap change-spec. plan.md shows phase-3 complete; phase-4 had verifier discrepancies. Re-running /hstack:verify on phase-4 outputs to identify what failed; then either re-implementing phase-4 (if the implementer's output was incorrect) or revising the plan (if the expectation was wrong)."
-  <commentary>
-  Scaffold inherits the standard per-change idempotency contract because bootstrap IS a change-spec. The planner and implementer's existing resume semantics apply unchanged.
-  </commentary>
-  </example>
+description: Use as greenfield Phase 6 to bootstrap an empty repository from the terminal context artifacts to bootable source, via a generated bootstrap change-spec. Greenfield only; the only init path that lands executable code.
 tools:
   - Read
   - Write

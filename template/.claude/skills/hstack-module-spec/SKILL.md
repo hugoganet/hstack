@@ -1,25 +1,6 @@
 ---
 name: hstack-module-spec
-description: |
-  Use this skill when an engineer needs a baseline `hstack/specs/<module>/spec.md` reverse-engineered for an existing module on a brownfield repo. Module-specs are foundational: every change-spec validates that `area` references an existing module-spec at `status: current`, and every per-change downstream subagent loads the relevant module-spec at session start. Examples:
-
-  <example>
-  Context: The team has just finished `hstack-init` and the engineer wants to produce a module-spec for the billing module before any change work begins there.
-  user: "Run /hstack:module-spec billing."
-  assistant: "I'll invoke spec-author with the billing paths from hstack/config.yaml, pack the module via RepoMix, and walk the seven module-spec sections through an interview."
-  <commentary>
-  Module-specs are the only artifact the `spec-author` reverse-engineers from existing code rather than authoring fresh. The Skill is run once per critical module on adoption; thereafter the spec is refreshed via `hstack-configure --interview` or by re-running this Skill when the cron flags it `needs-refresh`.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A 60-day refresh cron has flagged `hstack/specs/orchestrator/spec.md` as `needs-refresh` because the orchestrator module has been heavily modified.
-  user: "Refresh the orchestrator module-spec."
-  assistant: "I'll re-run /hstack:module-spec orchestrator. The existing spec is the proposal layer; spec-author walks each section, confirming or correcting against the current code."
-  <commentary>
-  Refresh mode is idempotent — when the existing module-spec is read in as the proposal layer, sections that remain accurate produce a no-op confirmation and the timestamp updates without churning the body.
-  </commentary>
-  </example>
+description: Use to reverse-engineer or refresh the baseline `hstack/specs/<module>/spec.md` for one module. Required before any change-spec whose `area` names that module can validate.
 tools:
   - Read
   - Write

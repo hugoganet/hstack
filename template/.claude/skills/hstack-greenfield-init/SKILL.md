@@ -1,25 +1,6 @@
 ---
 name: hstack-greenfield-init
-description: |
-  Use this skill when an engineer is starting a **new project from an empty repository** and wants hstack discipline baked in from line zero. Greenfield-init is the sibling of `/hstack:brownfield-init`: where brownfield extracts existing context, greenfield elicits it. The Skill composes the discovery atoms in order (product-discovery → data-architecture → app-architecture → stack-decide → threat-model/hardening → scaffold), with hard gates between phases and bidirectional drift recovery for downstream phases that surface upstream gaps. Total elapsed time is 4–8 hours of conversation spread across as many sessions as the engineer wants — every phase ends at a commit point and is interruptible. Until greenfield-init completes through Phase 6 (scaffold), no per-change workflow Skill works; the repo is bootable only after scaffold lands. Examples:
-
-  <example>
-  Context: A founder runs `npx hstack@latest greenfield-init` against an empty repository.
-  user: "/hstack:greenfield-init"
-  assistant: "I'll walk you through 6 phases. Phase 1 (product discovery) opens first — pick a technique: Brainstorm, Forcing-Questions, or Project-Brief. Each phase ends at a commit point; you can park and resume any time. Total elapsed time is founder-paced, typically 4–8 hours of conversation across multiple sessions."
-  <commentary>
-  Greenfield is deliberately slower than brownfield because every layer is being created from elicitation rather than extracted from existing source. The Skill is structured as 6 hard-gated phases; each phase delegates to a standalone atom or subagent.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Greenfield-init was started yesterday; Phases 1–3 are committed; the engineer wants to resume.
-  user: "/hstack:greenfield-init"
-  assistant: "I see Phases 1–3 at `status: current` on disk. Resuming at Phase 4 — stack-decide. Loading product-brief, data-architecture, app-architecture, and the default-stack declaration from hstack/config.yaml."
-  <commentary>
-  Idempotency is the same contract as brownfield-init: read disk state, recognize completed phases, resume at the first incomplete one. No re-interview of committed phases.
-  </commentary>
-  </example>
+description: Use to adopt hstack on an empty repository, eliciting the whole context layer across six gated phases and ending with a scaffold that makes the repo bootable. Repositories that already have source use `/hstack:brownfield-init` instead.
 tools:
   - Read
   - Write

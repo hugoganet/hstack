@@ -1,25 +1,6 @@
 ---
 name: hstack-research
-description: |
-  Use this skill when the engineer needs grounded research across one of five modes (API lookups, competitive scans, documentation, security CVEs, AI-native best practices) and wants a transient research session committed to `hstack/research/sessions/`. The Skill orchestrates the `researcher` subagent. A `--promote <session-id>` sub-mode elevates an existing session into an ADR (routes through `hstack-adr-new`), a tech-debt item (routes through `hstack-tech-debt-new`), or a durable note under `hstack/research/promoted/` (written by the researcher directly). Examples:
-
-  <example>
-  Context: The engineer is about to introduce a new HubSpot integration and needs to confirm current rate-limit and webhook signature behavior.
-  user: "/hstack:research HubSpot CRM v3 webhook signature verification and current rate limits."
-  assistant: "I'll invoke researcher in API-lookup mode. Canonical-source bias on HubSpot's docs over secondary tutorials; recency window pinned to the last 12 months. Session lands at hstack/research/sessions/<date>-hubspot-webhooks.md."
-  <commentary>
-  Mode classification drives source bias. API-lookup mode weights vendor docs over tutorials because tutorials are the most common cause of wrong-API integrations. Sessions are transient artifacts; the engineer chooses whether to promote.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A research session reached a decision point; the engineer wants to promote it to an ADR.
-  user: "/hstack:research --promote 2026-05-orchestration-patterns"
-  assistant: "I'll route through /hstack:adr-new with --from-research 2026-05-orchestration-patterns. spec-author will receive the session findings as the Context section seed and walk the remaining Nygard sections via interview."
-  <commentary>
-  Promotion routing preserves the conversational interview pattern. The researcher does not write ADRs or tech-debt directly; it hands off via the appropriate Skill so the templates' challenge prompts are exercised.
-  </commentary>
-  </example>
+description: Use when a decision needs grounded external information — API behavior, competitive scans, canonical docs, security CVEs, AI-native patterns — written to a transient research session. `--promote` elevates a session to an ADR, tech-debt, or durable note.
 tools:
   - Read
   - Write

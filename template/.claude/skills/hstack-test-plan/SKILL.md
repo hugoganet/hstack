@@ -1,34 +1,6 @@
 ---
 name: hstack-test-plan
-description: |
-  Use this skill when a change-spec is at `status: ready-to-plan` and needs `test-plan.md` produced before the planner can sequence implementation phases. The Skill orchestrates the `test-strategist` subagent. In v1 the output is an LLM-strategized judgment (`scoring-mode: llm-strategized`), not coverage-instrumented or mutation-tested — the Skill enforces this framing on every output. Examples:
-
-  <example>
-  Context: A change-spec adds a new RLS-protected table and a tenant-scoped RPC; it is at ready-to-plan.
-  user: "/hstack:test-plan 2026-06-knowledge-citations"
-  assistant: "I'll invoke test-strategist. Surfaces is [db, api] so tenant-isolation tests are mandatory and non-empty. The plan will name a negative cross-tenant RPC test, declare the fixture strategy, and answer the three challenge prompts before status can advance."
-  <commentary>
-  The Skill is the only authoring path for test-plan.md. It enforces TS-03 (tenant-isolation-tests non-empty when surfaces includes db/api/agent) and TS-02 (three challenge prompts mandatory). v1 framing is enforced on every rationale paragraph.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change touches a hot-path retrieval endpoint that other services depend on for latency.
-  user: "/hstack:test-plan 2026-05-retrieval-rpc-rewrite"
-  assistant: "I'll invoke test-strategist with performance-budgets-required: true. Each row in the budgets table pairs a numeric threshold with an asserting test; budgets without tests are refused."
-  <commentary>
-  The performance-budget contract is the v1 mitigation for "we said it had to be fast" promises that never get enforced. The Skill verifies every populated budget row has both a numeric threshold and a named asserting test before terminal status.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A small refactor with no behavior change but adjacent to authentication code.
-  user: "/hstack:test-plan 2026-05-auth-helper-rename"
-  assistant: "I'll invoke test-strategist. Even on a refactor, the three challenge prompts run — silent-pass-but-break behavior, invariant without mapped test, untested failure scenario. Refactors near auth are exactly where strategy surfaces hidden risk."
-  <commentary>
-  Refactors are not exempt from the challenge prompts. The v1 honesty clause forbids skipping them. A refactor near auth that ships without these prompts answered is a regression risk that no other artifact will catch.
-  </commentary>
-  </example>
+description: "Use when a change-spec is at `ready-to-plan` and needs `test-plan.md` before `/hstack:change-plan` can run — the planner refuses to sequence phases without it. Skipped for changes marked `trivial: true`."
 tools:
   - Read
   - Write

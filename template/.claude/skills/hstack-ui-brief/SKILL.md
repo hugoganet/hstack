@@ -1,25 +1,6 @@
 ---
 name: hstack-ui-brief
-description: |
-  Use this skill when a change-spec at `ready-to-plan` or later has `ui` in its surfaces and needs `ui-brief.md` drafted before the cofounder produces Figma frames and before `hstack-change-plan` runs. The Skill orchestrates the `ui-ux-briefer` subagent against the configured design system docs. Examples:
-
-  <example>
-  Context: The billing-overage change-spec is at ready-to-plan with surfaces: [ui, db]; the cofounder is about to start Figma work and needs the brief first.
-  user: "/hstack:ui-brief 2026-05-billing-overage-warning"
-  assistant: "I'll invoke ui-ux-briefer with the design system docs, the change-spec, the linked story, and the growth-marketer persona. Reused components first; any new component carries a justification per UI-01."
-  <commentary>
-  The Skill is the only entry point for ui-brief production. It enforces the reuse-bias by relying on the subagent's challenge prompt and the validator's UI-01 rule. Skipping the Skill and letting the cofounder freelance in Figma erodes the design system.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change-spec without `ui` in surfaces is mistakenly passed to this Skill.
-  user: "/hstack:ui-brief 2026-05-internal-cron-rebuild"
-  assistant: "I'll halt — surfaces on that change-spec is [api, infra], no ui. The ui-brief is conditional and is not produced for changes without ui surfaces."
-  <commentary>
-  The surface-conditional gate is hard. Producing a ui-brief for a non-ui change inflates the artifact count and slows the merge without value.
-  </commentary>
-  </example>
+description: Use when a change-spec with `ui` in `surfaces` is at `ready-to-plan` or later and needs `ui-brief.md` drafted before Figma work and before `/hstack:change-plan` runs.
 tools:
   - Read
   - Write

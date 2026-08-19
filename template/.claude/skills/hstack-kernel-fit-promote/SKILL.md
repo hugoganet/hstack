@@ -1,35 +1,6 @@
 ---
 name: hstack-kernel-fit-promote
-description: |
-  Use this skill when the engineer has decided that an `acknowledged` (or `open`) kernel-fit finding warrants a kernel change captured as an ADR. The Skill seeds the finding's Evidence + Kernel surface + Proposed direction into an ADR Context section and routes through `/hstack:adr-new --from-kernel-fit <id> --slug <slug>`, where `spec-author` runs the normal Nygard interview — the human gate the kernel's "AI writes, humans confirm" contract requires at the kernel-modification layer. After the ADR lands, the Skill writes the reciprocal `promoted-to` back-reference on the finding and flips it to `status: promoted`. Two commits in v1 — the ADR commit (from `adr-new`) and the back-reference commit (from this Skill); see Failure modes for the recoverable-two-commit carve-out (analogous to the `/hstack:finalize` in-progress carve-out). Examples:
-
-  <example>
-  Context: The engineer reviewed KF-0001 (KF-P1, Category-A claim spans production paths), acknowledged it via triage last week, and now wants to land an ADR tightening the SP-13 guidance.
-  user: "/hstack:kernel-fit-promote KF-0001 --slug sp-13-prose-guidance-tightening"
-  assistant: "I'll read KF-0001, verify status (open or acknowledged), construct the ADR Context seed from Evidence + Kernel surface + Proposed direction, and invoke `/hstack:adr-new --from-kernel-fit KF-0001 --slug sp-13-prose-guidance-tightening`. spec-author runs the Nygard interview — Title, Status, Context (seeded), Decision, Consequences (with the challenge prompt), Alternatives Considered. After the ADR lands at terminal status, I'll write `promoted-to: adr:ADR-NNNN-...` on KF-0001, flip status to `promoted`, append a Triage Log entry, and commit. The ADR commit and the back-reference commit are separate — see Failure modes for the recoverable carve-out."
-  <commentary>
-  The promote Skill is the only path that elevates a kernel-fit finding to an ADR. The kernel's "AI writes, humans confirm" contract is preserved because `/hstack:adr-new`'s spec-author interview is the human gate; the engineer reviews and confirms every Nygard section before the ADR lands. The promote Skill itself performs no field-level interview — it is a mechanical wrapper plus a reciprocal back-reference write per ADR-0001.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants to route a finding to tech-debt instead of an ADR — the kernel surface is not yet ready for revision but the team wants to track the gap.
-  user: "/hstack:kernel-fit-promote KF-0004 --target tech-debt --slug halt-enum-missing-figma-mcp-case"
-  assistant: "I'll route through `/hstack:tech-debt-new --from-kernel-fit KF-0004 --slug halt-enum-missing-figma-mcp-case`. spec-author runs the six-section TD interview (Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions, Acceptance). After the TD lands, I'll write `promoted-to: tech-debt:TD-NNNN-...` on KF-0004 and flip status to `promoted`."
-  <commentary>
-  The `--target tech-debt` flag is the secondary promotion path — useful when the engineer recognizes the kernel-fit gap but does not yet have a defensible Decision section for an ADR. Tech-debt captures "we know about this; here's what fixing it would look like; here's what's blocking us from fixing it now." Same reciprocal write contract as the ADR path.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A scan-Skill run between `/hstack:kernel-fit-promote` invocations has superseded the finding the engineer is now trying to promote.
-  user: "/hstack:kernel-fit-promote KF-0001 --slug internal-tooling-split"
-  assistant: "I'll halt — KF-0001 is at `status: superseded` (`superseded-by: KF-0007`). Promote KF-0007 instead; its body restates the same pattern with newer evidence. The promote Skill never promotes a superseded finding because the audit trail would route the ADR back to a stale body."
-  <commentary>
-  Promote refuses on terminal-from-promote statuses (`promoted`, `dismissed`, `superseded`, `archived`). The Skill is conservative — re-running on a superseded finding would write the back-reference on the wrong artifact and the audit trail would skew. The engineer's recovery is to promote the superseding finding.
-  </commentary>
-  </example>
-
+description: Use to elevate an `open` or `acknowledged` kernel-fit finding into an ADR (or a tech-debt item) and write the reciprocal back-reference. The third step of the kernel-fit loop, after `/hstack:kernel-fit-scan` and `/hstack:kernel-fit-triage`.
 tools:
   - Read
   - Write

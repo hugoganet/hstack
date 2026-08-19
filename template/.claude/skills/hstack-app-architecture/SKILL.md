@@ -1,25 +1,6 @@
 ---
 name: hstack-app-architecture
-description: |
-  Use this skill when the engineer wants to produce or refresh `hstack/context/app-architecture.md` — the five-section internal-architecture design (Module Map, Agent Orchestration, Deterministic-vs-LLM Split, State Ownership, Surface Boundaries). The Skill is Phase 3 of `/hstack:greenfield-init`, the app-architecture step of `/hstack:brownfield-init`, or a standalone atom for refreshing a single section. At terminal state the atom auto-scaffolds `hstack/specs/<module>/spec.md` stubs at `status: draft` for each declared module and updates `hstack/config.yaml`'s `surfaces` enum to match Section 5. Examples:
-
-  <example>
-  Context: Phase 3 of greenfield-init opens after data-architecture is current.
-  user: "/hstack:app-architecture"
-  assistant: "Loading product-brief, data-architecture, vision, roadmap. Stack-agnostic interview — I won't ask about frameworks here; that's Phase 4. Section 3 (Deterministic-vs-LLM Split) is the load-bearing AI-native decision: per user-facing flow, what's code and what's prompt, with rationale tied to a measurable property."
-  <commentary>
-  Internal architecture is stack-agnostic by design. Section 3 is where AI-native teams most often get architecture wrong by leaving the LLM/code split implicit. The atom forces per-step declaration.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A brownfield repo's modules have evolved; the engineer wants the artifact refreshed against current code.
-  user: "/hstack:app-architecture --mode extract"
-  assistant: "Extract mode. Scanning src/, app/, lib/ via Glob; reading exports and dependencies. Proposing the Module Map from code-evidence. The drift challenge runs at the end of Section 1: does any module own state a persona never interacts with?"
-  <commentary>
-  Extract mode reads code-evidence to propose modules; the engineer confirms or revises. The orphan-module challenge catches modules that have grown beyond their persona-named purpose.
-  </commentary>
-  </example>
+description: Use to produce or refresh `hstack/context/app-architecture.md` — module map, agent orchestration, deterministic-vs-LLM split, state ownership, surface boundaries. Greenfield Phase 3, the brownfield app-architecture step, or a standalone section refresh.
 tools:
   - Read
   - Write

@@ -1,25 +1,6 @@
 ---
 name: hstack-configure
-description: |
-  Use this skill when an engineer needs to update `hstack/config.yaml` after init has already completed, re-run the interview for a single product-context document, or migrate the schema-version when hstack itself ships a structural change. This is the editor counterpart to `hstack-init`; it never bootstraps from nothing and never advances the global `init-status` field. Examples:
-
-  <example>
-  Context: The team has decided to move their personas store from `hstack/context/personas/` to a Notion database now that the Notion MCP is wired up.
-  user: "Re-configure hstack to use the Notion personas store."
-  assistant: "I'll run /hstack:configure and walk the personas-store config field. Existing personas in hstack/context/personas/ stay on disk as sync stubs pointing at the new Notion records."
-  <commentary>
-  Configure is the right entry point because init has already produced a complete config; the change is scoped to one field and its downstream side effects. Re-running init would re-interview every product-context document, which is wasted work.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An hstack point release introduces a new required frontmatter field on `change-spec.md` and bumps `schemaVersion` from 1 to 2.
-  user: "Run /hstack:configure --migrate."
-  assistant: "I'll detect the schema-version delta, walk through the field-level migration plan, and re-stamp every existing artifact's frontmatter under the new schema."
-  <commentary>
-  Migration is the one mode of configure that can touch many files at once. The Skill plans the migration first, presents the planned edits to the engineer, and executes only on confirmation — never silently rewrites artifact frontmatter.
-  </commentary>
-  </example>
+description: Use to edit a `hstack/config.yaml` field after init has completed, re-run the interview for one product-context document, or migrate artifacts when an hstack release bumps the schema-version. Never bootstraps from nothing.
 tools:
   - Read
   - Write

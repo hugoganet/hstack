@@ -1,34 +1,6 @@
 ---
 name: hstack-verify
-description: |
-  Use this skill after the implementer has completed every phase of the plan and the engineer wants `verification.md` produced from test, lint, and typecheck outcomes. The Skill orchestrates the `verifier` subagent — a mechanical role that runs the canonical commands from `ci-cd.md`, captures the output, and compares observed outcomes against each phase's Verifier Expectations. Examples:
-
-  <example>
-  Context: The implementer just finished phase-5 of the billing-overage plan and the engineer wants verification before adversarial review.
-  user: "/hstack:verify 2026-05-billing-overage-warning"
-  assistant: "I'll invoke verifier. It will run the canonical test/lint/typecheck commands from ci-cd.md, capture stdout/stderr to a pointer file, and write phase-coverage mirroring plan.steps-completed."
-  <commentary>
-  The verifier is mechanical and conservative. Any `failed` test result blocks status `passed` (V-02); discrepancies between predicted and observed test behavior land in section 4 with recommended actions.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The test suite passed locally but the verifier observes that a Playwright test the plan promised actually skipped.
-  user: "/hstack:verify 2026-06-knowledge-citations"
-  assistant: "I'll invoke verifier. If a phase's Verifier Expectations name a test that skipped or is absent, the Discrepancies section captures it and the Skill refuses to mark status passed."
-  <commentary>
-  Discrepancies between predicted and observed behavior are exactly what section 4 exists to capture. Marking `passed` over a discrepancy would defeat the purpose of the gate.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The integration suite is gated by `RUN_INTEGRATION=1` and the engineer ran `npm test` without setting it; the runner reported `Tests: 0 passed, 0 failed`.
-  user: "/hstack:verify 2026-06-knowledge-citations"
-  assistant: "I'll invoke verifier. Per V-05, an integration suite that executed zero tests is recorded as `not-run`, not `pass` — zero failures is not evidence of correctness when there were zero assertions to fail. The Skill halts at `status: ran` with a high-severity Discrepancy naming the suspected reason (env-gated, all-skipped, empty-collection, or filter-collapse)."
-  <commentary>
-  V-05 closes the verifier false-positive where a suite gated by an unset env var would silently pass on the absence of failures. The remediation is either supplying the missing env / fixture and re-running, or amending the plan's Verifier Expectations via scope amendment so the zero-test state is intentional and recorded.
-  </commentary>
-  </example>
+description: Use after `plan.steps-completed` covers every phase in the plan body and the change needs `verification.md` from the canonical test, lint, and typecheck runs. A partial verification run is meaningless.
 tools:
   - Read
   - Write

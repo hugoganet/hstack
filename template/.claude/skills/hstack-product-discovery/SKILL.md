@@ -1,25 +1,6 @@
 ---
 name: hstack-product-discovery
-description: |
-  Use this skill when the engineer wants to produce or refresh `hstack/context/product/product-brief.md` — the durable thinking artifact that captures the project's product reasoning. The Skill is Phase 1 of `/hstack:greenfield-init` (elicit mode), an optional enrichment phase of `/hstack:brownfield-init` when source docs are thin (extract mode), or a standalone atom for retroactive brief authoring. It invokes the `product-discovery` subagent in one of three engineer-chosen techniques (Brainstorm, Forcing-Questions, Project-Brief), produces a single synthesis at `hstack/context/product/product-brief.md`, and auto-routes to `product-manager` for downstream context-doc refresh. Examples:
-
-  <example>
-  Context: Phase 1 of greenfield-init opens. The engineer types `/hstack:product-discovery` directly.
-  user: "/hstack:product-discovery"
-  assistant: "Pick a technique: [1] Brainstorm — facilitated ideation; [2] Forcing-Questions — reframe-driven probing (Gstack-style); [3] Project-Brief — structured walk. Default mode is elicit (no source docs). The brief lives at hstack/context/product/product-brief.md and is parkable any time."
-  <commentary>
-  The technique choice is the engineer's, not the agent's. Each technique's script is in hstack/templates/discovery/<technique>.md. Mid-technique switching is allowed but halts to confirm — mixing technique outputs produces an incoherent brief.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A brownfield repo's brief never landed during init; /hstack:help flagged the missing artifact.
-  user: "/hstack:product-discovery --mode extract"
-  assistant: "Extract mode. I'll read existing vision.md, README, and any product docs you point me at, propose the brief sections from what I find, and walk you through confirm-or-revise. The three required forcing prompts still run — extract mode does not bypass blind-spot probes."
-  <commentary>
-  Extract+confirm mode is how brownfield enrichment works. The unification of modes is load-bearing: the brief produced is the same artifact whether elicited or extracted, so downstream phases load it identically.
-  </commentary>
-  </example>
+description: Use to produce or refresh `hstack/context/product/product-brief.md` through one of three discovery techniques. Greenfield Phase 1, optional brownfield enrichment when source docs are thin, or standalone retroactive authoring.
 tools:
   - Read
   - Write

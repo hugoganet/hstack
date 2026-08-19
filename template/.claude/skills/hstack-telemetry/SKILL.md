@@ -1,26 +1,6 @@
 ---
 name: hstack-telemetry
-description: |
-  Use this skill when the engineer wants a retrospective observability report — token economics, workflow shape, quality outcomes, overengineering detection, and contract drift — generated from on-disk artifacts, git history, and Claude Code transcripts. Read-only across every source; no subagents invoked, no LLM turns, safe to run any time.
-
-  <example>
-  Context: The engineer wants a weekly health check on the hstack workflow.
-  user: "/hstack:telemetry"
-  assistant: "I'll run the telemetry report against this repo with a 30-day window. Output lands at `hstack/telemetry/reports/<today>.md`. No subagents, no LLM turns — pure derivation from frontmatter + git + transcripts."
-  <commentary>
-  Default mode. The Skill shells out to `python hstack/scripts/telemetry/report.py` and reports the output path. The kernel's "no parallel tracker" rule is preserved because the report is derivative — re-runnable from source, never authoritative.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants a deeper history window than the default 30 days.
-  user: "/hstack:telemetry --window 90"
-  assistant: "I'll run the report with a 90-day window. Larger windows surface more contract-drift signal (TD half-life, module-spec staleness) at the cost of slower transcript walks."
-  <commentary>
-  The Skill passes `--window <N>` through to the underlying script. A window of 0 means all-history; use sparingly on repos with months of transcript data.
-  </commentary>
-  </example>
-
+description: Use for a retrospective observability report on token economics, workflow shape, quality outcomes, overengineering, and contract drift, derived from artifacts, git history, and transcripts. Read-only; no subagents, no LLM turns.
 tools:
   - Read
   - Bash

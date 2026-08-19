@@ -1,25 +1,6 @@
 ---
 name: hstack-story-draft
-description: |
-  Use this skill when a user-facing change needs a story drafted or refined, anchored on an existing persona, with a concrete success metric and the user-visible edge cases enumerated. The Skill orchestrates the `product-manager` subagent and is conditional — it does not run when the parent change-spec is Category A (`internal-tooling: true`) or Category B (`enables` non-empty), since both carve-outs satisfy SP-09 without a story. Examples:
-
-  <example>
-  Context: The engineer just scaffolded a billing-overage change-spec and needs a linked user story before SP-09 lets the spec advance past draft.
-  user: "Draft a story for the billing overage warning, anchored on the growth-marketer persona."
-  assistant: "I'll invoke product-manager to walk the five story sections with the growth-marketer persona as the anchor. The story id will land in the configured story store; the change-spec's user-stories array updates reciprocally."
-  <commentary>
-  Stories are gated by SP-09 (`user-stories` non-empty UNLESS `internal-tooling: true` UNLESS `enables` non-empty). The Skill produces the story before the change-spec can advance, and writes the reciprocal `linked-change-specs` entry on the story.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A story exists but the engineer wants to refine the success metric, which the product-manager flagged as too vague.
-  user: "Refine STORY-2026-05-014 — sharpen the success metric."
-  assistant: "I'll invoke product-manager with the existing story as the proposal layer. The other sections are accept-or-correct; the success-metric field gets the full interview treatment."
-  <commentary>
-  Refinement reuses the same orchestration with the existing story as the proposal context. The Skill does not re-walk every field; the subagent reads the existing content and targets the field the engineer named.
-  </commentary>
-  </example>
+description: "Use when a user-facing change needs a story drafted or refined against an existing persona. Conditional — skipped when the parent change-spec is `internal-tooling: true` or has a non-empty `enables` array."
 tools:
   - Read
   - Write

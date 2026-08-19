@@ -1,25 +1,6 @@
 ---
 name: hstack-tech-debt-wontfix
-description: |
-  Use this skill when a tech-debt item is being closed without a fix because the team has decided the cost of resolving exceeds the cost of living with it. The Skill runs a brief two-question interview (a structured-elicitation loop per the kernel's Mechanical operations section), captures the rationale into the TD's frontmatter, and performs direct mechanical writes (per ADR-0001, no spec-author invocation): writes `wontfix-reason` and `wontfix-accepted-alternative`, flips status `open → wontfix`, appends a Resolution Log entry, all in a single atomic commit. Wontfix is a terminal status — per TD-03, no field rewrites are permitted afterwards. Examples:
-
-  <example>
-  Context: TD-0017 captured a deliberate compromise that no longer matters — the surrounding code has been rewritten and the original compromise no longer exists.
-  user: "/hstack:tech-debt-wontfix TD-0017-prompt-template-string-concat"
-  assistant: "I'll ask two questions: (a) why won't this be fixed; (b) what we're accepting as the alternative. Both answers are required and become non-null wontfix-reason and wontfix-accepted-alternative frontmatter fields (TD-06). On confirmation, the Skill writes both fields and flips status to wontfix directly (per ADR-0001, no spec-author invocation) in a single auto-commit. Wontfix is terminal — no further edits."
-  <commentary>
-  Wontfix is the controlled escape valve for tech-debt that no longer warrants a fix. The kernel requires both fields because "we don't care anymore" without a recorded alternative is the kind of decision that comes back to bite the team six months later. Future engineers reading the TD see the explicit reasoning rather than a silent closure.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An engineer wants to wontfix a tech-debt because they don't want to deal with it right now, not because the cost-benefit has actually flipped.
-  user: "/hstack:tech-debt-wontfix TD-0042-overage-banner-tailwind-class"
-  assistant: "I'll ask the two questions. If your answer to (a) is 'we don't have time' or 'we'll get to it later', I'll halt and surface that the right path is to leave the TD at `open` and re-prioritize, not to mark it wontfix. Wontfix is for compromises we've decided to live with permanently, not for deferrals."
-  <commentary>
-  The Skill applies a deliberate friction at the prose level: if the wontfix-reason reads like a deferral ("later", "not a priority", "we don't have bandwidth"), the Skill halts and asks the engineer to either commit to a real wontfix reason or leave the TD at `open`. Deferrals belong in the backlog, not in the wontfix log.
-  </commentary>
-  </example>
+description: Use to close a tech-debt item the team has decided to live with permanently, recording the reason and the accepted alternative. Wontfix describes a choice; `/hstack:tech-debt-stale` describes a claim that no longer reproduces.
 tools:
   - Read
   - Write

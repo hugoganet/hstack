@@ -1,25 +1,6 @@
 ---
 name: hstack-ship
-description: |
-  Use this skill when every artifact for a change is at terminal status and the engineer wants the final merge-readiness scorecard and a generated PR description. The Skill is the merge gate's prelude — it checks that every CI gate's preconditions are met, computes the scorecard, and produces the PR description body. It does not perform the merge; the engineer opens or marks the PR ready-for-review themselves. Examples:
-
-  <example>
-  Context: Every artifact for the billing-overage change is at terminal status and the engineer wants to open the PR.
-  user: "/hstack:ship 2026-05-billing-overage-warning"
-  assistant: "I'll compute the scorecard: spec at ready-to-ship, test-plan passed, plan completed, security-review passed, ui-brief drafted, figma-handoff ready, data-review passed, verification passed, adversarial-review findings-resolved, resolves-tech-debt items at in-progress (GT-11). PR description will land in hstack/specs/changes/<id>/pr-body.md for you to paste; after merge, run /hstack:finalize to flip the TD to resolved."
-  <commentary>
-  The Skill is mechanical — it reads frontmatter and computes the gate result. No subagent is invoked. If any gate fails, the Skill names the failing artifact and halts.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer tries to ship a change whose adversarial-review is still at findings-open.
-  user: "/hstack:ship 2026-06-knowledge-citations"
-  assistant: "I'll halt — adversarial-review is at findings-open. Three findings still at status: open with no resolution. Resolve those via the existing adversarial-review.md before re-running ship."
-  <commentary>
-  The Skill names the exact blocker and the exact remediation path. It does not advance any status itself; ship is read-only across the artifact set.
-  </commentary>
-  </example>
+description: Use when every artifact for a change is at terminal status and the change needs its merge-readiness scorecard and a generated PR body. Read-only — it does not merge, and post-merge cleanup is `/hstack:finalize`.
 tools:
   - Read
   - Write

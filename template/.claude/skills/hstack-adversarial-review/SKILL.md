@@ -1,34 +1,6 @@
 ---
 name: hstack-adversarial-review
-description: |
-  Use this skill only in a fresh Claude Code session — separate from the session that ran the implementer — after verification has landed at `status: passed` and the change is at `ready-for-review`. The Skill orchestrates the `adversarial-reviewer` subagent to produce a quota-driven critique. v1 fresh-session enforcement is honor-system; the Skill emits a clear instruction reminding the engineer that the v2 substrate will verify via session-id comparison. Examples:
-
-  <example>
-  Context: The implementer finished the last phase of a billing change; verification passed; the engineer has opened a fresh session for adversarial review.
-  user: "I've opened a new session. /hstack:adversarial-review 2026-05-billing-overage-warning"
-  assistant: "I'll invoke adversarial-reviewer. Findings floor is 5 because area=billing. I'll load every change artifact and the full diff; no implementer transcripts. Minimum 5 findings or a defended sub-floor justification — 'no issues found' is not a terminal state."
-  <commentary>
-  AR-06 raises the findings floor to 5 for changes in {agent, auth, billing}. The reviewer must spread findings across categories — clustering all findings in one category is a smell unless flagged in Methodology.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A small copy-fix change has been verified and the reviewer can only honestly produce two findings.
-  user: "/hstack:adversarial-review 2026-05-billing-copy-tweak"
-  assistant: "I'll invoke adversarial-reviewer. If I can only honestly produce two findings, I'll set findings-fewer-than-floor: true and write a defended justification in section 4 — enumerate every category considered and explain why each produced no honest finding."
-  <commentary>
-  The sub-floor path is explicit and rare. AR-01 demands `findings` length ≥ `findings-floor` OR `findings-fewer-than-floor: true` plus non-empty `justification-when-fewer`. "The change is small" alone is insufficient.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The adversarial reviewer finds a high-severity tenant-isolation issue the security review missed.
-  user: "/hstack:adversarial-review 2026-06-retrieval-rpc-rewrite"
-  assistant: "I'll invoke adversarial-reviewer with the new pgvector RPC under scrutiny. If a severity:high tenant-isolation finding lands, the resolution must be commit:<hash> or tech-debt:<id> — not justified-in-prose. High-severity security routed to justified-in-prose is a smell and I'll halt."
-  <commentary>
-  Resolution discipline matters: `commit:<hash>` for code fixes, `tech-debt:<id>` for deliberate deferral, `justified-in-prose` only for low-severity findings where in-prose reasoning is genuinely right. High-severity security via justified-in-prose is a halt condition.
-  </commentary>
-  </example>
+description: Use only in a fresh Claude Code session — separate from the one that ran the implementer — once `verification.md` is at `passed` and the change is at `ready-for-review`. Orchestrates the quota-driven `adversarial-reviewer`.
 tools:
   - Read
   - Write

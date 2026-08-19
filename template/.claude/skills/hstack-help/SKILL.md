@@ -1,25 +1,6 @@
 ---
 name: hstack-help
-description: |
-  Use this skill when the engineer (or a cofounder opening the repo cold) wants situation awareness — "where are we, what can I run, what's next." Read-only across every artifact; no subagents invoked, no disk writes, safe to run any time. Examples:
-
-  <example>
-  Context: The cofounder hasn't touched the repo in two weeks and wants to know what's in flight before starting work.
-  user: "/hstack:help"
-  assistant: "I'll read every change folder, the context layer, ADRs, tech-debt, research sessions, and the git state. You'll get a three-section report: where you are, health, commands you can run right now with READY / BLOCKED markers."
-  <commentary>
-  Default mode is the full status report. No arguments needed. Output is computed entirely from disk frontmatter — no subagent invocations, no MCP calls, fast even on a large repo.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer is mid-change and wants a focused view of one change-spec's phase progression.
-  user: "/hstack:help --change 2026-05-billing-overage-warning"
-  assistant: "I'll read every artifact for that change and render the phase DAG: spec → ui-brief / figma-handoff / data-review / security-review / plan → implement (N of M phases) → verify → adversarial-review → ship. Each phase shows status and the next action."
-  <commentary>
-  Detailed mode for one change. Useful when resuming work after an interruption — the DAG view shows exactly which phase is next and what artifact gates it.
-  </commentary>
-  </example>
+description: Use for situation awareness across every hstack artifact — where the work stands, what is healthy, which commands are runnable now, or the phase DAG for one change. Read-only; no subagents, no writes.
 tools:
   - Read
   - Grep
