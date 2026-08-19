@@ -85,6 +85,8 @@ If the named phase appears to require any of the above, halt before invoking —
 
 ## Orchestration steps
 
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+
 1. **Re-verify gates.** Run the precondition checks above. Any failure halts the Skill with a precise message naming the failing artifact and field.
 
 2. **Invoke `implementer`.** Use the Task tool with `subagent_type: implementer` and context = [kernel, change-spec, plan, test-plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel.
@@ -123,9 +125,12 @@ At the phase-completion auto-commit above, write `hstack/specs/changes/<change-i
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-implement",
   "change_id": "<change-id>",
+  "session_id": "<session id from step 0, or null>",
+  "phase_opened_at": "<ISO-8601 from step 0, or null>",
+  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
   "phase_id": "<task-id>",
   "started_at": "<ISO-8601, session start of this phase>",
   "completed_at": "<ISO-8601, now>",
@@ -138,6 +143,8 @@ At the phase-completion auto-commit above, write `hstack/specs/changes/<change-i
 ```
 
 `.telemetry/` is git-ignored in the consuming repo. The sidecar write must not introduce any new LLM turn or confirmation gate — it is a deterministic write bundled with the existing commit. If the sidecar write fails, log and continue; the canonical commit must still land.
+
+`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
 
 ## Session boundary
 

@@ -12,7 +12,13 @@ import { AlertTriangle } from 'lucide-react'
 import { DataTable } from '@/components/data-table'
 import { SectionCard } from '@/components/section-card'
 import { StatCard } from '@/components/stat-card'
-import { compact, pct, type TelemetryReport } from '@/lib/report'
+import { compact, pct, type PhaseCoverage, type TelemetryReport } from '@/lib/report'
+
+/** Coverage is printed with the totals, never after them — a subset read as a total is the failure mode. */
+function coverageLine(block: PhaseCoverage): string {
+  if (!block.phases_emitted) return 'No sidecars on disk yet — nothing is measurable.'
+  return `${block.phases_measured} of ${block.phases_emitted} emitted sidecars measurable (${pct(block.coverage_fraction)}).`
+}
 
 export function RepoDashboard({ report }: { report: TelemetryReport }) {
   const m = report.metrics
@@ -20,6 +26,10 @@ export function RepoDashboard({ report }: { report: TelemetryReport }) {
   const cacheRead = te2Rows.reduce((a, r) => a + r.cache_read, 0)
   const cacheCreation = te2Rows.reduce((a, r) => a + r.cache_creation, 0)
   const globalCacheHit = cacheRead + cacheCreation > 0 ? cacheRead / (cacheRead + cacheCreation) : null
+
+  // ADR-0009 phase instrumentation — absent from schema_version-1 reports.
+  const te4 = m.token_economics.te_4_cost_per_phase
+  const te5 = m.token_economics.te_5_cost_per_change
 
   const ws4 = m.workflow_shape.ws_4_scope_amendment_rate
   const qo3 = m.quality_outcomes.qo_3_test_immutability_audit
@@ -67,7 +77,7 @@ export function RepoDashboard({ report }: { report: TelemetryReport }) {
         <TabsContent value="tokens" className="mt-4 flex flex-col gap-4">
           <SectionCard
             title="TE-1 — cost-score per Skill"
-            description="Proxy for per-change cost. v1 attribution is per-Skill; sharpens once sidecar change_ids are joined."
+            description="Session-scoped: a Skill has a start marker and no end marker, so a session's whole spend lands on its first Skill. Superseded by TE-4/TE-5 wherever sidecars exist."
           >
             <DataTable
               rows={m.token_economics.te_1_cost_per_change.rows}
@@ -121,6 +131,55 @@ export function RepoDashboard({ report }: { report: TelemetryReport }) {
               ]}
             />
           </SectionCard>
+
+          {te4 ? (
+            <SectionCard
+              title="TE-4 — cost per phase"
+              description={`Tokens spent between the sidecar's phase_opened_at and phase_closed_at. ${coverageLine(te4)} Read next to QO-4 — cost without an outcome beside it can only argue for spending less.`}
+            >
+              <DataTable
+                rows={te4.rows.filter((r) => r.measured).slice(0, 40)}
+                columns={[
+                  { header: 'Skill', cell: (r) => <span className="font-medium">{r.skill}</span> },
+                  { header: 'Change', cell: (r) => r.change },
+                  { header: 'Phase', cell: (r) => r.phase_id ?? '–' },
+                  { header: 'Tokens', cell: (r) => compact(r.tokens ?? 0), align: 'right' },
+                  { header: 'Turns', cell: (r) => r.turns ?? '–', align: 'right' },
+                  { header: 'Wall-clock (h)', cell: (r) => r.wall_clock_h ?? '–', align: 'right' },
+                ]}
+              />
+            </SectionCard>
+          ) : null}
+
+          {te5 ? (
+            <SectionCard
+              title="TE-5 — cost per change"
+              description={`Sum of that change's measured phases — a subset, not a total: only five Skills emit sidecars. ${coverageLine(te5)}`}
+            >
+              <DataTable
+                rows={te5.rows.slice(0, 20)}
+                columns={[
+                  { header: 'Change', cell: (r) => <span className="font-medium">{r.change}</span> },
+                  { header: 'Tokens', cell: (r) => (r.tokens === null ? 'unmeasured' : compact(r.tokens)), align: 'right' },
+                  { header: 'Turns', cell: (r) => r.turns ?? '–', align: 'right' },
+                  { header: 'Wall-clock (h)', cell: (r) => r.wall_clock_h ?? '–', align: 'right' },
+                  { header: 'Phases', cell: (r) => `${r.phases_measured} / ${r.phases_emitted}`, align: 'right' },
+                  {
+                    header: 'Coverage',
+                    align: 'right',
+                    cell: (r) =>
+                      r.coverage_fraction === null ? (
+                        '–'
+                      ) : (
+                        <Badge variant={r.coverage_fraction < 0.5 ? 'destructive' : r.coverage_fraction < 1 ? 'secondary' : 'outline'}>
+                          {pct(r.coverage_fraction)}
+                        </Badge>
+                      ),
+                  },
+                ]}
+              />
+            </SectionCard>
+          ) : null}
         </TabsContent>
 
         <TabsContent value="workflow" className="mt-4 flex flex-col gap-4">

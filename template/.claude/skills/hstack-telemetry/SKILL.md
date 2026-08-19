@@ -33,14 +33,14 @@ tools:
 
 The report covers six buckets:
 
-1. **Token economics** — TE-1 cost-score per Skill, TE-2 cache-hit ratio per Skill, TE-3 subagent entry-tax amortization.
+1. **Token economics** — TE-1 cost-score per Skill, TE-2 cache-hit ratio per Skill, TE-3 subagent entry-tax amortization (all three session-scoped), plus TE-4 cost per phase and TE-5 cost per change, summed from the sidecar phase windows (ADR-0009). TE-4/TE-5 supersede TE-1 wherever a sidecar exists, and print a coverage fraction: only five Skills emit sidecars, so their totals are a subset by construction. A phase whose window or transcript cannot be read is reported as *unmeasured*, never as zero.
 2. **Workflow shape** — WS-1 phase duration, WS-2 gate findings density, WS-4 scope-amendment rate, WS-6 halt reasons.
 3. **Quality outcomes** — QO-2 severity × resolution-type mix, QO-3 test-immutability audit, QO-4 verifier observed-vs-promised.
 4. **Overengineering** — OE-1 artifact tokens per diff line, OE-3 subagent invocations × host cost, OE-5 trivial-eligible changes that ran the full gauntlet.
 5. **Contract drift** — module-spec staleness × recent commit activity, ADR supersession lag, tech-debt half-life by exit path.
 6. **Kernel-fit candidates** — KF-P1 Category-A claim spans production paths (post-PR-#5 misclassification), KF-P2 halt-reason cluster, KF-P3 missed-gate recovery. Detection-only rollup; the canonical findings live at `hstack/kernel-fit/findings/` and are produced by `/hstack:kernel-fit-scan`. See ADR-0004.
 
-A watch-list at the report bottom surfaces anomalies (low cache-hit Skills, high-severity findings resolved as `justified-in-prose`, candidate test-immutability violations, scope-amendment rate above 30%, module drift, fired kernel-fit patterns).
+A watch-list at the report bottom surfaces anomalies (low cache-hit Skills, unmeasured phase sidecars, high-severity findings resolved as `justified-in-prose`, candidate test-immutability violations, scope-amendment rate above 30%, module drift, fired kernel-fit patterns).
 
 ## When to invoke
 

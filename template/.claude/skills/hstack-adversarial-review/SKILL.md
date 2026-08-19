@@ -70,6 +70,8 @@ Before any work:
 
 ## Orchestration steps
 
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+
 1. **Open with the fresh-session reminder.** Print the message verbatim; wait for the engineer's confirmation.
 
 2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, `hstack/templates/adversarial-review.md`, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
@@ -115,9 +117,12 @@ At the change-spec advance commit (only when adversarial-review status is `findi
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-adversarial-review",
   "change_id": "<change-id>",
+  "session_id": "<session id from step 0, or null>",
+  "phase_opened_at": "<ISO-8601 from step 0, or null>",
+  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
   "reviewed_at": "<ISO-8601, when status reached findings-resolved>",
   "findings_floor": <int, 3 or 5 per AR-06>,
   "findings_count": <int, length of frontmatter findings array>,
@@ -147,6 +152,8 @@ At the change-spec advance commit (only when adversarial-review status is `findi
 ```
 
 When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. This is the most directly Goodhart-resistant of the five v1 sidecars — `category_counts` + `severity_counts` + `resolution_mix` jointly surface findings-quota-gaming patterns no single field could detect.
+
+`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
 
 ## Session boundary
 

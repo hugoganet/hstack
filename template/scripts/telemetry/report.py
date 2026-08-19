@@ -37,7 +37,7 @@ _SCRIPTS = _THIS.parent.parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from telemetry.parsers import frontmatter, commits, transcripts  # noqa: E402
+from telemetry.parsers import frontmatter, commits, transcripts, sidecars  # noqa: E402
 from telemetry.insights import (  # noqa: E402
     token_economics, workflow_shape, quality_outcomes,
     overengineering, contract_drift, kernel_fit,
@@ -90,9 +90,14 @@ def main(argv: list[str] | None = None) -> int:
     session_rows = transcripts.collect_session_rows([repo], since=since_dt)
     print(f"telemetry: {len(session_rows)} sessions in window", file=sys.stderr)
 
+    # Phase sidecars (ADR-0009). Gitignored and derivative: absent on a fresh
+    # clone, which reports as zero coverage rather than as zero cost.
+    phase_sidecars = sidecars.load_sidecars(hstack_root)
+    print(f"telemetry: {len(phase_sidecars)} phase sidecars", file=sys.stderr)
+
     findings_dir = hstack_root / "kernel-fit" / "findings"
     metrics = {
-        "token_economics": token_economics.compute(session_rows, changes),
+        "token_economics": token_economics.compute(session_rows, changes, phase_sidecars),
         "workflow_shape": workflow_shape.compute(git_commits, changes, session_rows),
         "quality_outcomes": quality_outcomes.compute(git_commits, changes),
         "overengineering": overengineering.compute(git_commits, changes, session_rows, repo),
@@ -116,7 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     # Consumed by the telemetry UI; carries the same derivative-only guarantee.
     json_path = out_path.with_suffix(".json")
     payload = {
-        "schema_version": 1,
+        # 2 — token_economics gains te_4_cost_per_phase / te_5_cost_per_change
+        # (ADR-0009). Additive: every schema_version-1 key keeps its shape.
+        "schema_version": 2,
         "repo": repo.name,
         "generated": date.today().isoformat(),
         "window_days": window_days,
@@ -127,6 +134,7 @@ def main(argv: list[str] | None = None) -> int:
             "module_specs": len(module_specs),
             "commits": len(git_commits),
             "sessions": len(session_rows),
+            "phase_sidecars": len(phase_sidecars),
         },
         "watch_list": render.watch_items(metrics),
         "metrics": metrics,

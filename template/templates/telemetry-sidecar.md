@@ -1,6 +1,8 @@
 # Telemetry sidecar — schema and discipline
 
-This document describes the JSON sidecar files three hstack Skills emit alongside their canonical artifact writes, to make per-change telemetry attribution cheap. Sidecars are **derivative** of git + frontmatter — re-runnable from source, never authoritative. The kernel's "no parallel tracker" rule is preserved by this derivative property.
+This document describes the JSON sidecar files five hstack Skills emit alongside their canonical artifact writes, to make per-change telemetry attribution cheap. Sidecars are **derivative** of git + frontmatter + transcripts — re-runnable from source, never authoritative. The kernel's "no parallel tracker" rule is preserved by this derivative property.
+
+This file is the canonical schema. The five emitting Skills restate it; when they disagree with this document, this document wins.
 
 ## Where sidecars live
 
@@ -27,12 +29,40 @@ The `.telemetry/` directory is **git-ignored** at the consuming-repo level. Side
 
 The other 22 Skills do **not** emit sidecars in v1. Their data is reconstructible from git + frontmatter + transcripts; the five emissions above target the highest-signal events across the change lifecycle: test discipline up front (`test-plan`), per-phase scope-locked execution (`implement`), promised-vs-observed (`verify`), gate-firing critique (`adversarial-review`), lifecycle close (`finalize`).
 
+## The phase window — every sidecar, every Skill (schema_version 2)
+
+Every sidecar carries three fields on top of its Skill-specific payload. They exist so the telemetry parser can answer "what did this phase cost?" — see ADR-0009.
+
+```json
+{
+  "session_id": "062b8fe8-649f-4d73-b4fb-b0a28a800552",
+  "phase_opened_at": "2026-08-15T09:12:44Z",
+  "phase_closed_at": "2026-08-15T11:03:07Z"
+}
+```
+
+Field rules — identical in all five Skills:
+
+- `session_id` — the active Claude Code session, resolved by `hstack/scripts/telemetry/session_id.py` (the most recently modified `*.jsonl` under `~/.claude/projects/<encoded-cwd>/`). One shared resolver, not a per-Skill heuristic. Unresolvable → `null`.
+- `phase_opened_at` — stamped when the Skill's preconditions pass, **before any subagent invocation**. Same script call as `session_id`, so both come from one read.
+- `phase_closed_at` — stamped at the Skill's terminal state, in the same write that lands the sidecar.
+- All three are **best-effort by contract**. Any of them `null`, unparseable, or inverted makes the phase *unmeasured*: `parsers/transcripts.py:phase_usage` returns `null`, and TE-4/TE-5 print `unmeasured`. **Never zero** — a phase whose window cannot be honoured still spent tokens, and a zero would fold it into the averages as if it were free.
+- A sidecar write failure never blocks the canonical commit, and the window is never a halt condition. Measurement never gates the workflow.
+- ISO-8601, UTC, second precision, `Z` suffix — the format `session_id.py` emits.
+
+Sidecars at `schema_version: 1` (written before ADR-0009) carry no window and read as unmeasured. Nothing migrates them: the transcript timestamps they would need were never recorded.
+
+The window measures *what the session spent while the phase was open* — not what the phase required. A detour taken between `phase_opened_at` and `phase_closed_at` is counted, and subagent spend lands in its host's window (`isSidechain: false` throughout the transcripts). Narrow, not exact.
+
 ## Schema — `test-plan.json`
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-test-plan",
+  "session_id": "<session id, or null>",
+  "phase_opened_at": "<ISO-8601 at precondition pass, or null>",
+  "phase_closed_at": "<ISO-8601 at terminal state, or null>",
   "change_id": "2026-05-billing-overage-warning",
   "completed_at": "2026-05-22T11:14:00Z",
   "status": "passed",
@@ -61,8 +91,11 @@ Field rules:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-implement",
+  "session_id": "062b8fe8-649f-4d73-b4fb-b0a28a800552",
+  "phase_opened_at": "2026-05-22T13:58:12Z",
+  "phase_closed_at": "2026-05-22T14:18:42Z",
   "change_id": "2026-05-billing-overage-warning",
   "phase_id": "phase-3-component",
   "started_at": "2026-05-22T14:00:00Z",
@@ -77,7 +110,7 @@ Field rules:
 
 Field rules:
 
-- `started_at`, `completed_at` — ISO-8601. The implementer records them from session timestamps.
+- `started_at`, `completed_at` — ISO-8601. The implementer records them from session timestamps. They describe the phase; `phase_opened_at` / `phase_closed_at` bound the *measurement window* and come from the shared resolver. They will usually be within seconds of each other; when they disagree, the window fields are the ones the parser reads.
 - `files_touched_count` — count of distinct files modified by the phase's commit. Computed mechanically; not a judgment.
 - `tests_written_count` — count of test files newly created in the phase (kernel test-immutability rule allows new tests without authorization).
 - `scope_amendment_emitted` — `true` only when the implementer halted and surfaced a scope-amendment request during this phase.
@@ -88,8 +121,11 @@ Field rules:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-verify",
+  "session_id": "062b8fe8-649f-4d73-b4fb-b0a28a800552",
+  "phase_opened_at": "2026-05-22T15:19:41Z",
+  "phase_closed_at": "2026-05-22T15:32:00Z",
   "change_id": "2026-05-billing-overage-warning",
   "ran_at": "2026-05-22T15:32:00Z",
   "test_suite_runtime_s": 187.4,
@@ -114,8 +150,11 @@ Field rules:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-adversarial-review",
+  "session_id": "9f41c0aa-2f5e-4c31-9a77-6d0b1b0e2c14",
+  "phase_opened_at": "2026-05-22T16:40:03Z",
+  "phase_closed_at": "2026-05-22T16:42:00Z",
   "change_id": "2026-05-billing-overage-warning",
   "reviewed_at": "2026-05-22T16:42:00Z",
   "findings_floor": 5,
@@ -147,8 +186,11 @@ Field rules:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-finalize",
+  "session_id": "c7d2e5b1-88a4-4f0d-b3ce-51a9f7d6e8b2",
+  "phase_opened_at": "2026-05-23T10:11:26Z",
+  "phase_closed_at": "2026-05-23T10:14:00Z",
   "change_id": "2026-05-billing-overage-warning",
   "shipped_at": "2026-05-23T10:14:00Z",
   "merge_commit_sha": "abc1234567890",
@@ -169,8 +211,9 @@ Per the kernel § Mechanical operations § Discipline preserved:
 
 - **Atomic with the canonical commit.** Each sidecar is written and `git add`-ed in the same commit as the canonical artifact write. No separate commit. The sidecar piggybacks on a commit that was happening anyway — zero new LLM turns, zero new confirmation gates.
 - **Idempotency.** Re-running a Skill on a phase that already landed produces a no-op on the sidecar (file already present, content unchanged aside from `schema_version` bumps if any).
-- **Derivative property.** Every value in every sidecar is reconstructible from git + frontmatter + transcripts. The sidecar is a cache, not a source. Deleting a sidecar is harmless — the next `/hstack:telemetry` run will compute the same metrics from the slower path.
-- **Schema versioning.** `schema_version: 1` in v1. Bumping to `2` requires either a backward-compatible additive change (new optional field) or a migration in `scripts/telemetry/parsers/`.
+- **Derivative property.** Every value in every sidecar is reconstructible from git + frontmatter + transcripts. The sidecar is a cache, not a source. Deleting a sidecar is harmless — the next `/hstack:telemetry` run will compute the same metrics from the slower path. The phase window is the one field group with a shelf life: it points at a transcript that `cleanupPeriodDays` will eventually sweep (365 days on some machines, 30 by default), after which the phase reads as unmeasured. Deleting the sidecar loses the window for good, since nothing else records it.
+- **Schema versioning.** `schema_version: 2` since ADR-0009 (the phase window). The bump is additive: every v1 field keeps its name and meaning, and a v1 sidecar still parses — it simply reports as unmeasured. No migration exists or is planned.
+- **No local identifiers in git.** `session_id` is a local machine identifier. `.telemetry/` is gitignored in the consuming repo, so it never lands in history — but the discipline now depends on that gitignore line holding. A consumer that commits `.telemetry/` publishes its session ids.
 
 ## What sidecars are NOT
 

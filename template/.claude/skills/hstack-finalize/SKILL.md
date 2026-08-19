@@ -72,6 +72,8 @@ Before any work:
 
 ## Orchestration steps
 
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+
 1. **Print the plan.** Summarize what will be written: "Finalize change `<change-id>`: status `ready-to-ship → shipped`. Resolve tech-debt: `[TD-NNNN, TD-MMMM]` (or `none`). Proceed? (Y/n)". Default Yes.
 
 2. **Resolve each referenced tech-debt FIRST (direct write per TD, in order).** Per the kernel's ordering rule for finalize: every TD must be resolved before the change-spec advances to `shipped`. This ensures a mid-finalize failure leaves the change-spec at `ready-to-ship` (recoverable by re-running finalize), never at `shipped` referencing an unresolved TD. For each entry in `resolves-tech-debt`, perform the following:
@@ -110,9 +112,12 @@ At the change-spec `shipped` commit (the final write in the finalize sequence), 
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "skill": "hstack-finalize",
   "change_id": "<change-id>",
+  "session_id": "<session id from step 0, or null>",
+  "phase_opened_at": "<ISO-8601 from step 0, or null>",
+  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
   "shipped_at": "<ISO-8601, now>",
   "merge_commit_sha": "<full SHA of the merge commit verified in preconditions>",
   "change_duration_days": <int, change-spec.created -> merge author date>,
@@ -120,7 +125,9 @@ At the change-spec `shipped` commit (the final write in the finalize sequence), 
 }
 ```
 
-The finalize sidecar is the most valuable of the three — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+The finalize sidecar is the most valuable of the five — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
+
+`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
 
 ## Session boundary
 
