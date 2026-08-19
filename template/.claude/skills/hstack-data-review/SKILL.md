@@ -1,34 +1,6 @@
 ---
 name: hstack-data-review
-description: |
-  Use this skill when a change-spec includes `db` in its surfaces and is at `status: ready-to-plan` or later, and needs `data-review.md` produced before the implementer can start. The Skill orchestrates the `data-specialist` subagent. In v1 the output is a structured judgment grounded in live-schema introspection via the Supabase MCP when available; v2 substrate hard-fails when the MCP is unreachable. Examples:
-
-  <example>
-  Context: A change-spec introduces a new public-schema table with RLS and is at ready-to-plan.
-  user: "/hstack:data-review 2026-06-knowledge-citations"
-  assistant: "I'll invoke data-specialist with the Supabase MCP reading the live schema. RLS-coverage is gated by DR-02 (every new-table value must be `covered`); pgvector-tenant-id presence is gated by DR-03."
-  <commentary>
-  data-review is gated upstream of the implementer when surfaces touches db. The Skill enforces SR-style discipline on tenant-isolation in pgvector RPCs and refuses to mark `passed` if RLS coverage is `partial` or `missing`.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A migration is additive (new table, new index) but touches a hot table during business hours.
-  user: "/hstack:data-review 2026-05-billing-overage-warning"
-  assistant: "I'll invoke data-specialist. Migration safety review will examine locking behavior on non-empty production tables; risky migrations require an explicit mitigation strategy."
-  <commentary>
-  Even when the migration is "additive", the data-specialist evaluates locking on the target table. A plain `CREATE INDEX` on a large hot table can take production offline; the subagent's challenge prompt surfaces this exactly.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change touches a pgvector RPC that joins against a tenant-scoped table; the Supabase MCP is wired up.
-  user: "/hstack:data-review 2026-06-retrieval-rpc-rewrite"
-  assistant: "I'll invoke data-specialist. tenant_id-arg-present must be true on the modified RPC; if it isn't, I'll halt — pgvector RPCs that drop tenant context are a kernel-level stop condition."
-  <commentary>
-  DR-03 plus the tenant-isolation lint together close the multi-tenant retrieval gap. The Skill refuses to write `passed` if the RPC drops tenant_id, and the v2 substrate will hard-fail when the live-schema MCP is unreachable for this kind of change.
-  </commentary>
-  </example>
+description: Use when a change-spec with `db` in `surfaces` is at `ready-to-plan` or later and needs `data-review.md` before implementation. Runs independently of `/hstack:change-plan` and `/hstack:security-review`.
 tools:
   - Read
   - Write

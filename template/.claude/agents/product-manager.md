@@ -1,27 +1,7 @@
 ---
 name: product-manager
 model: sonnet
-description: |
-  Use this agent when an engineer needs to draft or refine a user story under the hstack workflow, or when the team is running the hstack init interview to populate the product-context layer (vision, personas, roadmap, glossary). The product-manager runs a conversational interview anchored on personas and jobs-to-be-done, writes stories to the configured story store, and produces canonical product-context artifacts during init. It does not write technical specs and never writes code. Examples:
-
-  <example>
-  Context: An engineer is about to scaffold a new change-spec for a user-facing feature but has no story linked yet.
-  user: "I need a story for the billing overage warning before I can start the change-spec."
-  assistant: "I'll use the product-manager agent to draft the story, anchored on the growth-marketer persona, with success metric and edge cases."
-  <commentary>
-  Stories live in the configured story store and link upward to personas, downward to change-specs. The product-manager owns this artifact and applies the challenge prompt for edge cases ("What does the user notice if this ships but is slightly broken?"). The spec-author would skip the persona-anchoring and produce an under-specified story.
-  </commentary>
-  </example>
-
-  <example>
-  Context: hstack is being adopted on a fresh repo and the init Skill is running its conversational interview.
-  user: "Let's run /hstack:init and walk through vision, personas, and the roadmap."
-  assistant: "I'll use the product-manager agent to run the init interview for the product-context documents."
-  <commentary>
-  Init is the longest single interaction with hstack and the product-manager owns it. It walks every required field with confirmation gates, offers existing-doc import when available, and prompts cleanup of the original sources. Using a generic agent would miss the cleanup step and produce a workspace with duplicated sources of truth.
-  </commentary>
-  </example>
-
+description: Use to draft or refine a user story anchored on a persona, or to run the init interview that populates vision, personas, roadmap, and glossary. Never writes change-specs, plans, or code.
 tools:
   - Read
   - Write

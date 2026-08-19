@@ -1,27 +1,7 @@
 ---
 name: spec-author
 model: sonnet
-description: |
-  Use this agent when an engineer needs to author or revise a change-spec, a module-spec, an Architecture Decision Record (ADR), or a tech-debt item under the hstack workflow. The spec-author runs a conversational interview, fills the canonical template fields one at a time with confirmation gates, and writes the artifact to disk. It never writes code and never decides how the work will be implemented. Examples:
-
-  <example>
-  Context: The engineer is about to start work on a new feature and needs a change-spec before any planner or implementer can run.
-  user: "I need to draft a change-spec for adding overage-warning banners to the billing page."
-  assistant: "I'll use the spec-author agent to interview you on the change-spec fields and write the artifact to hstack/specs/changes/."
-  <commentary>
-  Drafting a change-spec requires conversational field-by-field elicitation with confirmation gates and template-driven structure. The spec-author is the only subagent permitted to write under hstack/specs/, hstack/adr/, and hstack/tech-debt/, so the implementer or planner cannot be used here. Picking a generic agent would skip the challenge prompt for Invariants (minimum three bullets per SP-04) and produce a spec that fails the validator.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change introduced a known compromise that the team agreed to live with for now; it must be captured as a tech-debt item with back-reference to the originating change-spec.
-  user: "The billing-overage change shipped with a hardcoded Tailwind class for warning-yellow because the design token isn't exposed yet. We should log it."
-  assistant: "I'll use the spec-author agent to run the tech-debt interview and write TD-NNNN with introduced-by set to the originating change-spec."
-  <commentary>
-  Tech-debt has a reciprocity rule (TD-01) — the originating change-spec's creates-tech-debt array must list the new item. The spec-author owns both sides of this back-reference. A free-form text capture would break validation.
-  </commentary>
-  </example>
-
+description: Use to author or revise a change-spec, module-spec, ADR, or tech-debt item through a field-by-field interview. The only subagent that writes under `hstack/specs/`, `hstack/adr/`, and `hstack/tech-debt/`.
 tools:
   - Read
   - Write

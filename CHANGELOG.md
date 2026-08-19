@@ -2,6 +2,32 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.11.0] - 2026-08-19
+
+A Skill or subagent `description` is a routing trigger, not documentation (ADR-0011). The harness injects every installed description into every session unconditionally — that is the routing index, and hstack was spending **~30k tokens** on it, roughly twice the kernel that ADR-0010 spent a release removing, mostly to inform decisions a typed `/hstack:<skill>` command or a literal `subagent_type` had already made. The 52 descriptions are now one sentence each naming the state that should cause invocation. Nothing else moves: no rule, no gate, no invariant, no halt condition, no status lifecycle.
+
+### Changed
+
+- **All 52 frontmatter descriptions rightsized to a one-sentence routing trigger** under a 40-word / ~250-character budget (36 `SKILL.md`, 16 agent files). Landed at **19,422 → 4,136 words** and **146,184 → 32,150 bytes** across the frontmatter blocks — **≈30.3k → ≈6.7k tokens** at ADR-0011's 4.83 bytes/token calibration, **≈23.6k recovered at turn zero of every session in every consuming repo**, including sessions that invoke no Skill at all. Sequenced as two commits — subagents first (the half where routing is already deterministic; 20 `SKILL.md` files name a literal `subagent_type`), Skills second — so a routing regression is attributable to one half from the git history.
+- **All 123 `<example>` / `<commentary>` blocks removed from frontmatter.** Each contained scripted `user:` / `assistant:` turns that pre-wrote the first response before the model had read the actual change-spec. 117 were provable duplicates of a body line in the same file (or of the subagent body the Skill orchestrates); the PR carries the per-block migration table with the proof line for each.
+- **Six boundary cases migrated into bodies** rather than deleted, because the body did not already carry them: `product-discovery` (extract mode does not bypass the forcing prompts → Behavior rules); `security-reviewer` (halt when SR-03 requires a threat-model-delta that cannot be produced → Stop conditions; a refactor declaring no security-sensitive surfaces is still reviewed → new `## When to invoke`); `stack-architect` (standalone `--layer` needs an explicit deliberate-swap confirmation → new `## When to invoke`); `test-strategist` (a behaviour-preserving refactor still gets a test-plan → new `## When to invoke`); `hstack-change-plan` (the halt-because-`data-review.md`-is-missing case — the gate was in Preconditions, the remedy pointer was not → a "when not to invoke" sub-list naming the db, ui, and test-plan remedies).
+- **`hstack-coord` keeps an expanded description** per ADR-0011's named carve-out: the "ALWAYS invoke `check` mode when the `HSTACK-COORD:` pointer line appears" instruction plus the four-mode list. It is the only Skill that routes with nothing typed, so the description is the only surface that can carry the trigger. Its own three example blocks were still removed.
+- **Confusable families keep one distinguishing clause each** — `tech-debt-{new,resolve,wontfix,stale}`, `kernel-fit-{scan,triage,promote}`, `{greenfield,brownfield}-init`, `{change-new,change-plan}`, and `data-architect` vs `data-specialist`. Routing errors live between siblings, and the clause is cheaper than the error.
+
+### Added
+
+- **`.claude/skills/hstack-kernel-fit-scan/references/slack-setup.md`** — the consumer-side Slack wiring (MCP + `chat:write`, the `kernel-fit` config block, the `--no-slack` dry-run) moves out of the Skill body into a reference read on demand. The Skill keeps a pointer that names when *not* to read it. `hstack-kernel-fit-scan` was the one body at or over the 5k-token per-Skill guidance, and truncation keeps the head — the tail was disappearing in silence after compaction. Now 20,742 → 16,594 bytes: ~3.4k tokens at 4.83 bytes/token, ~4.1k at the conservative 4.0 estimator, against ~4.3k / ~5.2k before.
+
+### Consumer action required
+
+- Run `npx hstack@latest update`, then commit. **Zero migration surface**: descriptions and the new reference file live in framework-owned files under `.claude/`, which `update` overwrites, and `wire.ts` symlinks each skill *directory* — so the reference travels with the Skill. No installer change, no manifest change, no symlink change, no `doctor` finding, nothing under `src/`.
+- Consumers diverge until they run `update`, the same window ADR-0010 opened. Cross-repo token comparisons are not meaningful inside it.
+
+### Known limitations
+
+- **This is a behavioural change with no test.** Nothing in the repo asserts routing correctness; `doctor` can detect a missing file, not a bad sentence. Verbose descriptions do help when an engineer *describes* a situation instead of typing the command, and ADR-0009's attribution counts only structured markers — which are the typed path. The surface most at risk is the one the instrument cannot see.
+- **A `description-budget` `doctor` finding is the correct follow-up** (ADR-0011 Option F) and is deliberately not in this release: a linter for a size no file respected would have flagged 52 findings on day one. The rule is established by the rewrite first, enforced by a tool second.
+
 ## [0.10.0] - 2026-08-18
 
 Phase cost becomes measurable (ADR-0009). The five sidecar-emitting Skills now stamp a session id and a phase time-window on their sidecar; the telemetry parser sums the transcript's assistant-turn usage between those bounds; and Skill attribution stops matching free text. "What did this phase cost?" and "what did this change cost?" are answerable from data the harness already writes — no new measurement channel, two timestamps and an id written where a file was already being written.

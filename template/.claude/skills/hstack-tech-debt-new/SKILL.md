@@ -1,25 +1,6 @@
 ---
 name: hstack-tech-debt-new
-description: |
-  Use this skill when the engineer needs to capture a tech-debt item — a known compromise the team agreed to live with for now. The Skill orchestrates the `spec-author` subagent through a six-section interview for the TD body (genuine open-ended authoring); the reciprocal `creates-tech-debt` write on the originating change-spec is performed by the Skill directly per ADR-0001 (no second spec-author invocation). Both halves of the reciprocal pair (TD-01) land in a single atomic commit; spec-author defers its terminal-state auto-commit when invoked under this Skill so the Skill can include both files in one commit. Examples:
-
-  <example>
-  Context: The billing-overage change shipped with a one-off Tailwind class for warning-yellow because the design token isn't yet exposed; the engineer wants to log it.
-  user: "/hstack:tech-debt-new --origin 2026-05-billing-overage-warning overage-banner-tailwind-class"
-  assistant: "I'll invoke spec-author for the tech-debt interview. The six sections cover Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions for fixing, Acceptance. Reciprocally, I'll add this tech-debt id to the change-spec's creates-tech-debt array."
-  <commentary>
-  Reciprocity per TD-01 is load-bearing. Without the back-reference, audit queries cannot answer "who put this here?" without grepping every change-spec. Per ADR-0001, the TD body is authored by spec-author (interview) and the reciprocal `creates-tech-debt` write on the change-spec is performed by the Skill directly; both files land in one atomic commit.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The adversarial-reviewer surfaced a deliberate trade-off that should be tracked as tech-debt rather than fixed in the change.
-  user: "F-03 routes to tech-debt. /hstack:tech-debt-new --origin 2026-06-knowledge-citations cookie-samesite-attributes"
-  assistant: "I'll invoke spec-author. The reciprocal write lands on the change-spec; the adversarial-review's finding gets resolution: tech-debt:<this-td-id> once the artifact is created."
-  <commentary>
-  This is the routing the adversarial-review's resolution discipline assumes. The tech-debt is created here, then referenced from the adversarial-review's `findings[].resolution`. The Skill is the only path because spec-author owns reciprocal writes.
-  </commentary>
-  </example>
+description: Use to capture a new tech-debt item — a compromise the team is agreeing to live with for now — with its reciprocal back-reference on the originating change-spec. Capture only; the three closure paths are separate Skills.
 tools:
   - Read
   - Write

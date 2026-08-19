@@ -1,34 +1,6 @@
 ---
 name: hstack-tech-debt-resolve
-description: |
-  Use this skill when the engineer wants to start work on resolving a known tech-debt item. The Skill is the canonical entry point into the resolution flow: it prints the tech-debt's full body, walks each Pre-condition for engineer confirmation (a structured-elicitation loop per the kernel's Mechanical operations section), halts on any unmet pre-condition, and on confirmation performs direct mechanical writes (per ADR-0001, no spec-author invocation): flips the tech-debt to `in-progress`, scaffolds a resolution change folder with `resolves-tech-debt` pre-populated and the Acceptance section quoted into Target Behavior. Both halves of the reciprocal pair (TD ↔ change-spec) land in a single atomic commit. Examples:
-
-  <example>
-  Context: The team agreed to live with a hardcoded Tailwind class until the design token system exposed `--warning-yellow-300`. The token landed yesterday; now the team wants to fix TD-0042.
-  user: "/hstack:tech-debt-resolve TD-0042-overage-banner-tailwind-class"
-  assistant: "I'll print TD-0042 in full, walk each Pre-condition for your confirmation (the design token bullet should now be met), then flip the TD to in-progress and scaffold the resolution change-spec with the Acceptance section quoted into Target Behavior. After the scaffold, continue with /hstack:test-plan."
-  <commentary>
-  The Skill is the only authoring path that flips a tech-debt out of `open`. The kernel forbids manual frontmatter edits to tech-debt status. Pre-conditions are prose in v1 and require engineer confirmation; the Skill logs that confirmation into the scaffolded change-spec's Open Questions section so the adversarial-reviewer can later verify the team didn't rationalize away an unmet pre-condition.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An engineer attempts to start resolving a tech-debt whose Pre-conditions reference an ADR that has not been accepted.
-  user: "/hstack:tech-debt-resolve TD-0019-event-ordering-fallback"
-  assistant: "I'll halt — TD-0019's Pre-conditions name 'ADR-0034 must be accepted before we pick a strategy', and ADR-0034 is at `proposed`. Resolve that first via /hstack:adr-new or by advancing ADR-0034 to `accepted`."
-  <commentary>
-  Some pre-conditions are mechanically checkable (ADR exists at `accepted`, file exists, related TD at `resolved`). The Skill checks those mechanically and halts on failure. Prose pre-conditions still require engineer confirmation. Mechanical halts cannot be overridden by engineer confirmation — the upstream artifact must actually change state first.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An engineer wants to resolve a tech-debt but only partially — the change addresses 2 of 3 Acceptance bullets.
-  user: "/hstack:tech-debt-resolve TD-0027-rls-cleanup --partial"
-  assistant: "I'll halt — partial resolution is not supported in v1. Either author a new tech-debt via /hstack:tech-debt-new for the portion this change will fix and leave TD-0027 at `open`, or expand the change's scope to satisfy all Acceptance bullets."
-  <commentary>
-  Per the kernel's tech-debt resolution rules, a change-spec either fully resolves a TD or it doesn't. Partial work creates audit ambiguity ("did this fix it?") and breaks the AR-07 Acceptance-satisfied finding lens. The Skill refuses --partial flags and forces the engineer to make the split explicit.
-  </commentary>
-  </example>
+description: Use to start fixing an `open` tech-debt item — walks its Pre-conditions, flips it to `in-progress`, and scaffolds the resolution change-spec. The fix path, as opposed to the wontfix and stale closure paths.
 tools:
   - Read
   - Write

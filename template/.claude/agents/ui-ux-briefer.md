@@ -1,27 +1,7 @@
 ---
 name: ui-ux-briefer
 model: sonnet
-description: |
-  Use this agent when a change-spec includes `ui` in its surfaces and needs a UI brief produced before Figma work begins. The ui-ux-briefer loads the configured design system docs, reads the change-spec and any linked user stories, and produces `ui-brief.md` covering the user-visible goal, layouts and states, reused components, new components (with justification), copy, and accessibility notes. It does not write code and does not produce Figma frames — those are the cofounder's deliverable. Examples:
-
-  <example>
-  Context: A change-spec for a billing overage banner has `surfaces: [ui, db]` and needs a brief before the cofounder produces Figma screens.
-  user: "Draft the UI brief for the billing-overage change."
-  assistant: "I'll use the ui-ux-briefer agent to load the design system and walk layouts, components, copy, and a11y."
-  <commentary>
-  The ui-ux-briefer biases toward reusing existing design-system components and flags every new component with a justification (UI-01 validator rule). The cofounder reads the brief before Figma; the implementer reads both. Skipping this agent would produce ad-hoc component invention that erodes the design system over time.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change introduces a new visual state for an existing component but the design system token needed (a new shade) is not yet exposed.
-  user: "We need a brief for the empty-state overlay in the knowledge-base view."
-  assistant: "I'll use the ui-ux-briefer agent. If the design token isn't exposed, I'll flag a tech-debt item and document the carve-out in the brief."
-  <commentary>
-  Token gaps are a recurring source of one-off Tailwind classes; the ui-ux-briefer surfaces them explicitly so the implementer doesn't quietly invent a new class, and so the spec-author can capture the tech-debt with reciprocal linkage.
-  </commentary>
-  </example>
-
+description: Use when a change-spec includes `ui` in `surfaces` and needs `ui-brief.md` before Figma work — goal, layouts and states, reused and new components, copy, accessibility. Never writes code or Figma frames.
 tools:
   - Read
   - Grep

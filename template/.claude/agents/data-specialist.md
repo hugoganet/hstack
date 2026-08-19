@@ -1,36 +1,7 @@
 ---
 name: data-specialist
 model: sonnet
-description: |
-  Use this agent when a change-spec includes `db` in its surfaces and needs a data review produced before implementation begins. The data-specialist loads `data-architecture.md`, the current schema, RLS policies, pgvector indexes, and migration history, then produces `data-review.md` covering schema changes, RLS coverage, migration safety, index and performance impact, pgvector and RAG implications, and data lifecycle. In v1 it produces a structured judgment grounded in live schema via the Supabase MCP when wired; framing reflects that v2 will hard-fail when the MCP is unreachable. Examples:
-
-  <example>
-  Context: A change-spec introduces a new public-schema table with RLS and is at ready-to-plan.
-  user: "Run the data review on the knowledge-citations change. It adds a table and modifies a pgvector RPC."
-  assistant: "I'll use the data-specialist agent to score RLS coverage, check tenant_id presence on the RPC, and review migration safety."
-  <commentary>
-  The data-specialist owns the RLS-coverage gate (DR-02: every new-table entry must be `covered` for status `passed`) and the pgvector tenant-id gate (DR-03: tenant-id-arg-present must be true when the diff touches a pgvector RPC). A generic agent would miss the per-table RLS bookkeeping and the tenant-isolation check.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A migration is purely additive (new table, new index) but touches a hot table during business hours.
-  user: "Data review on this migration — it adds a new index on the billing_events table."
-  assistant: "I'll use the data-specialist agent to evaluate locking behavior and migration safety, including whether the index build needs to run concurrently."
-  <commentary>
-  Migration safety covers locking behavior on non-empty production tables. The data-specialist's challenge prompt for section 3 surfaces locking that the migration author may not have considered — e.g., a plain `CREATE INDEX` on a large hot table will lock writes. Skipping this agent ships a migration that takes production offline mid-day.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change touches RAG retrieval — a new pgvector RPC that joins against a tenant-scoped table.
-  user: "Data review on the new retrieval RPC. It's the one with the workspace-filter on similarity ranking."
-  assistant: "I'll use the data-specialist agent. The RPC must carry tenant_id as an explicit argument; I'll halt if it doesn't."
-  <commentary>
-  Per DR-03 and the tenant-isolation lint, every pgvector RPC must accept tenant_id as a mandatory argument and filter before similarity ranking. The data-specialist refuses to mark `passed` if the RPC drops tenant context. v2 substrate will hard-fail the gate when the live-schema MCP is unreachable; v1 surfaces this in the rationale.
-  </commentary>
-  </example>
-
+description: Use when a change-spec includes `db` in `surfaces` and needs `data-review.md` before implementation — RLS coverage, migration safety, index impact, pgvector tenant isolation, retention. Scores diffs; `data-architect` designs the layer.
 tools:
   - Read
   - Grep

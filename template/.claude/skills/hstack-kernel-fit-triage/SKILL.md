@@ -1,35 +1,6 @@
 ---
 name: hstack-kernel-fit-triage
-description: |
-  Use this skill when the engineer wants to triage an open kernel-fit finding — either acknowledge it (intent to act, not yet promoted) or dismiss it (won't pursue). The Skill is mechanical per ADR-0001: structured-elicitation loop, proposed-diff preview, Y/n confirmation, direct `Edit` writes, one atomic commit. No subagent invoked. Promotion to an ADR is a separate Skill (`/hstack:kernel-fit-promote`); this Skill never touches ADRs or change-specs. Examples:
-
-  <example>
-  Context: The engineer received a Slack nudge about KF-0001 (KF-P1, Category-A claim with production paths) and wants to acknowledge it for later promotion.
-  user: "/hstack:kernel-fit-triage KF-0001 --action acknowledge"
-  assistant: "I'll read KF-0001, print it in full, show the proposed-diff (status: open → acknowledged; owner: <git-handle>; updated: today; Triage Log entry appended), wait for Y/n, then Edit + commit `kernel-fit(KF-0001): acknowledge`. No reason is required for acknowledge. If you later decide to promote, run `/hstack:kernel-fit-promote KF-0001 --slug <adr-slug>`."
-  <commentary>
-  Acknowledge does not require a `--reason`. It is the "I've seen this, I intend to act, but I'm not promoting yet" state. The Triage Log records the transition. The finding stays at `status: acknowledged` until promote or dismiss happens.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer reviewed KF-0002 and decided the pattern is engineer-error, not a kernel gap.
-  user: "/hstack:kernel-fit-triage KF-0002 --action dismiss --reason \"The two changes flagged actually do have downstream consumers; the change-specs simply omitted the user-stories array because the engineer copied an old template. Not a kernel-flag issue, just stale boilerplate.\""
-  assistant: "I'll verify the reason is ≥50 characters (KF-05), read KF-0002, print the proposed-diff (status: open → dismissed; dismissed-reason: <text>; owner; updated; Triage Log entry), wait for Y/n, then commit `kernel-fit(KF-0002): dismiss`. Dismissal is terminal — re-running on this finding will surface that it's already dismissed and exit no-op."
-  <commentary>
-  Dismissal requires a reason of ≥50 characters per KF-05. The check is mechanical at validation time; the Skill enforces it at step 2. Drive-by dismissals are exactly the failure mode the rule exists to catch. The dismissed-reason is itself audit signal — a high rate of dismissals on a given pattern means either the pattern is poorly tuned or the engineer is gaming the gate.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer tries to dismiss a finding with too-short reason.
-  user: "/hstack:kernel-fit-triage KF-0003 --action dismiss --reason \"not relevant\""
-  assistant: "I'll halt — `dismissed-reason` is 12 characters; KF-05 requires ≥50. Drive-by dismissals defeat the audit signal. Either provide a more substantive reason or leave the finding at `open` (open is a legitimate long-term state when triage is genuinely deferred)."
-  <commentary>
-  Short-reason rejection is a hard halt. The Skill does not negotiate — write a real reason or leave the finding alone. Same shape as the deferral-check in `hstack-tech-debt-wontfix`.
-  </commentary>
-  </example>
-
+description: Use to acknowledge or dismiss an open kernel-fit finding. The second step of the kernel-fit loop — it only flips status and records a rationale; elevating a finding to an ADR is `/hstack:kernel-fit-promote`.
 tools:
   - Read
   - Write

@@ -1,34 +1,6 @@
 ---
 name: hstack-implement
-description: |
-  Use this skill when a change-spec is at `ready-for-implementation` and the engineer wants to execute one task from the plan. This is the only Skill that causes code to be written, and it does so exclusively by invoking the `implementer` subagent against one `task-id` at a time, scope-locked to the change-spec's `in-scope` allowlist. Defense in depth: the Skill checks preconditions and forbidden surfaces before invoking the subagent, and the subagent re-checks at every Read / Edit / Write. Examples:
-
-  <example>
-  Context: A UI-only change-spec for the billing-overage banner is at ready-for-implementation; the plan has five phases and phase-3 is next.
-  user: "/hstack:implement 2026-05-billing-overage-warning phase-3-component"
-  assistant: "I'll verify upstream gates (security-review passed, ui-brief drafted, figma-handoff ready), then invoke implementer for phase-3. Files Touched is a strict subset of in-scope; the subagent refuses any path outside it."
-  <commentary>
-  The Skill enforces the scope-lock contract from the kernel — Reads as well as Writes are restricted to `in-scope` plus the canonical session-start context loads. Phase-3 is the only thing executed; the Skill does not anticipate phase-4.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A multi-surface change touching ui, db, and api is at ready-for-implementation; phase-2 lands a migration and regenerates types.
-  user: "/hstack:implement 2026-06-knowledge-citations phase-2-migration"
-  assistant: "I'll invoke implementer for phase-2. The migration runs against local Supabase only; types regen via `supabase gen types typescript --local`; no `supabase db push` against any remote project."
-  <commentary>
-  The kernel's database workflow is enforced both at the Skill level (the Skill refuses to invoke if the engineer attempts a remote-environment migration) and at the subagent level. Defense in depth on the highest-risk surface.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Mid-phase, the implementer halts because lib/billing/queries.ts is needed but is not in `in-scope`.
-  user: "/hstack:implement 2026-05-billing-overage-warning phase-4-wire"
-  assistant: "The implementer halted at the queries.ts edit — that file is out-of-scope. Don't proceed; emit the scope-amendment request to the conversation, halt, and wait for the engineer to update the change-spec via spec-author."
-  <commentary>
-  This is the precondition-failure / scope-amendment case. The Skill does not unilaterally extend in-scope. The engineer invokes spec-author to amend the change-spec, the Skill re-runs, the implementer re-loads and continues.
-  </commentary>
-  </example>
+description: Use when a change-spec is at `ready-for-implementation` and one named phase of the plan should be executed. The only Skill that causes code to be written, one task at a time, scope-locked to `in-scope`.
 tools:
   - Read
   - Write

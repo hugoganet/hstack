@@ -1,34 +1,6 @@
 ---
 name: hstack-finalize
-description: |
-  Use this skill once a change-spec's branch has been merged into the configured default branch. The Skill is the post-merge cleanup step: it verifies the merge actually landed, then performs direct mechanical writes (per ADR-0001, no spec-author invocation) — first resolving each tech-debt referenced in `change-spec.resolves-tech-debt` (write `resolved-by`, append Resolution Log entry, flip status `in-progress → resolved`), then advancing the change-spec `ready-to-ship → shipped`. The TDs-first ordering ensures that a mid-finalize failure leaves the change-spec at `ready-to-ship` (recoverable by re-running finalize), never at `shipped` referencing an unresolved TD. Per TD-03, no further field rewrites are permitted on the tech-debt afterwards. Examples:
-
-  <example>
-  Context: The billing-overage-warning change just merged. Its change-spec has `resolves-tech-debt: [TD-0042-overage-banner-tailwind-class]`.
-  user: "/hstack:finalize 2026-05-billing-overage-warning"
-  assistant: "I'll verify the change branch merged to main, then first resolve TD-0042 (write resolved-by, append Resolution Log, flip status to resolved — one commit), then advance the change-spec to shipped (one commit). Per TD-03, TD-0042 becomes immutable after this point."
-  <commentary>
-  Finalize is the only Skill that flips a tech-debt to `resolved` (mirroring how `/hstack:tech-debt-resolve` is the only Skill that flips one to `in-progress`). Per ADR-0001, the writes are direct (no spec-author invocation); reciprocity for `tech-debt.resolved-by ↔ change-spec.resolves-tech-debt` (TD-04) is preserved because the change-spec's `resolves-tech-debt` array was set at scaffold time by `/hstack:tech-debt-resolve`, and finalize completes the pair by filling in `resolved-by` on the TD side.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An engineer runs finalize on a change whose branch has not actually merged yet.
-  user: "/hstack:finalize 2026-06-knowledge-citations"
-  assistant: "I'll halt — `change/2026-06-knowledge-citations` has not been merged into main per git log. Finalize is post-merge cleanup; running it pre-merge would mark a tech-debt resolved that's not yet deployed. Open or complete the PR first."
-  <commentary>
-  The merge-verification check is load-bearing. Marking a tech-debt `resolved` based on intent rather than landed code is exactly the audit-trail corruption the workflow is built to prevent.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change-spec with empty `resolves-tech-debt` is finalized after merge.
-  user: "/hstack:finalize 2026-05-typo-fix"
-  assistant: "I'll advance the change-spec to shipped. No tech-debt to resolve. Single auto-commit."
-  <commentary>
-  Finalize works on every merged change, not just those that resolve tech-debt. The change-spec → shipped transition is always written here; the tech-debt flips are conditional on `resolves-tech-debt`.
-  </commentary>
-  </example>
+description: Use once a change-spec's branch has merged into the default branch and the change needs closing out — resolve each referenced tech-debt, then advance the change-spec to `shipped`. Post-merge only; run on the default branch.
 tools:
   - Read
   - Write

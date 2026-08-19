@@ -1,25 +1,6 @@
 ---
 name: hstack-change-new
-description: |
-  Use this skill when an engineer wants to start a new change and needs the `hstack/specs/changes/<id>/` folder scaffolded with templates pre-populated, before any spec-author or planner work begins. The Skill validates that the affected module has a current module-spec, derives the change id from the area and slug, scaffolds the folder, and seeds `spec.md` with the canonical template. Examples:
-
-  <example>
-  Context: The engineer is about to start work on the billing overage warning feature and needs the change folder before drafting the spec.
-  user: "/hstack:change-new billing overage-warning"
-  assistant: "I'll scaffold hstack/specs/changes/2026-05-billing-overage-warning/ with spec.md pre-populated from the template. spec-author runs separately when you're ready to fill the fields."
-  <commentary>
-  This Skill does not author content; it produces the empty folder shape so spec-author has a target to write into. Scaffold-only separation keeps the Skill cheap to re-run and idempotent on partial state.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer tries to scaffold a change in an area that has no module-spec yet.
-  user: "/hstack:change-new playbook-runner inline-mode"
-  assistant: "I'll halt — there's no hstack/specs/playbook-runner/spec.md at status current. Run /hstack:module-spec playbook-runner first."
-  <commentary>
-  Scaffolding refuses when the module's baseline doesn't exist. This is a deliberate gate: a change-spec whose `area` points at a nonexistent module-spec fails SP-01 anyway, so the Skill halts before any folder is created rather than producing dead scaffolding.
-  </commentary>
-  </example>
+description: Use to scaffold the `hstack/specs/changes/<id>/` folder and seed `spec.md` from the template at the start of a new change. Scaffolds only — `spec-author` fills the fields, and `/hstack:change-plan` sequences phases much later.
 tools:
   - Read
   - Write

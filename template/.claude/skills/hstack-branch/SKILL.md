@@ -1,25 +1,6 @@
 ---
 name: hstack-branch
-description: |
-  Use this skill when the engineer needs to check out or create the conventional `change/<change-id>` branch for a specific change-spec — typically because they realized mid-flow that they're on the wrong branch, or because they declined the branch offer at `/hstack:change-new` and want to switch later. One-shot, single-purpose, no subagent invoked. Examples:
-
-  <example>
-  Context: The engineer scaffolded the billing-overage change earlier, declined the branch offer at the time, and has since drafted the spec and ui-brief on main. Now they want to switch before implementing.
-  user: "/hstack:branch 2026-05-billing-overage-warning"
-  assistant: "I'll check whether `change/2026-05-billing-overage-warning` already exists. If yes, check out. If no, create from the current branch and check out. Any uncommitted work is preserved."
-  <commentary>
-  Idempotent: existing branch → checkout; missing branch → create-and-checkout. The Skill never force-deletes, never resets, never loses local work. If there are uncommitted changes that conflict with the target branch, the engineer is warned before the switch.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants the branch for whatever the most recently scaffolded change is and doesn't want to type the id.
-  user: "/hstack:branch"
-  assistant: "No id given. I'll detect the most recently scaffolded in-flight change-spec from hstack/specs/changes/, propose its expected branch name, and ask for confirmation before checking out."
-  <commentary>
-  No-arg mode defaults to the latest in-flight change for convenience. The Skill confirms before acting — the default is a guess, not a command.
-  </commentary>
-  </example>
+description: Use to check out or create the conventional `change/<change-id>` branch for a change-spec — when the branch offer at change-new was declined, or you are on the wrong branch. No argument defaults to the latest in-flight change.
 tools:
   - Bash
   - Read

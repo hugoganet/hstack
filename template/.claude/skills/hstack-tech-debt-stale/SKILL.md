@@ -1,25 +1,6 @@
 ---
 name: hstack-tech-debt-stale
-description: |
-  Use this skill when a tech-debt item's original claim no longer reproduces because the surrounding code was rewritten, a dependency was upgraded, the bug was fixed incidentally as part of unrelated work, or the system the TD described no longer exists. This is distinct from `/hstack:tech-debt-wontfix`: wontfix says "the problem is still real but we choose to live with it"; stale-no-longer-reproducible says "the problem no longer exists, verifiably." The Skill runs a one-question structured-elicitation loop (a per-kernel Mechanical operations pattern), captures the verification evidence into the TD's frontmatter, and performs direct mechanical writes (per ADR-0001, no spec-author invocation): writes `stale-verified-at` and `stale-verification-method`, flips status `open → stale-no-longer-reproducible`, appends a Resolution Log entry, all in a single atomic commit. The new status is terminal — per TD-03, no field rewrites are permitted afterwards. Examples:
-
-  <example>
-  Context: TD-0042 captured a workaround needed because a Tiptap plugin had a known bug. The team upgraded Tiptap last week and the bug is fixed upstream; the workaround is still in the codebase but the underlying claim no longer holds.
-  user: "/hstack:tech-debt-stale TD-0042-tiptap-paste-workaround"
-  assistant: "I'll ask one question: what evidence shows the original claim no longer reproduces? On confirmation, the Skill writes stale-verified-at and stale-verification-method directly (per ADR-0001, no spec-author invocation), flips status to stale-no-longer-reproducible, and commits atomically. The new status is terminal."
-  <commentary>
-  Stale-no-longer-reproducible is the controlled exit for organic-decay closures. The kernel requires the verification evidence because "we don't reproduce it anymore" without an artefact is the kind of silent backlog-clearing that lets real debt slip through unaudited. Future engineers reading the TD see the explicit verification rather than just an unexplained closure.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An engineer wants to use this Skill on a TD whose original problem IS still real but they no longer want to fix it.
-  user: "/hstack:tech-debt-stale TD-0017-prompt-template-string-concat"
-  assistant: "Wait — this is wontfix territory, not stale. Stale-no-longer-reproducible means the problem has verifiably gone away. If the prompt-template string-concat is still in the codebase and still has the original issue, the team is choosing to live with it (wontfix), not observing that it no longer exists (stale). I'll halt and direct you to /hstack:tech-debt-wontfix instead, OR you can show me evidence the string-concat code was actually removed and I'll proceed with stale."
-  <commentary>
-  The Skill applies a deliberate semantic check at the verification step. Misusing stale for a deferral-flavored closure corrupts the audit signal that distinguishes deliberate-deferral (wontfix) from organic-decay (stale). The engineer's verification evidence must describe an absence, not a preference.
-  </commentary>
-  </example>
+description: Use to close a tech-debt item whose original claim no longer reproduces — the code was rewritten, a dependency shipped a fix, the system is gone. Stale describes a verified absence; `/hstack:tech-debt-wontfix` describes a choice.
 tools:
   - Read
   - Write

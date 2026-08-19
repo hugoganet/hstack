@@ -1,34 +1,6 @@
 ---
 name: hstack-flag
-description: |
-  Use this skill when the engineer notices in-the-moment friction in the hstack workflow — a Skill loop that felt off, a subagent output that read wrong, a halt firing for an unexpected reason, a confirmation diff that revealed an unstated assumption — and wants to surface it for kernel-fit review without halting the current work. The Skill is the engineer-triggered side of the kernel-fit closed loop (ADR-0005). It drops a tiny frontmatter-only pin to `hstack/kernel-fit/flags/pending/` carrying session-id + transcript path + branch + HEAD + timestamp, completes in under a second, and exits. No interview, no confirmation, no commit. The next `/hstack:kernel-fit-scan` reads each pin, opens the referenced transcript, classifies the friction, and either folds the signal into an existing finding or emits a new one. Examples:
-
-  <example>
-  Context: Mid-implementation the engineer notices a Skill produced a confirmation diff that revealed an assumption the kernel does not name.
-  user: "/hstack:flag"
-  assistant: "📌 pinned at hstack/kernel-fit/flags/pending/flag-20260523T143208-a3f9.md — kernel-fit will review on next scan."
-  <commentary>
-  Zero-friction is load-bearing. No interview, no confirmation gate, no diff preview. The Skill captures session-id (from most-recently-modified jsonl under ~/.claude/projects/<encoded-cwd>/), branch, HEAD, timestamp, and writes the pin in under a second. The engineer continues working immediately.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants to leave a one-word hint so future-them remembers the rough shape of the friction when they re-read the transcript.
-  user: "/hstack:flag halt-loop"
-  assistant: "📌 pinned with hint 'halt-loop' — kernel-fit will review on next scan."
-  <commentary>
-  The optional positional hint argument is a one-word string. Multi-word hints are rejected (the Skill takes argv[0] and ignores the rest with a one-line note). The hint is for the engineer's future audit, not for the analyst — per ADR-0005, the analyst forms its classification from the transcript window, not from engineer-written hints, to preserve the no-contamination contract.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer flags from a workspace where the encoded-path directory under ~/.claude/projects/ does not exist (e.g., the harness is storing transcripts elsewhere or the workspace is brand-new).
-  user: "/hstack:flag"
-  assistant: "📌 pinned with session-id-source: fallback-cwd (no jsonl found under ~/.claude/projects/<encoded>; session-id may not resolve at scan-time). The analyst will classify as transcript-truncated if the transcript cannot be located. Re-flag in a session whose transcript is reachable if the friction is recurring."
-  <commentary>
-  The session-id capture is heuristic in v1 (per ADR-0005). The Skill does not halt when the heuristic fails — it writes the pin with whatever metadata it can capture and a note in `session-transcript-path` indicating the fallback. The analyst's `transcript-truncated` classification is the safety net. v2 substrate will replace the heuristic with a harness-exposed session-id.
-  </commentary>
-  </example>
+description: Use to pin in-the-moment workflow friction for kernel-fit review without stopping work — a Skill loop that felt off, a subagent output that read wrong, an unexpected halt. Writes a sub-second pointer pin; no interview, no commit.
 tools:
   - Bash
   - Read

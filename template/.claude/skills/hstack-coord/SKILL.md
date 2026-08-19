@@ -1,34 +1,6 @@
 ---
 name: hstack-coord
-description: |
-  Use this skill for asynchronous coordination between parallel Claude Code sessions (git worktrees of the same repo) and between sibling hstack repos on the same machine (e.g., an orchestrator repo and its module repos). Coordination is pull-based over committed state (ADR-0006 in the hstack dev repo): peers are read via `git show` / `git -C <path> show`, and addressed messages are committed `coord-message` artifacts under `hstack/coord/messages/` in the SENDER's repo — never a home-directory bus, never a write into another repo. Discovery is auto-triggered (ADR-0007): installer-wired `SessionStart` / `UserPromptSubmit` hooks run the scan on every prompt and inject a count-only pointer line (`HSTACK-COORD: N unread ...`) when messages exist — ALWAYS invoke this skill's `check` mode when that line appears in context. Four modes: `check` (default — run the scan, surface new messages, ack), `send` (author + commit a message), `register` (add this repo to the machine registry), `peers` (list registered repos). Examples:
-
-  <example>
-  Context: Mid-session in a Conductor worktree, the hook-injected pointer line `HSTACK-COORD: 1 unread coordination message(s) ...` just appeared in context (or, in a repo without hooks wired, this is the session-start check).
-  user: "/hstack:coord"
-  assistant: "Scan found 1 new message: msg-20260711T101500-rhizome-schema-freeze from rhizome:main — 'entities schema frozen until 2026-07-15, see refs'. I've read its frontmatter and the referenced artifact's frontmatter; the freeze touches nothing in our in-scope list. Acking. Full body available on request."
-  <commentary>
-  The scan is a single python invocation, silent and exit-0 when there is nothing — the zero-cost path. When messages exist, the Skill surfaces them to the engineer, reads frontmatter-first, and acks only after surfacing (at-least-once delivery: a crash before ack re-surfaces the message next time).
-  </commentary>
-  </example>
-
-  <example>
-  Context: A session in the rhizome repo just froze the entities schema and wants module repos to see it before planning against the old shape.
-  user: "/hstack:coord send moso-app entities schema frozen until 2026-07-15"
-  assistant: "I'll compose the coord-message with refs pointing at the committed data-architecture artifact, show you the proposed diff, and commit it on the current branch. moso-app sessions will pick it up on their next scan."
-  <commentary>
-  The message lands in the sender's own repo on the sender's own branch. Nothing is written into moso-app. The body summarizes; the refs carry the authoritative pointers. Proposed-diff preview + auto-commit per the kernel's mechanical-operations contract.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants a session to consult another repo's committed state directly, without any message existing.
-  user: "What does rhizome's module map say about the accounting boundary?"
-  assistant: "rhizome is registered at /Users/hugo/Code/rhizome. I'll read `git -C /Users/hugo/Code/rhizome show main:hstack/context/app-architecture.md` — frontmatter and the Module Map section only — and report the boundary. Announcing because this is a cross-repo read."
-  <commentary>
-  Pull needs no message at all: committed state of a registered peer is directly readable. Frontmatter-first; a full-body sweep across many artifacts is delegated to a read-only subagent that returns a distilled summary, preserving session isolation.
-  </commentary>
-  </example>
+description: "Use for asynchronous coordination between parallel Claude Code sessions (git worktrees of one repo) and between sibling hstack repos on the same machine. ALWAYS invoke this skill's `check` mode when a `HSTACK-COORD: N unread coordination message(s) ...` pointer line appears in context — that line is the only autonomous trigger in the framework. Four modes: `check` (default — scan, surface new messages, ack), `send` (author and commit a message in this repo), `register` (add this repo to the machine registry), `peers` (list registered repos)."
 tools:
   - Bash
   - Read

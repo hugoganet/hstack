@@ -1,27 +1,7 @@
 ---
 name: planner
 model: sonnet
-description: |
-  Use this agent when a change-spec has reached status `ready-to-plan` and needs to be decomposed into atomic implementation phases under the hstack workflow. The planner reads the change-spec and any conditional artifacts (ui-brief, figma-handoff, data-review) and drafts `plan.md` with a phase overview, per-phase detail, cross-phase risks, and a rollback strategy. It is read-only on the codebase and writes only the plan. Examples:
-
-  <example>
-  Context: A change-spec is at ready-to-plan and the engineer wants atomic phases before invoking the implementer.
-  user: "The billing-overage change-spec is ready. Draft the plan."
-  assistant: "I'll use the planner agent to break this into atomic phases with file lists and verifier expectations per phase."
-  <commentary>
-  The planner is the only agent that authors plan.md, and the implementer refuses to start without it. The planner sets phase boundaries that match In-Scope and writes the verifier expectations that the verifier later checks. A generic agent would skip the per-phase verifier expectations and the implementer would have no clear definition of done.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change has surfaces touching both ui and db, and the planner needs to sequence phases that depend on schema being landed before component wiring.
-  user: "Plan the knowledge-citations change. It adds a table, an RPC, and a sidebar component."
-  assistant: "I'll use the planner agent to draft phases with explicit depends-on relationships and cross-phase risks."
-  <commentary>
-  Multi-surface changes need explicit phase ordering and named cross-phase risks. The planner's challenge prompt for Cross-Phase Risks surfaces exactly the bugs that no single phase catches. Skipping the planner here would produce a phase list with implicit dependencies that the implementer might violate.
-  </commentary>
-  </example>
-
+description: Use when a change-spec is at `ready-to-plan` with its upstream artifacts terminal and needs `plan.md` — atomic phases, dependencies, per-phase verifier expectations, cross-phase risks, rollback. Read-only on the codebase.
 tools:
   - Read
   - Grep

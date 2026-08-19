@@ -1,27 +1,7 @@
 ---
 name: app-architect
 model: opus
-description: |
-  Use this agent at Phase 3 of `/hstack:greenfield-init`, as the app-architecture phase of `/hstack:brownfield-init` when the layer has never been written down, or as a standalone atom (`/hstack:app-architecture`) to refresh `app-architecture.md` when the application's internal architecture has drifted. The app-architect designs the **internal** architecture in five sections — Module Map, Agent Orchestration Model, Deterministic-vs-LLM Split, State-Ownership Map, Surface Boundaries — and writes the single artifact `hstack/context/app-architecture.md`. It is stack-agnostic: it does not name Next.js or Supabase. At terminal state it auto-scaffolds `hstack/specs/<module>/spec.md` stubs at `status: draft` for each module declared in the Module Map; those stubs are reverse-engineered to `current` post-scaffold via `/hstack:module-spec`. Examples:
-
-  <example>
-  Context: Greenfield Phase 3 opens after data-architecture is current.
-  user: "/hstack:app-architecture"
-  assistant: "I'll load the product-brief and data-architecture. The Module Map is Section 1 — modules cluster around entities and persona-named actions. The Deterministic-vs-LLM Split (Section 3) is the highest-leverage AI-native decision: for each user-facing flow, what's code and what's prompt."
-  <commentary>
-  For an AI-native SaaS, the deterministic-vs-LLM split is where teams most often get it wrong — either too much LLM (drift, cost, latency) or too much code (loses the LLM's edge). The agent makes this an explicit per-flow decision rather than letting it emerge implicitly.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A brownfield repo's modules have evolved beyond the stale module-spec list.
-  user: "/hstack:app-architecture --mode extract"
-  assistant: "I'll scan src/ via Glob, read each module's exports and dependencies, and propose the Module Map from code-evidence. The drift challenge runs at the end: does any module own state a persona never interacts with?"
-  <commentary>
-  Extract mode reads code to propose modules; the engineer confirms or revises. The "orphan module" drift challenge catches modules that have grown beyond their persona-named purpose, which is a common brownfield rot signal.
-  </commentary>
-  </example>
-
+description: Use to design or refresh `hstack/context/app-architecture.md` — module map, agent orchestration, deterministic-vs-LLM split, state ownership, surface boundaries — at greenfield Phase 3, in brownfield init, or standalone. Stack-agnostic.
 tools:
   - Read
   - Write

@@ -1,25 +1,6 @@
 ---
 name: hstack-brownfield-init
-description: |
-  Use this skill when an engineer is adopting hstack on an **existing repository** (one with source code, documentation, or some product context already in place) and needs to produce `hstack/config.yaml` and populate every required document under `hstack/context/`. For empty repositories (no source yet), use `/hstack:greenfield-init` instead — that orchestrator composes the discovery atoms in elicit mode and ends with `/hstack:scaffold`. Until brownfield-init completes, no other hstack Skill works; every workflow Skill checks for init completion at session start and halts otherwise. Init is structured as discrete mini-sessions of ten-to-fifteen minutes each rather than one long block, so that an interruption costs at most one in-flight field. Mini-sessions for data and app architecture **delegate to the standalone atoms** (`/hstack:data-architecture`, `/hstack:app-architecture`), which can also be re-run later via `/hstack:configure` for enrichment when `/hstack:help` flags a layer as missing. Examples:
-
-  <example>
-  Context: A six-month-old codebase has thin docs and no hstack/. The engineer wants to adopt hstack against the existing source.
-  user: "Start /hstack:brownfield-init on this repo."
-  assistant: "I'll read CLAUDE.md, README, package.json, and the source tree to seed proposals. Then mini-session 0 (config), product context via product-manager (vision, glossary, roadmap, personas) reading existing docs in extract+confirm mode. For data-architecture and app-architecture I'll delegate to the standalone atoms running in extract mode against the live schema and src/ tree."
-  <commentary>
-  Brownfield init's distinct mode is extract+confirm against existing sources. Where source docs are thin, the engineer can opt into running /hstack:product-discovery as a follow-up enrichment step after init completes.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Init was started two days ago, three documents were committed, and a session crash dropped the fourth. The engineer wants to resume rather than restart.
-  user: "Resume /hstack:brownfield-init — vision, glossary, and the roadmap are already done."
-  assistant: "I'll read hstack/.session-state/<session-id>.yaml, confirm which documents are at status `current`, and resume with the next missing one — personas, based on what I see on disk."
-  <commentary>
-  Idempotency is load-bearing here: the Skill reads disk state, recognizes which documents are already terminal, and continues at the next empty mini-session boundary rather than re-running completed interviews.
-  </commentary>
-  </example>
+description: Use to adopt hstack on an existing repository that already has source code or product docs, producing `hstack/config.yaml` and the `hstack/context/` layer by extracting from what is there. Empty repositories use `/hstack:greenfield-init` instead.
 tools:
   - Read
   - Write

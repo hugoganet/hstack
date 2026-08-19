@@ -1,25 +1,6 @@
 ---
 name: hstack-change-plan
-description: |
-  Use this skill when a change-spec is at `status: ready-to-plan` (with its conditional upstream artifacts also at terminal status) and needs `plan.md` drafted as atomic phases. The Skill orchestrates the `planner` subagent. Examples:
-
-  <example>
-  Context: The billing-overage change-spec is at ready-to-plan, the ui-brief is drafted, the figma-handoff is ready, and the engineer is about to start implementation.
-  user: "/hstack:change-plan 2026-05-billing-overage-warning"
-  assistant: "I'll invoke planner with the change-spec, ui-brief, figma-handoff. Atomic phases with per-phase verifier expectations and a rollback strategy."
-  <commentary>
-  The planner is the only authoring path for plan.md. The Skill enforces that upstream conditional artifacts (ui-brief, figma-handoff for ui; data-review for db) are at terminal status before invoking — otherwise the planner halts.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change touching ui and db is at ready-to-plan but data-review has not been run yet.
-  user: "/hstack:change-plan 2026-06-knowledge-citations"
-  assistant: "I'll halt — surfaces includes db and data-review.md is missing. Run /hstack:data-review first."
-  <commentary>
-  The conditional upstream gate is hard. Skipping the data-review and producing a plan against an unscored data layer produces a plan that the implementer would refuse to act on anyway.
-  </commentary>
-  </example>
+description: Use when a change-spec is at `ready-to-plan` with `test-plan.md` and every conditional upstream artifact terminal, and needs `plan.md` decomposed into atomic phases. Distinct from `/hstack:change-new`, which only scaffolds the folder.
 tools:
   - Read
   - Write
@@ -38,6 +19,12 @@ tools:
 ## When to invoke
 
 Invoke when the change-spec reaches `status: ready-to-plan`, `test-plan.md` is at terminal status, and any conditional upstream artifacts required by the spec's `surfaces` are at terminal status. Re-invoke when the change-spec, the test-plan, or any conditional upstream artifact changes shape in ways that invalidate the existing plan.
+
+When not to invoke — the conditional upstream gate is hard, and each miss has one remedy:
+
+- `surfaces` includes `db` and `data-review.md` is missing or non-terminal → halt; run `/hstack:data-review <change-id>` first. Planning against an unscored data layer produces a plan the implementer would refuse to act on anyway.
+- `surfaces` includes `ui` and `ui-brief.md` is not at `drafted` or `figma-handoff.md` is not at `ready` → halt; run `/hstack:ui-brief <change-id>` and get the handoff from the cofounder first.
+- `test-plan.md` is missing or non-terminal → halt; run `/hstack:test-plan <change-id>` first.
 
 ## Inputs
 

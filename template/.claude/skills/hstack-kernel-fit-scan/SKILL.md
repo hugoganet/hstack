@@ -1,35 +1,6 @@
 ---
 name: hstack-kernel-fit-scan
-description: |
-  Use this skill when the engineer wants to scan for kernel-fit gaps — patterns in shipped practice suggesting the kernel itself (KERNEL.md, templates, validators, Skill flows) needs revision. The Skill runs the detection layer (`scripts/telemetry/run_kernel_fit.py`), invokes the `kernel-fit-analyst` subagent to synthesize one finding file per fired pattern, then nudges Slack on `high`/`medium` confidence findings with a 14-day dedup gate. Findings land at `hstack/kernel-fit/findings/KF-NNNN-<slug>.md`; the disk artifact is canonical, Slack is a side-channel pointer with graceful degradation when MCP is unwired. Promotion to a kernel change is human-gated via `/hstack:kernel-fit-promote`. See ADR-0004.
-
-  <example>
-  Context: The engineer wants a weekly kernel-fit scan after shipping several changes.
-  user: "/hstack:kernel-fit-scan"
-  assistant: "I'll run the detector against this repo's shipped changes / ADRs / tech-debt / commits / transcripts in the last 30 days. If any pattern fires, I'll invoke `kernel-fit-analyst` to synthesize findings (one file per pattern). Slack nudge on medium/high; dedup against open findings within 14 days. Disk-write is the load-bearing action — if Slack MCP is unreachable, the scan still completes and findings land on disk."
-  <commentary>
-  The Skill is opt-in by invocation. It is the only Skill that causes the `kernel-fit-analyst` subagent to run. Detection is post-hoc and derivative — no decision-time instrumentation; the no-parallel-tracker rule is preserved because the detector reads, never writes.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The detector returns no fired patterns — the kernel is in good shape against the current corpus.
-  user: "/hstack:kernel-fit-scan"
-  assistant: "Detection ran; no patterns fired. No findings written, no Slack notification, no commit. The kernel-fit-analyst subagent was not invoked (no work to do). Exit clean."
-  <commentary>
-  No-fire is the most common output on a healthy repo, especially in the first 4–8 weeks of operation. The Skill must not invoke the subagent or write anything when no pattern fires — every Slack message has a cost in attention, and the dedup gate's purpose is undermined if scans run noise-free but the engineer still sees messages.
-  </commentary>
-  </example>
-
-  <example>
-  Context: KF-P1 fires but an open finding for the same pattern already exists from a scan 5 days ago.
-  user: "/hstack:kernel-fit-scan"
-  assistant: "KF-P1 fired with 3 evidence rows. An open finding (KF-0003) already exists for KF-P1 from 5 days ago — within the 14-day dedup window. I'll invoke the analyst; if the new evidence is materially equivalent the analyst will skip writing and surface the dedup; if it is materially stronger, the analyst writes a new KF-NNNN and supersedes KF-0003. Either way no Slack message fires today — the engineer was already notified within the window."
-  <commentary>
-  Dedup happens at two layers: (a) the analyst decides whether to write a new finding or skip (per its supersession carve-out); (b) the Skill decides whether to fire Slack. The 14-day window is the v1 default — tunable when calibration data exists.
-  </commentary>
-  </example>
-
+description: Use to detect kernel-fit gaps — patterns in shipped practice suggesting the kernel itself needs revision — and synthesize one finding file per fired pattern. The first step of the kernel-fit loop; triage and promotion are separate Skills.
 tools:
   - Read
   - Write
@@ -166,23 +137,9 @@ Slack-MCP-unreachable is NOT a stop condition. See step 7.
 
 ## Configuring Slack notifications (consumer-side)
 
-Slack notifications are opt-in per consumer. Without wiring, the Skill still works — findings land on disk and the engineer discovers them via `/hstack:help`. To enable Slack nudges on `medium`/`high` confidence findings:
+One-time consumer setup, not scan-time reading. The full procedure — MCP wiring and the `chat:write` scope, the `kernel-fit` block in `hstack/config.yaml` (`slack-channel`, `slack-fallback`), and the `--no-slack` dry-run — lives in `references/slack-setup.md` alongside this file.
 
-1. **Wire the MCP server.** Add the Slack MCP to your Claude Code MCP configuration so `mcp__claude_ai_Slack__slack_send_message` is callable from the session that runs `/hstack:kernel-fit-scan`. Follow Anthropic's Slack MCP install docs; the auth scope `chat:write` is required.
-
-2. **Configure the destination channel.** Add a `kernel-fit` block to `hstack/config.yaml`:
-
-   ```yaml
-   kernel-fit:
-     slack-channel: "#hstack-kernel-fit"   # public channel id or name; the bot must be invited
-     slack-fallback: "dm"                  # "dm" | "off" — behavior when slack-channel is absent or unreachable
-   ```
-
-   `slack-channel` is optional. When absent and `slack-fallback: "dm"`, the Skill sends to the invoking engineer's DM via the bot. When `slack-fallback: "off"`, missing channel behaves identically to unreachable MCP (log to stderr, exit 0).
-
-3. **Verify with a dry-run.** Run `/hstack:kernel-fit-scan --no-slack` first to confirm the detection layer produces output on your corpus, then re-run without the flag once Slack is wired. The first non-`--no-slack` run will surface any auth or channel issues as the documented graceful-degradation log line.
-
-What you do NOT need to do: no code to write, no hook to install. The Skill is prose-driven; the runtime LLM agent invokes the MCP when the tool is available in the session and the config names a destination. The `{{TODO-MCP}}` placeholder in the tools array is the framework convention naming the contract — the consumer's MCP wiring satisfies it.
+Read that file only when the engineer is wiring Slack for the first time, or when a run reported a Slack auth / channel / destination problem. Do not read it on a normal scan: Slack is opt-in, the disk artifact is canonical, and an unwired or unreachable Slack is not a stop condition (step 7).
 
 ## Anti-patterns
 

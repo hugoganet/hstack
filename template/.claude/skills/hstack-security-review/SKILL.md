@@ -1,34 +1,6 @@
 ---
 name: hstack-security-review
-description: |
-  Use this skill when a change-spec is at `status: ready-to-plan` or later and needs `security-review.md` produced before the implementer can start. The Skill orchestrates the `security-reviewer` subagent. In v1 the output is an LLM-scored structured judgment (`scoring-mode: llm-scored`), not an executable test result — the Skill enforces this framing on every output. Examples:
-
-  <example>
-  Context: A change-spec introduces a new public-schema table with RLS and is at ready-to-plan.
-  user: "/hstack:security-review 2026-05-billing-overage-warning"
-  assistant: "I'll invoke security-reviewer. Surfaces is [ui, db], so the threat-model-delta section is mandatory. Scoring biases toward CONCERNS over PASS when evidence is thin; the three challenge prompts run regardless of what surfaces declares."
-  <commentary>
-  The Skill is the only authoring path for security-review.md. It enforces SR-03 (threat-model-delta required when surfaces touches agent/auth/api/db) and SR-02 (three challenge prompts mandatory). v1 framing is enforced on every rationale.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change touches the agent surface — new orchestrator prompt and a new tool boundary — and the threat-model.md has not been touched in eight weeks.
-  user: "/hstack:security-review 2026-06-playbook-runner-prompt"
-  assistant: "I'll invoke security-reviewer. The threat-model-delta is mandatory because surfaces includes agent; I'll halt if the delta can't be produced from the current threat-model. Findings will frame as structured judgment, not verified by test execution."
-  <commentary>
-  Agent-surface changes are exactly where the v1 honesty clause matters most. The Skill ensures the subagent does not claim test-backed evidence for prompt-injection resistance — that is v2 substrate work.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change is a small refactor with no declared security-sensitive surface, but the diff touches authentication-adjacent code.
-  user: "/hstack:security-review 2026-05-auth-helper-rename"
-  assistant: "I'll invoke security-reviewer. Even on a refactor, the three challenge prompts run — attack vector not covered by checklist, tenant-isolation citation, malicious-payload behavior — to surface anything the surface declaration may have missed."
-  <commentary>
-  Refactors near auth are exactly the place where the surface declaration may understate the risk. The challenge-prompt machinery is the v1 mitigation for humans missing what's missing.
-  </commentary>
-  </example>
+description: Use when a change-spec is at `ready-to-plan` or later and needs `security-review.md` before implementation. Runs independently of `/hstack:change-plan` and `/hstack:data-review`.
 tools:
   - Read
   - Write

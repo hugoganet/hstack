@@ -1,25 +1,6 @@
 ---
 name: hstack-adr-new
-description: |
-  Use this skill when the engineer needs to capture a new Architecture Decision Record in Michael Nygard format. The Skill orchestrates the `spec-author` subagent through a conversational interview that walks the six Nygard sections, applies the Consequences challenge prompt, and writes the next sequential `ADR-NNNN-<slug>.md`. Examples:
-
-  <example>
-  Context: The team has decided to use pgvector instead of Pinecone for embedding storage and wants the decision logged.
-  user: "/hstack:adr-new pgvector-over-pinecone"
-  assistant: "I'll invoke spec-author for the ADR interview. Six Nygard sections — Title, Status, Context, Decision, Consequences, Alternatives Considered. The Consequences challenge prompt will probe for two consequences that look bad."
-  <commentary>
-  ADRs are append-only and sequential. The Skill reads the highest existing ADR-NNNN and increments. The Consequences challenge is mandatory because under-stating the trade-offs is the predictable failure mode of design decisions.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A research session reached a decision point and the engineer is promoting it to an ADR via `/hstack:research --promote`.
-  user: "Promote research session 2026-05-orchestration-patterns to an ADR."
-  assistant: "The promotion routes through /hstack:adr-new. spec-author receives the research findings as the Context section seed and walks the remaining Nygard sections via interview."
-  <commentary>
-  Promotion routing is the explicit pattern from the architecture: `researcher` does not write ADRs directly; it hands off to `spec-author` via `hstack-adr-new` so the conversational interview pattern and the Consequences challenge prompt are preserved.
-  </commentary>
-  </example>
+description: Use to capture a new Architecture Decision Record in Nygard format at the next sequential `hstack/adr/ADR-NNNN-<slug>.md`. Also the promotion target for `/hstack:research --promote` and `/hstack:kernel-fit-promote`.
 tools:
   - Read
   - Write

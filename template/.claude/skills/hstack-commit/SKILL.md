@@ -1,25 +1,6 @@
 ---
 name: hstack-commit
-description: |
-  Use this skill when the engineer wants to commit work by hand using the same Commitizen format hstack subagents use for auto-commits — so the git log reads uniformly whether a phase landed through `/hstack:implement` or you fixed a typo manually. Pushed only on explicit confirmation. Examples:
-
-  <example>
-  Context: The engineer made a small cleanup edit between hstack workflow phases and wants to commit it without polluting the git history with a divergent message format.
-  user: "/hstack:commit"
-  assistant: "I'll read git status, walk you through which files to stage (specific paths over `-A`), show the diff, propose a Commitizen-format commit message, and commit on your confirmation. Push is a separate confirmation."
-  <commentary>
-  The Skill is for human-driven commits outside the hstack subagent flow. It's not used by subagents — they have their own auto-commit logic embedded in their session-start protocols. The format match is the value: same git log shape whether the commit came from an agent or a human.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A pre-commit hook fails on the first attempt and the engineer is tempted to bypass.
-  user: "The hook is failing because of an unrelated lint error. Can we just --no-verify?"
-  assistant: "No — the kernel forbids hook bypass. I'll investigate the failing hook with you, fix the underlying issue, then re-attempt the commit cleanly."
-  <commentary>
-  Defense in depth on the kernel's forbidden-tools list: the Skill refuses --no-verify and other hook-bypass flags. Same rule the implementer subagent enforces. Hooks fail for a reason; investigating beats bypassing.
-  </commentary>
-  </example>
+description: Use to commit hand-made edits in the same Commitizen format hstack subagents use for their auto-commits. For work outside a subagent flow only — subagents auto-commit at status transitions on their own.
 tools:
   - Bash
   - Read

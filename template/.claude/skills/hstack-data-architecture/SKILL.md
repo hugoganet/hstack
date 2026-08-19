@@ -1,25 +1,6 @@
 ---
 name: hstack-data-architecture
-description: |
-  Use this skill when the engineer wants to produce or refresh `hstack/context/data-architecture.md` — the deep five-section foundational data-layer design (Tenancy, Entities, RLS, RAG, Migration Sketches). The Skill is Phase 2 of `/hstack:greenfield-init`, the data-architecture step of `/hstack:brownfield-init`, or a standalone atom for refreshing a single section after drift. It invokes the `data-architect` subagent and routes downstream phases to halt at `HSTACK-HALT: reason=upstream-drift` when contradictions surface. Examples:
-
-  <example>
-  Context: Phase 2 of greenfield-init opens after product-brief is current.
-  user: "/hstack:data-architecture"
-  assistant: "Loading product-brief, vision, roadmap, personas. Section 1 — Tenancy — is load-bearing: I'll walk Patterns A/B/C explicitly and refuse to advance until the tenant definition is concrete with a rationale tied to a persona. Subsequent sections (Entities, RLS, RAG, Migration Sketches) build on it."
-  <commentary>
-  Tenancy ambiguity is the #1 multi-tenant SaaS failure mode. The atom enforces concreteness at Section 1 before any downstream section can stabilize.
-  </commentary>
-  </example>
-
-  <example>
-  Context: An app-architect drift challenge revealed a missing entity in data-architecture. The engineer routes back.
-  user: "/hstack:data-architecture --section entities"
-  assistant: "Section-targeted entry. I'll fast-jump to Section 2 Entities for the missing entity, but the end-of-atom coherence check still runs across all five sections before commit — section edits cannot silently break other sections."
-  <commentary>
-  Section-targeted re-entry is precision when needed, but coherence is non-negotiable. The end-of-atom check is the v1 guarantee against drift-from-edit.
-  </commentary>
-  </example>
+description: Use to produce or refresh `hstack/context/data-architecture.md` — tenancy model, entity graph, RLS posture, RAG layout, migration sketches. Greenfield Phase 2, the brownfield data-architecture step, or a standalone section refresh.
 tools:
   - Read
   - Write

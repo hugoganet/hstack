@@ -1,25 +1,6 @@
 ---
 name: hstack-stack-decide
-description: |
-  Use this skill when the engineer wants to decide stack choices and capture each as an ADR. The Skill is Phase 4 of `/hstack:greenfield-init`, the stack-decision step of `/hstack:brownfield-init` when stack ADRs are missing, or a standalone atom for mid-project layer swaps (replacing auth, switching the database, rotating the hosting provider). It invokes the `stack-architect` subagent for the technical-discovery interview, then routes each layer's decision through `/hstack:adr-new` (which invokes `spec-author`) with pre-populated Context / Decision / Alternatives. The Consequences challenge prompt fires fresh on every ADR regardless of pre-population. Examples:
-
-  <example>
-  Context: Phase 4 of greenfield-init opens after app-architecture is current. hstack/config.yaml's default-stack declaration is set.
-  user: "/hstack:stack-decide"
-  assistant: "Loading brief, data-architecture, app-architecture, default-stack declaration. Defaults cover framework / database / hosting / auth — I'll fast-path those to a single rollup ADR. Observability is undeclared in config; I'll deep-dive on that layer. Expected: 2 ADRs (rollup + observability) routed through spec-author."
-  <commentary>
-  Default-stack fast-path collapses 80% of the interview when defaults match. Only layers explicitly flagged for deep-dive or undeclared in config get the full constraint interview.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Mid-project, the team decides to replace Supabase Auth with Clerk.
-  user: "/hstack:stack-decide --layer auth"
-  assistant: "Standalone mode. Loading the existing auth ADR, threat-model, hardening-checklist. Constraint interview first (engineering capacity, scale horizon, compliance posture), then surfacing 2–3 Clerk alternatives, then routing to spec-author for the new ADR with supersedes: [<predecessor>]. The predecessor's reciprocal superseded-by writes atomically with the new ADR."
-  <commentary>
-  Standalone mode runs against a single layer. The supersedes / superseded-by reciprocal pair is mandatory; spec-author handles both halves atomically per the kernel's reciprocal-pair atomicity rule.
-  </commentary>
-  </example>
+description: Use to decide stack layers — framework, database, auth, hosting, observability — and capture each as an ADR. Greenfield Phase 4, the brownfield stack step when stack ADRs are missing, or a standalone mid-project layer swap.
 tools:
   - Read
   - Write

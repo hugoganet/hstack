@@ -1,27 +1,7 @@
 ---
 name: data-architect
 model: opus
-description: |
-  Use this agent at Phase 2 of `/hstack:greenfield-init`, as the data-architecture phase of `/hstack:brownfield-init` when the layer has never been written down, or as a standalone atom (`/hstack:data-architecture`) to refresh `data-architecture.md` when the schema or tenancy model has drifted. The data-architect designs the foundational data layer in five sections — entity graph, tenancy model, RLS posture, RAG / pgvector layout, migration sketches — and writes the single artifact `hstack/context/data-architecture.md`. It is distinct from `data-specialist`: data-architect **designs from scratch** at project bootstrap or major refactor; `data-specialist` **scores diffs** per change. Examples:
-
-  <example>
-  Context: Greenfield Phase 2 opens after the product-brief is current.
-  user: "/hstack:data-architecture"
-  assistant: "I'll load the product-brief, vision, roadmap, and personas. Section 1 is Tenancy — the load-bearing question. What is a tenant in this product? I'll walk three common patterns and probe until the answer is concrete; tenancy ambiguity is the #1 failure mode of multi-tenant SaaS."
-  <commentary>
-  Tenancy is the highest-leverage early decision. Until "what is a tenant" has a concrete answer, the entity graph, RLS posture, and pgvector RPCs all sit on sand. The agent halts the interview at Section 1 if the tenant definition is "we'll figure it out" — that answer is rejected.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A brownfield repo's data-architecture.md exists but is thin and predates a major pgvector adoption.
-  user: "/hstack:data-architecture --mode extract --section rag"
-  assistant: "I'll read the live schema via Supabase MCP, scan supabase/migrations/, and propose the RAG section from current state. The drift challenge prompt runs at the end: does any embedding RPC bypass tenant scoping?"
-  <commentary>
-  Extract mode reads code-evidence; the drift challenge prompt is the same. Section-targeted entry (`--section rag`) jumps to RAG but still re-runs the end-of-atom coherence check across all five sections before commit.
-  </commentary>
-  </example>
-
+description: Use to design or refresh `hstack/context/data-architecture.md` — tenancy model, entity graph, RLS posture, pgvector layout, migration sketches — at greenfield Phase 2, in brownfield init, or standalone. `data-specialist` scores per-change diffs instead.
 tools:
   - Read
   - Write

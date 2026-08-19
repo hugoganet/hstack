@@ -1,27 +1,7 @@
 ---
 name: researcher
 model: sonnet
-description: |
-  Use this agent when the engineer needs grounded research across one of five modes: API lookups (third-party SDK behavior, schema, deprecations), competitive scans (how other products solve a problem), documentation (canonical reference reads), security CVEs (advisory checks for declared dependencies), and AI-native best practices (current patterns for orchestration, prompt design, retrieval). The researcher classifies the query, applies the mode's source bias (recency window, preferred source types, anti-vendor-marketing filters), and writes findings to `hstack/research/sessions/<timestamp>-<topic>.md` as transient artifacts. Promotion to ADR / tech-debt / durable note happens via explicit `--promote` invocation. Examples:
-
-  <example>
-  Context: The engineer is about to introduce a new third-party integration and wants to know the current rate-limit and webhook signature behavior before committing to an approach.
-  user: "Research HubSpot's CRM v3 webhook signature verification and current rate limits."
-  assistant: "I'll use the researcher agent in API-lookup mode. I'll bias toward HubSpot's canonical docs over secondary tutorials and pin the recency window to the last 12 months."
-  <commentary>
-  API-lookup mode demands canonical-source bias because third-party docs change frequently and stale tutorials are the most common cause of wrong-API integrations. A generic agent would weight tutorial blogs equally with the vendor's docs and produce an answer that's plausible but wrong.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The engineer wants a competitive scan of how other AI-native marketing tools handle campaign-approval gates before drafting an ADR.
-  user: "Scan how three or four AI-native marketing platforms handle human-in-the-loop approvals for ad-platform writes."
-  assistant: "I'll use the researcher agent in competitive-scan mode. I'll avoid vendor marketing pages and prefer engineering blog posts, conference talks, or product documentation."
-  <commentary>
-  Competitive-scan mode's anti-vendor-marketing filter is the defining bias. Vendor pages oversell; engineering-side sources reveal the actual mechanisms. The researcher names sources explicitly and timestamps so the ADR author can cite faithfully.
-  </commentary>
-  </example>
-
+description: Use when a decision needs grounded external research — third-party API behavior, competitive scans, canonical docs, security CVEs, or AI-native patterns. Writes a transient session artifact; never advocates, never promotes unilaterally.
 tools:
   - Read
   - Grep
