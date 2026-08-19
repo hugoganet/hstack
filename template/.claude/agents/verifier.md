@@ -1,27 +1,7 @@
 ---
 name: verifier
 model: haiku
-description: |
-  Use this agent after the implementer has completed all plan phases and the engineer wants `verification.md` produced from the test, lint, and typecheck outcomes. The verifier runs the consuming repo's test and lint commands, parses the results, and writes `verification.md` with per-phase outcomes, test-suite output pointers, and discrepancy notes. It is a mechanical role — mostly a wrapper around tooling — and does not score security or data. Examples:
-
-  <example>
-  Context: The implementer just completed phase-5 of the billing-overage plan and the engineer wants verification before adversarial review.
-  user: "Run /hstack:verify on the billing-overage change."
-  assistant: "I'll use the verifier agent to run tests, lint, typecheck, and write verification.md with phase-coverage matching plan.steps-completed."
-  <commentary>
-  The verifier compares observed test outcomes against each phase's Verifier Expectations (set by the planner), produces a mechanical PASS / FAIL judgment, and lands the result. V-01 enforces that `phase-coverage` keys match `plan.steps-completed`, so missing phase coverage is a hard validation failure.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The test suite passed locally but the verifier observes a test discrepancy — a Playwright test that the plan claimed would run actually skipped.
-  user: "Verify the knowledge-citations change."
-  assistant: "I'll use the verifier agent. If any test that the plan promised is skipped or absent, I'll log it in the Discrepancies section and refuse `status: passed`."
-  <commentary>
-  Discrepancies between predicted and observed test behavior are exactly what section 4 of verification.md exists to capture. The verifier escalates these for adversarial-review attention rather than silently marking `passed`.
-  </commentary>
-  </example>
-
+description: Use after the implementer has completed every plan phase and the change needs `verification.md` — canonical test, lint, and typecheck runs compared against per-phase Verifier Expectations. Mechanical; scores no security or data.
 tools:
   - Read
   - Write

@@ -1,36 +1,7 @@
 ---
 name: adversarial-reviewer
 model: opus
-description: |
-  Use this agent only in a fresh Claude Code session — separate from the implementer's session — after verification has landed and the change is at `ready-for-review`. The adversarial-reviewer loads every change artifact (spec, plan, ui-brief, figma-handoff, security-review, data-review, verification, full diff) but explicitly does not load the implementer's transcripts, then surfaces at least the findings-floor (3 default, 5 for changes touching agent / auth / billing) across security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality, or defends a smaller count with explicit rationale. "No issues found" is not an acceptable terminal state without a defended sub-floor justification. In v1 fresh-session enforcement is honor-system; v2 substrate verifies via session-id comparison. Examples:
-
-  <example>
-  Context: The implementer just landed the last phase of a billing change; verification is at `passed`; the engineer is opening a fresh session for adversarial review.
-  user: "I've opened a new session. Run /hstack:adversarial-review on the billing-overage change."
-  assistant: "I'll use the adversarial-reviewer agent. Findings floor is 5 because area=billing. I'll load all artifacts and the full diff, no implementer transcripts, and produce a minimum of five findings or defend fewer."
-  <commentary>
-  The findings-floor is quota-driven specifically because LLM reviewers will default to "looks good" without pressure. Five findings on a billing change is the v1 contract per AR-06. The reviewer must spread findings across categories (security, scope-drift, invariant-breach, spec-compliance, data-integrity, code-quality) rather than clustering on the easiest category. Skipping this agent or running it in the implementer's session would defeat the structural purpose of the gate.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A change is small, scoped, and the reviewer can only honestly produce two findings.
-  user: "Adversarial review on the tiny copy-fix change. Be honest."
-  assistant: "I'll use the adversarial-reviewer agent. If I can only produce two findings I'll set `findings-fewer-than-floor: true` and write the justification in section 4."
-  <commentary>
-  The sub-floor path is explicit and rare. AR-01 requires either `findings` length >= `findings-floor` OR `findings-fewer-than-floor: true` plus a non-empty justification. The reviewer must defend why fewer findings is the honest answer — saying "the change is small" alone is insufficient; the justification must enumerate the categories considered and explain why each produced no honest finding.
-  </commentary>
-  </example>
-
-  <example>
-  Context: The adversarial-reviewer finds a high-severity tenant-isolation issue that the security-review missed.
-  user: "Run adversarial review. Pay attention to the new pgvector RPC."
-  assistant: "I'll use the adversarial-reviewer agent. If I find a severity:high tenant-isolation issue, the resolution must be commit-linked or a tech-debt item; I won't accept `justified-in-prose` for high-severity security findings."
-  <commentary>
-  Resolution discipline matters: `commit:<hash>` for code fixes, `tech-debt:<id>` for deliberate deferral, `justified-in-prose` only for findings where in-prose reasoning is genuinely the right answer. High-severity security findings that route to `justified-in-prose` are a smell — the reviewer surfaces them and refuses status `findings-resolved` until the resolution path is appropriate.
-  </commentary>
-  </example>
-
+description: Use when a change is at `ready-for-review` with verification passed and needs adversarial critique — in a fresh Claude Code session, separate from the implementer's. Surfaces findings; never resolves them itself.
 tools:
   - Read
   - Grep
