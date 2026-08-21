@@ -1,13 +1,14 @@
 ---
-hstack-version: v0.6.0
 authority: kernel
 ---
 
 # hstack — Kernel (KERNEL.md)
 
-This file is the kernel of the hstack engineering workflow. When a Claude Code session, Skill, or subagent operates under hstack, this file is the contract.
+This file is the kernel of the hstack engineering workflow. When a Claude Code session, Skill, or subagent operates under hstack, this file is the contract. The installed version is the root `VERSION` file's; this file does not carry its own.
 
-**In any conflict between this kernel and another document — the architecture doc, a template schema, an ADR, any source — this kernel wins.** Other documents extend the kernel; they do not override it. If the kernel is wrong, fix the kernel first and propagate downstream.
+**In any conflict between this kernel and another document — a Skill, a subagent, an ADR, an external write-up, any source — this kernel wins.** Other documents extend the kernel; they do not override it. If the kernel is wrong, fix the kernel first and propagate downstream.
+
+The kernel **owns** every rule: what it is, why it is load-bearing, what its carve-outs are, and which file runs it. It does not carry that file's procedure. Where this kernel is silent on a Skill's steps, the Skill's own body is the statement, and it is bound by the rules here (ADR-0012, ADR-0013).
 
 ---
 
@@ -15,9 +16,9 @@ This file is the kernel of the hstack engineering workflow. When a Claude Code s
 
 hstack is a spec-driven engineering workflow that ships as Claude Code Skills and subagents, configurable per repo. It governs how engineers and AI agents collaborate on a codebase from change inception through merge: scoping, gating, artifact production, multi-tenant safety, audit, reviewability.
 
-What hstack is not: a methodology framework like BMAD or Spec Kit (we adopted patterns; we are not those frameworks); a project tracker (artifacts in the repo are the tracker); a deployment system (deploys happen outside hstack); or a SOC 2 / GDPR compliance substrate by itself (v1 is good engineering hygiene; v2 covers compliance).
+What hstack is not: a methodology framework like BMAD or Spec Kit (patterns were adopted; hstack is not those frameworks); a project tracker (the artifacts are the tracker); a deployment system; or a SOC 2 / GDPR compliance substrate by itself.
 
-Operating under hstack means every change goes through the workflow, every artifact lives under `hstack/`, every status transition is written by a subagent (for interview-driven authoring) or by a Skill running in the main session (for mechanical operations — see the Mechanical operations section) and auto-committed, every Skill loads its required product context at session start, and the human's job is to answer questions and confirm — not to write.
+Operating under hstack means every change goes through the workflow, every artifact lives under `hstack/`, every status transition is written by a subagent or by a Skill and auto-committed, every Skill loads its required product context at session start, and the human's job is to answer questions and confirm — not to write.
 
 ---
 
@@ -276,9 +277,9 @@ Other workflow Skills tolerate any branch: their artifacts live under `hstack/sp
 
 ## v1 / v2 split
 
-hstack v1 is good engineering hygiene. v1 does not by itself deliver SOC 2 or GDPR posture. The architecture document's v2 roadmap names the substrate work required before hstack-governed code can defensibly carry a production-grade label: executable security tests, audit-architecture spec, tool-call and MCP blast-radius controls, MCP hard-fail on load-bearing dependencies, session-id verification, and more.
+hstack v1 is good engineering hygiene. It does not by itself deliver SOC 2 or GDPR posture. The v2 substrate is what is missing: executable security tests, an audit-architecture spec, tool-call and MCP blast-radius controls, MCP hard-fail on load-bearing dependencies, session-id verification.
 
-Subagents and Skills in v1 must not falsely assert v2 guarantees. The `security-reviewer` produces a structured judgment, not an executable test result. The `test-strategist` produces strategic judgment about test layering, edge cases, and coverage gaps — not coverage-measured or mutation-tested evidence; v2 substrate wires coverage instrumentation, mutation testing, and benchmark-asserted performance budgets. The agent ledger is useful telemetry, not defensible audit evidence. Frame outputs accordingly.
+**Subagents and Skills in v1 must not falsely assert v2 guarantees.** The `security-reviewer` produces a structured judgment, not an executable test result. The `test-strategist` produces judgment about layering, edge cases and coverage gaps — not coverage-measured or mutation-tested evidence. The agent ledger is useful telemetry, not defensible audit evidence. Frame outputs accordingly.
 
 ---
 
@@ -316,7 +317,7 @@ The product context layer lives at `hstack/context/`:
 
 A subagent that cannot reach a required context document halts and asks the human, rather than proceeding without it.
 
-**Promotion routing.** When the `researcher` promotes a research session into an ADR or a tech-debt item, it does so by handing off to `spec-author`, not by writing the ADR or tech-debt file directly. This preserves the conversational interview pattern that those templates depend on — challenge prompts for ADR consequences, reciprocity for tech-debt origin. Promotion into `hstack/research/promoted/` for durable notes (not ADRs or tech-debt) can be done by the researcher directly, since those are free-form reference artifacts.
+**Promotion routing.** The `researcher` never writes an ADR or a tech-debt file directly — promotion hands off to `spec-author`, preserving the interview those templates depend on (challenge prompts for ADR Consequences, reciprocity for tech-debt origin). Free-form durable notes under `hstack/research/promoted/` are the one carve-out; the researcher writes those itself.
 
 ---
 
@@ -337,8 +338,8 @@ A Skill or subagent must halt and ask the human when:
 - A load-bearing MCP is unreachable. Do not silently fall back to stale documents.
 - A modification outside the In-Scope file list is needed.
 - A `service_role` Supabase key, raw shell, or other forbidden tool would be used.
-- An MCP server with write capability is wired against a project tagged `production` in `infrastructure.md`'s MCP Access Policy and is not inside its named change-window (INF-04). Halt and surface — even if the immediate operation would only read.
-- A write-capable MCP tool is active in the same session as a query that would return user-generated content from a tenant-scoped table (INF-05). The prompt-injection mitigation is load-bearing; the session must split or the MCP must be disabled before the read.
+- A write-capable MCP is wired against a project tagged `production` in `infrastructure.md`'s MCP Access Policy, outside its named change-window (INF-04) — halt even if the immediate operation would only read.
+- A write-capable MCP tool is active in the same session as a query returning user-generated content from a tenant-scoped table (INF-05). The prompt-injection mitigation is load-bearing: split the session or disable the MCP before the read.
 - A status transition is requested but the upstream gate computation does not permit it.
 - The agent is asked to write a field for which the human has not provided an answer.
 
