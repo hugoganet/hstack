@@ -2257,7 +2257,7 @@ export const RULES = [
     id: "KF-05",
     type: "kernel-fit-finding",
     description:
-      "`status: dismissed` requires a `dismissed-reason` of at least 50 characters; at any other status `dismissed-reason` stays null.",
+      "`status: dismissed` requires a non-null `dismissed-reason`; at any other status `dismissed-reason` stays null. Presence is mechanical. Whether the reason says something a reader could re-evaluate in six months is `/hstack:kernel-fit-triage`'s judgment — the old `>= 50 characters` clause measured length where it meant substance (ADR-0014).",
     check(a) {
       const status = String(a.fm.status);
       const reason = a.fm["dismissed-reason"];
@@ -2275,14 +2275,9 @@ export const RULES = [
       if (!present(reason)) {
         return [F("status is `dismissed` but `dismissed-reason` is null", a.lineOf("dismissed-reason"))];
       }
-      if (String(reason).length < 50) {
-        return [
-          F(
-            `dismissed-reason is ${String(reason).length} chars; KF-05 requires at least 50`,
-            a.lineOf("dismissed-reason"),
-          ),
-        ];
-      }
+      // ADR-0014: the old `>= 50 chars` clause measured length where it meant
+      // substance. It passed padding and rejected tight correct sentences.
+      // Whether the reason holds up is the triage Skill's judgment.
       return [];
     },
   },
@@ -2508,7 +2503,7 @@ export const RULES = [
     id: "FL-01",
     type: "kernel-fit-flag",
     description:
-      "Every pin-time field is non-null at `status: pending`: session-id, session-transcript-path, branch, head, workspace, timestamp, pre-compaction-message-count.",
+      "Every pin-time field is non-null at `status: pending`: session-id, session-transcript-path, branch, head, workspace, timestamp, pre-compaction-message-count. `hint` is optional, and when set is one whitespace-free token of at most 32 characters — a real format constraint on a pointer token, mechanized here rather than left as prose in `/hstack:flag` (ADR-0014).",
     check(a) {
       const fields = [
         "session-id",
@@ -2519,9 +2514,19 @@ export const RULES = [
         "timestamp",
         "pre-compaction-message-count",
       ];
-      return fields
+      const out = fields
         .filter((f) => !present(a.fm[f]))
         .map((f) => F(`pin-time field \`${f}\` is null`, a.lineOf(f)));
+      const hint = a.fm.hint;
+      if (present(hint)) {
+        const h = String(hint);
+        if (/\s/.test(h)) {
+          out.push(F(`hint \`${h}\` carries whitespace; the pin stores the first token only`, a.lineOf("hint")));
+        } else if (h.length > 32) {
+          out.push(F(`hint is ${h.length} chars; the pin caps it at 32`, a.lineOf("hint")));
+        }
+      }
+      return out;
     },
   },
   {

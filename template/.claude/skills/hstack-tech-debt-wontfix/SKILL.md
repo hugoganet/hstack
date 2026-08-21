@@ -32,7 +32,7 @@ Invoke when a tech-debt item at `status: open` will not be fixed and the team ha
 
 1. **Print the TD in full.** Read `hstack/tech-debt/<td-id>.md` and print Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions, Acceptance to the conversation. The engineer should re-read before committing to wontfix.
 
-2. **Ask the first question.** "Why won't this tech-debt be fixed? (one sentence, ≤ 200 characters)". Capture the answer.
+2. **Ask the first question.** "Why won't this tech-debt be fixed?" One sentence is usually enough, and the answer should name the compromise and why living with it is the right call — a reason that survives being read back in a year without the surrounding context. No length bound: the artifact was just printed in full, so the engineer is answering with it on screen.
 
 3. **Deferral check.** If the answer contains deferral indicators ("later", "not a priority", "no time", "we'll come back", "next quarter", "after X ships"), halt with: "That reads like a deferral, not a wontfix. Wontfix is for compromises we've decided to live with permanently. Leave the TD at `open` if this is a deferral; only re-invoke when the cost-benefit has actually flipped." The Skill does not write anything in this case.
 
@@ -69,7 +69,6 @@ Beyond the kernel's general stop conditions:
 
 - The TD does not exist or is at a non-`open` status. Halt with status named.
 - The wontfix-reason answer reads as a deferral (per step 3). The Skill refuses to write and surfaces the recommendation.
-- Either answer exceeds 200 characters. Ask for a tighter version — wontfix rationales are short and load-bearing.
 - The engineer declines confirmation at step 5.
 
 ## Failure modes

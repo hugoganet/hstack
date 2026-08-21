@@ -508,8 +508,10 @@ fails("KF-03", "one counter-explanation above low confidence", (f) => {
 fails("KF-04", "promoted with no reciprocal back-reference on the ADR", (f) => {
   patchLine(f, "hstack/adr/ADR-0002-debounce-window-is-configurable.md", "promoted-from-kernel-fit", "promoted-from-kernel-fit: []");
 });
-fails("KF-05", "a dismissed finding with a too-short reason", (f) => {
-  patchLine(f, "hstack/kernel-fit/findings/KF-0002-plan-phase-count-drift.md", "dismissed-reason", "dismissed-reason: not worth it");
+// ADR-0014: the `>= 50 chars` clause is gone — a short reason is now the
+// triage Skill's judgment. What KF-05 still refuses is no reason at all.
+fails("KF-05", "a dismissed finding with no reason", (f) => {
+  patchLine(f, "hstack/kernel-fit/findings/KF-0002-plan-phase-count-drift.md", "dismissed-reason", "dismissed-reason: null");
 });
 
 fails("MS-01", "a paths glob that resolves to nothing", (f) => {
@@ -566,6 +568,14 @@ fails("INF-03", "an empty Blast-Radius Matrix at status current", (f) => {
 
 fails("FL-01", "a pin missing its session id", (f) => {
   patchLine(f, "hstack/kernel-fit/flags/pending/flag-20260802T120000-sess1.md", "session-id", "session-id: null");
+});
+fails("FL-01", "a hint over the 32-char cap", (f) => {
+  patchLine(
+    f,
+    "hstack/kernel-fit/flags/pending/flag-20260802T120000-sess1.md",
+    "hint",
+    "hint: " + "x".repeat(33),
+  );
 });
 fails("FL-02", "processed with no classification", (f) => {
   patchLine(f, "hstack/kernel-fit/flags/pending/flag-20260802T120000-sess1.md", "classification", "classification: null");
