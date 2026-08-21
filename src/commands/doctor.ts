@@ -14,6 +14,11 @@ import {
   LEGACY_KERNEL_PATH_PROBE,
   type Action,
 } from "../lib/wire.js";
+import {
+  descriptionsOverBudget,
+  WORD_BUDGET,
+  CHAR_BUDGET,
+} from "../lib/descriptions.js";
 
 export interface DoctorOptions {
   verbose?: boolean;
@@ -187,6 +192,32 @@ export async function runDoctor(opts: DoctorOptions): Promise<number> {
       level: "error",
       category: "wiring",
       message: `${file} is missing the required hstack line`,
+    });
+  }
+
+  // Description budget (ADR-0011, Option F). Descriptions are the always-loaded
+  // routing index — ~3k tokens at 40 words each, ~29.7k before the rewrite —
+  // paid at turn zero of every session in every consuming repo, including
+  // sessions that invoke nothing. The rule shipped with the rewrite; this
+  // finding is what stops it regressing. Measured against the package template,
+  // because the consumer's copies are framework files `framework-drift` already
+  // covers.
+  const overBudget = descriptionsOverBudget(templateDir);
+  if (overBudget.length > 0) {
+    findings.push({
+      level: "warn",
+      category: "description-budget",
+      message:
+        `${overBudget.length} skill/agent description(s) over the ${WORD_BUDGET}-word budget ` +
+        `(ADR-0011) — a description names the trigger, the body carries the rest`,
+      detail: overBudget
+        .map(
+          (d) =>
+            `    ${d.name} — ${d.words} words, ${d.chars} chars` +
+            (d.chars > CHAR_BUDGET && d.words <= WORD_BUDGET ? " (over the character ceiling)" : "") +
+            `  [${d.relpath}]`,
+        )
+        .join("\n"),
     });
   }
 
