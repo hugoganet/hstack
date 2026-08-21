@@ -2,6 +2,36 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.13.0] - 2026-08-21
+
+Every rule in the corpus has exactly one normative statement (ADR-0012). The kernel **owns** each rule, the single file where the rule can actually be violated **states** it operationally, and every other file **references** it in one line. The 52 `## Anti-patterns` sections are gone, and the duplicated protocol restatements, session-start load lists, session-boundary blocks and telemetry-sidecar paragraphs collapse to their canonical home. No rule is deleted, no gate moves, no status lifecycle changes. Unblocked by 0.12.0: the artifact validator makes every rule with an id executable, so the repeated prose that was compensating for its absence is no longer the enforcement net.
+
+The finding that carried the change: **15 of the 16 session-start load lists had already diverged** between `KERNEL.md` and their agent file, and in two cases each side named a load the other was missing. Those were reconciled into the kernel *before* any copy was deleted.
+
+### Changed
+
+- **`template/KERNEL.md` § Product context — the load lists are reconciled and authoritative.** `security-reviewer` gains the change-spec and the In-Scope diff (the kernel named 5 documents; the agent file named 8). `implementer` gains the tech-debt artifacts named by `resolves-tech-debt` — AR-07 audits the diff against their Acceptance section — and the relevant module-spec, and keeps `infrastructure.md`, which the agent file had dropped; neither list was a superset of the other. Thirteen further entries gain their mode-conditional loads (session-state on resume, extract-mode sources, precedent artifacts, MCP-derived state). "The kernel is loaded by every subagent, always" is now stated once instead of being asserted in 12 of 16 agent files and 5 of 16 kernel entries. `stack-architect` needed no change — the only list of the sixteen whose two copies agreed.
+- **`template/KERNEL.md` § Session boundaries (new).** Takes ownership of the cut-notice format, the kickoff-prompt template, the context-block rules and the never-cut-mid-phase rule — a 1,491-byte block that was byte-identical in 7 Skills with no owner anywhere in the corpus. Each Skill keeps its own cut notice and next command.
+- **`template/KERNEL.md` § Mechanical operations — Resolution Log appends gains the defensive log-header clause.** Six Skills carried that paragraph inline in four slightly different wordings; they now carry six identical one-line actions.
+- **`template/templates/telemetry-sidecar.md` stops describing itself as a document the five Skills restate.** It already declared itself canonical and predicted the copies would disagree. The five emitting Skills keep their own JSON schema block and the executable step-0 call, and reference it for the field rules. Per ADR-0009 the three phase-window fields must read identically in all five, so all five carry the same pointer sentence byte-for-byte.
+- **16 subagent bodies: 24,828 → 21,540 words (−13.2%).** Anti-patterns sections removed; session-start lists replaced by a pointer to the reconciled kernel list, keeping only what the kernel does not carry (the ui-ux-briefer's per-source design-system resolution, the data-specialist's MCP access-mode check, the kernel-fit-analyst's detector-blob shape, each file's own halt clause). Test immutability is now stated once, at its enforcement point (`implementer.md`); `verifier`, `adversarial-reviewer` and `test-strategist` keep their own detection duties and point at the kernel for the protocol and the canonical authorization phrases — 17 restatements become 1 statement plus 3 duties. Session-isolation and v1/v2 framing appear once per file instead of 5–6 times.
+- **36 `SKILL.md` bodies: 48,690 → 42,914 words (−11.9%).** Anti-patterns sections removed; `finalize`'s TDs-first ordering argued once instead of 5 times; the "never invoke `spec-author`, it costs ~25k tokens" justification returns to the kernel alone; `hstack-implement`'s scope-lock stated twice (the Files-Touched precondition and the subagent invocation) instead of 7 times.
+- **Frontmatter descriptions are untouched.** ADR-0011 settled that surface; reopening it here would confound two changes. All 52 files parse, every `name` and `description` is byte-identical to 0.12.0.
+
+### Fixed
+
+- **`hstack-implement` had two orchestration steps numbered 8.** Corrected while editing the section.
+
+### Known limitations
+
+- **The validator's coverage is narrower than the deletion.** It backs artifact-shape rules only. Test immutability, scope-lock, the forbidden-tools enumeration and session isolation have no validator id — the registry names why — so for those the prose is still the only net. This release thins that prose from N statements to one on the argument that N statements were not N nets, and that argument is sound but untested. If adherence regresses, the fix is a mechanism (a hook, a CI check on test-file diffs, a validator extension against git history), not restoring the copies.
+- **The reconciliation step is a behaviour change inside a dedup.** Fifteen load lists got a winner picked; two of those changes alter what a subagent actually reads. The PR ledger names every arbitration; prose read by a human is the weakest enforcement the framework has.
+- **One duplicate is kept deliberately.** The forbidden-tools enumeration appears in both `hstack-implement` and `implementer.md`. The Skill orchestrator runs in the main session and does not load the agent file, so a pointer there would not resolve, and moving the list to the kernel would grow a 100%-loaded file to shrink one that is not.
+
+### Consumer action required
+
+- Run `npx hstack@latest update`, then commit. All 52 framework files plus `KERNEL.md` and `templates/telemetry-sidecar.md` are overwritten in place. No installer change, no manifest change, no symlink change, no `doctor` finding.
+
 ## [0.12.0] - 2026-08-19
 
 `hstack/scripts/validate-spec.mjs` exists. Since ADR-0001 the kernel has said "run `validate-spec.ts` after every write" while the file was a `{{TODO-SCRIPT}}` placeholder referenced from 46 framework files — every one of the ~90 validation rules was prose the model had to remember and self-check, and ADR-0001 named the validator its blocker-priority follow-up. This release ships it: a dependency-free ESM script with a declarative rule registry covering 68 rule ids, plus an explicit deferred list naming the rules that are *not* mechanized and why.
