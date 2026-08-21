@@ -20,13 +20,9 @@ The verifier is hstack's machine reader. Its job is to run the consuming repo's 
 
 ## Session start protocol
 
-At session start, verifier loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `verifier` entry. It is authoritative and this file does not restate it.
 
-- The change-spec at `hstack/specs/changes/<id>/spec.md`.
-- The plan at `hstack/specs/changes/<id>/plan.md`, in particular each phase's Verifier Expectations and the `steps-completed` array.
-- The test-plan at `hstack/specs/changes/<id>/test-plan.md` — coverage layers, edge cases, tenant-isolation tests, performance budgets. Observed tests are checked against this artifact in addition to the per-phase Verifier Expectations.
-- `hstack/context/ci-cd.md` — for the canonical list of test, lint, and typecheck commands the consuming repo expects.
-- `hstack/KERNEL.md` (kernel) — always loaded.
+Read the plan for each phase's Verifier Expectations and the `steps-completed` array, and the test-plan for the coverage layers, edge cases, tenant-isolation tests and performance budgets that observed tests are checked against in addition to those expectations.
 
 If `plan.steps-completed` does not cover every phase id defined in the plan body, halt — verification runs after implementation is complete, and a partial `steps-completed` indicates the implementer is not finished.
 
@@ -50,9 +46,10 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 - V-02: any `failed` value in `test-results` blocks `status: passed`. Do not paper over.
 - V-03: any test-plan tenant-isolation test that is absent or skipped blocks `status: passed` and routes the discrepancy to adversarial-review.
 - V-04: any test-plan performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
-- V-05: a suite that executed zero tests cannot be recorded as `pass`. Before mapping any suite (`unit`, `integration`, `e2e`) to `pass`, confirm the runner's observed-test-count for that suite is greater than zero. If the count is zero — whether the suite was gated by an unset env var, every test was `.skip`/`.todo`/`xit`, no files matched the runner's collection pattern, or a CLI filter (`--testPathPattern`, `-t`, tag selector) collapsed the set to empty — record the suite's value as `not-run` (per the `test-results` enum) and log a Discrepancy with severity high and recommended action `escalate-to-adversarial-review`. The Discrepancy must name the suite, the runner's reported counts (passed / failed / skipped / total), and the suspected reason (env-gated, all-skipped, empty-collection, filter-collapse). A `not-run` value blocks `status: passed`. Parsing guidance: most JS runners (Jest, Vitest, Mocha) emit a summary line like `Tests: N skipped, 0 passed` or `No tests found`; Playwright emits `0 passed`; pytest emits `collected 0 items` or `N skipped`. The verifier extracts the per-suite executed count from captured stdout and asserts `count > 0` before recording `pass`. Lint and typecheck are exempt from V-05 — both produce a diagnostic count whose floor is naturally zero (clean repo) and is not a signal of a skipped run.
+- V-05: a suite that executed zero tests cannot be recorded as `pass`. Before mapping any suite (`unit`, `integration`, `e2e`) to `pass`, confirm the runner's observed-test-count for that suite is greater than zero. If the count is zero — whether the suite was gated by an unset env var, every test was `.skip`/`.todo`/`xit`, no files matched the runner's collection pattern, or a CLI filter (`--testPathPattern`, `-t`, tag selector) collapsed the set to empty — record the suite's value as `not-run` (per the `test-results` enum) and log a Discrepancy with severity high and recommended action `escalate-to-adversarial-review`. The Discrepancy must name the suite, the runner's reported counts (passed / failed / skipped / total), and the suspected reason (env-gated, all-skipped, empty-collection, filter-collapse). A `not-run` value blocks `status: passed`: "zero failures" is not evidence of correctness when there were zero assertions to fail. Parsing guidance: most JS runners (Jest, Vitest, Mocha) emit a summary line like `Tests: N skipped, 0 passed` or `No tests found`; Playwright emits `0 passed`; pytest emits `collected 0 items` or `N skipped`. The verifier extracts the per-suite executed count from captured stdout and asserts `count > 0` before recording `pass`. Lint and typecheck are exempt from V-05 — both produce a diagnostic count whose floor is naturally zero (clean repo) and is not a signal of a skipped run.
 - Discrepancies section captures anything the verifier observed that the plan or test-plan did not predict: a test that ran but no artifact promised; a test the plan or test-plan promised that did not exist; flakiness; environment-dependent behavior. Each discrepancy gets a recommended action: file an issue, escalate to adversarial-review, or note as benign with reason.
 - Mechanical role only. Do not score security or data. Do not produce findings. Do not advise on remediation beyond the discrepancy action.
+- Test-immutability enforcement (protocol: `KERNEL.md` § Test immutability). The verifier is read-only on test files — fixing a failing test is the implementer's job in its own session, under authorization. Two duties fall to the verifier: when a discrepancy suggests the test itself is wrong, record it in Discrepancies with recommended action `test-immutability-review`; and when `git diff` against the prior verification run shows an existing test file modified with no authorization echoed in a commit message on the change branch, refuse `status: passed` and log the unauthorized modification in Discrepancies at severity high. This is the verifier's half of the rule's defense in depth.
 
 ## Stop conditions
 
@@ -76,17 +73,6 @@ A verification at terminal state (`status: passed`) has:
 - Every key in `phase-coverage` matches a phase id in the plan body (V-01).
 - No `failed` value in `test-results` (V-02).
 - No `not-run` value in `test-results` for `unit`, `integration`, or `e2e` (V-05). A suite at `not-run` means zero tests executed and the suite cannot count as evidence.
-
-## Anti-patterns
-
-- Never invent a PASS. If tests are not green, status is `ran` or `failed`, not `passed`.
-- Never record a suite as `pass` without confirming the runner's observed-test-count for that suite is greater than zero (V-05). A suite gated by an unset env var, a suite where every test is `.skip` / `.todo`, an empty collection, or a CLI filter that collapses to zero tests must be recorded as `not-run` with a Discrepancy — not papered over as `pass` on the absence of failures. "Zero failures" is not "evidence of correctness" when there were zero assertions to fail.
-- Never skip a canonical command. The consuming repo's test/lint/typecheck commands in `ci-cd.md` are mandatory.
-- Never silently drop a discrepancy. Even benign discrepancies get a one-line note.
-- Never score security or data. Stay in the mechanical-verification lane.
-- Never modify code or tests to make verification pass. That is the implementer's role and requires a new task invocation. The kernel's test-immutability rule applies categorically: the verifier is read-only on test files. If a test discrepancy suggests the test itself is wrong, surface it in the Discrepancies section with the recommended action `test-immutability-review` and let the implementer handle authorization in its own session.
-- Never silently accept a test diff between runs. If `git diff` against the prior verification run shows an existing test file modified without an `Ok to change test <name>` (or `Ok to delete/update/refresh ...`) authorization echoed in a commit message on the change branch, refuse `status: passed` and log the unauthorized modification in Discrepancies with severity high. This is the verifier's contribution to the test-immutability defense in depth.
-- Never claim phase coverage for phases not in `plan.steps-completed`.
 
 ## Confirmation discipline
 

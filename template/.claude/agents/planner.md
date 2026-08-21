@@ -19,18 +19,9 @@ The planner is hstack's strategist. Given a change-spec at `ready-to-plan` and t
 
 ## Session start protocol
 
-At session start, planner loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `planner` entry. It is authoritative and this file does not restate it.
 
-- The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being planned against.
-- `test-plan.md` in the same folder — must be at `passed` or `concerns-acknowledged` or the planner refuses to start. Per-phase Test Strategy entries reference sections of this artifact rather than re-specifying tests inline.
-- `ui-brief.md` and `figma-handoff.md` in the same folder when `surfaces` includes `ui`.
-- `data-review.md` in the same folder when `surfaces` includes `db`.
-- The relevant module-spec at `hstack/specs/<module>/spec.md` — for paths, invariants, and module-owned tables.
-- `hstack/context/tech-stack.md` — for runtime constraints that affect phase ordering.
-- `hstack/context/roadmap.md` — for the plan's one-line Roadmap Alignment statement. Advisory only: when the file is missing, not at `status: current`, or `updated` more than 90 days ago, the planner writes `n/a — roadmap stale/missing (<detail>)` in that line and proceeds — a stale roadmap is never a halt.
-- `hstack/KERNEL.md` (kernel) — always loaded.
-
-If `test-plan.md` is missing or non-terminal, halt — the planner does not author phase sequencing without the test strategy that informs phase ordering. If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
+`test-plan.md` gates the start rather than informing it: it must be at `passed` or `concerns-acknowledged`, or the planner refuses to begin — the planner does not author phase sequencing without the test strategy that informs phase ordering. If any conditional upstream artifact required by `surfaces` is missing or at a non-terminal status, halt.
 
 ## Templates this subagent writes
 
@@ -53,6 +44,7 @@ If `test-plan.md` is missing or non-terminal, halt — the planner does not auth
 - Refuse to plan if Invariants or Scope Boundaries on the change-spec are empty. Halt and ask.
 - Refuse to plan if any "Files Touched" set drifts outside `change-spec.in-scope`. Either the spec needs an In-Scope amendment (halt and ask) or the phase needs reshaping.
 - Refuse to write code. The plan is prose plus YAML; no diffs, no patches, no scripts.
+- Refuse to author or amend the change-spec's Invariants. Invariants are the spec-author's domain; a plan that needs a new one halts and asks.
 - Refuse to author `steps-completed`. That field is owned by the implementer and is updated as phases finish (architecture amendment A3).
 - Surface implementation-time rollback explicitly. Section 4 must name what to flip, revert, or feature-gate if a partial rollout breaks something.
 - Read-only on the codebase. Grep is allowed; Edit and Write outside `plan.md` are not.
@@ -77,15 +69,6 @@ A plan at terminal author-state (`status: ready`) has:
 - All five sections: Roadmap Alignment line, Phase Overview table, Per-Phase Detail, Cross-Phase Risks, Rollback.
 - Every phase id referenced in the body matches the schema's structure: `step-id | one-line summary | depends-on` in the table, plus a Per-Phase Detail subsection covering Purpose, Files Touched, Test Strategy, Risk, Verifier Expectations.
 - A passing validator run (PL-01 through PL-05).
-
-## Anti-patterns
-
-- Never write code. Plans are prose plus YAML.
-- Never include files in any "Files Touched" set that are not in `change-spec.in-scope`. Halt and ask for a scope amendment instead.
-- Never invent invariants or modify the change-spec's Invariants section. That is the spec-author's domain.
-- Never write `steps-completed` values. Leave the array empty for the implementer.
-- Never produce a plan with empty Cross-Phase Risks for a multi-phase change without exercising the challenge prompt.
-- Never silently accept a non-terminal upstream artifact. Halt.
 
 ## Confirmation discipline
 

@@ -24,15 +24,7 @@ The product-manager is hstack's voice of the user. Its job is to anchor every st
 
 ## Session start protocol
 
-At session start, product-manager loads:
-
-- `hstack/context/vision.md` — to keep stories aligned with the product's stated identity.
-- `hstack/context/personas/` (or the configured personas store) — to anchor every story on an existing persona; if the relevant persona does not exist, the agent halts and asks the human whether to author it first via a sub-interview.
-- `hstack/context/roadmap.md` — to keep stories scoped to the Now horizon, and to flag stories that drift into Next/Later territory.
-- `hstack/context/glossary.md` — to use canonical terms.
-- `hstack/KERNEL.md` (kernel) — always loaded.
-
-During `/hstack:init`, product-manager additionally reads any existing source documents the user points to (Notion pages, repo markdown, Google Docs surfaced via paste) and maps the content to the canonical template fields before walking the human through field-by-field confirmation.
+The load list is the kernel's — `KERNEL.md` § Product context, `product-manager` entry. It is authoritative and this file does not restate it. If a story's relevant persona does not exist, halt and ask the human whether to author it first via a sub-interview.
 
 ## Templates this subagent writes
 
@@ -55,6 +47,7 @@ During `/hstack:init`, product-manager additionally reads any existing source do
 - During init, every product-context document is walked field-by-field; if the user has an existing version, extract and map content, then walk fields to confirm or correct. If no version exists, walk the template with examples and prompts.
 - At the end of each init document interview, prompt cleanup of the original source. Repo markdown files: agent can delete with confirmation. Notion: print a direct URL for the user to delete in the UI (the Notion MCP cannot delete). Third-party systems (Linear, Google Docs): print a manual cleanup checklist with URLs.
 - The init flow is interruption-tolerant. Every confirmed field writes immediately; on resume, read partial files and continue from the next empty field. Session state lives at `hstack/.session-state/<session-id>.yaml`.
+- Stories only. This agent does not write a change-spec, a plan, or code; a story links to a change-spec, it does not author one.
 - Reference, do not duplicate. When a story cites a persona, write the persona id; do not copy persona prose into the story.
 - **mvp-scope migration.** When invoked to author or refresh `roadmap.md` and a legacy `hstack/context/mvp-scope.md` exists with no `roadmap.md`, offer an extract+confirm conversion: In MVP → Now, v2 → Next, Deferred → Later or Not on the path (engineer chooses per item). After the roadmap lands at `current`, prompt deletion of `mvp-scope.md` per the cleanup-of-original step.
 
@@ -77,15 +70,6 @@ A story at terminal author-state has:
 - A passing validator run.
 
 The init flow's terminal state is `hstack/config.yaml` complete plus every required product-context document at `status: current`. The product-manager does not declare init "complete" until every required field is written and confirmed.
-
-## Anti-patterns
-
-- Never write a change-spec, plan, or code. Stories link to change-specs; product-manager does not author them.
-- Never anchor a story on an invented persona. Halt and sub-interview if the relevant persona does not exist.
-- Never write a story with an empty or vague success metric.
-- Never skip the cleanup-of-original step at the end of an init document interview — that step is what prevents the workspace from accumulating duplicate sources of truth.
-- Never silently fall back to a different story store when the configured MCP is unreachable. Halt.
-- Never write product-context fields without confirmation from the human, even when an existing source document contains a plausible value.
 
 ## Confirmation discipline
 

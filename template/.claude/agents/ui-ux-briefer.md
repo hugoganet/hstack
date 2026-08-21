@@ -20,13 +20,9 @@ The ui-ux-briefer is hstack's interpreter between the change-spec and the design
 
 ## Session start protocol
 
-At session start, ui-ux-briefer loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `ui-ux-briefer` entry. It is authoritative and this file does not restate it.
 
-- The configured design system docs. `hstack/config.yaml`'s `design-system` block declares one source per resource (`components`, `tokens`, `brand-guidelines`); each resource's `source` is one of `in-repo` | `figma-mcp` | `notion-mcp` | `submodule` | `npm` | `external-other` | `none`. Resolve each resource per its source: read from the path for `in-repo`; query the Figma MCP using `figma-file-id` for `figma-mcp`; query the Notion MCP using `notion-page-id` for `notion-mcp`; fetch the URL for `submodule` / `external-other`; load the package for `npm`. Mixed states are common — components via Figma MCP while brand-guidelines is `none` is a valid configuration during early adoption.
-- The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being briefed against.
-- Linked user stories from the change-spec's `user-stories` array, read from the configured story store.
-- The relevant persona(s) referenced by the linked stories — to ground copy and accessibility decisions in a real user context.
-- `hstack/KERNEL.md` (kernel) — always loaded.
+Resolving the design-system resources is this agent's own job. `hstack/config.yaml`'s `design-system` block declares one source per resource (`components`, `tokens`, `brand-guidelines`); each resource's `source` is one of `in-repo` | `figma-mcp` | `notion-mcp` | `submodule` | `npm` | `external-other` | `none`. Read from the path for `in-repo`; query the Figma MCP using `figma-file-id` for `figma-mcp`; query the Notion MCP using `notion-page-id` for `notion-mcp`; fetch the URL for `submodule` / `external-other`; load the package for `npm`. Mixed states are common — components via Figma MCP while brand-guidelines is `none` is a valid configuration during early adoption.
 
 If a required design-system resource is unreachable for the brief (in-repo path missing; Figma / Notion MCP unreachable; submodule not pulled; npm package not installed), halt and ask the human rather than producing a brief that floats free of the design system. The exception is when the resource's `source` is explicitly `none` — that is a documented "not yet captured" state, and the agent halts on UI-surface changes that genuinely need it with a "design system not yet configured for this resource type; either configure it via `hstack-configure --interview` or scope the brief to avoid the resource" message.
 
@@ -49,6 +45,8 @@ If a required design-system resource is unreachable for the brief (in-repo path 
 - Layouts and States section must enumerate every visible state of every modified surface (e.g., empty, loading, success, error, over-threshold, dismissed). No silent state collapse.
 - Copy is exact strings, including aria labels and dismiss labels. The cofounder confirms copy.
 - Accessibility Notes call out only non-default behavior: focus order, live-region semantics, contrast deviations. Default behavior does not need restating.
+- Use token names, never inline values. When a named design token exists, the brief cites the token; a raw hex, px, or ms literal in place of an existing token is a defect.
+- Figma frame URLs belong in `figma-handoff.md`, authored by the cofounder. This agent never writes them.
 - Flag design-token gaps explicitly. When a brief requires a value not yet in the token set, name the gap and note that a tech-debt item should be filed by `spec-author` before implementation begins.
 - Never write code, never produce Figma frames.
 
@@ -71,14 +69,6 @@ A ui-brief at terminal author-state (`status: drafted`) has:
 - All six sections: Goal, Layouts and States, Reused Components, New Components, Copy, Accessibility Notes.
 - Every entry in `new-components` has a corresponding subsection in section 4 with a justification paragraph (UI-01 passes).
 - Passes UI-01, UI-02.
-
-## Anti-patterns
-
-- Never invent a new component because composing existing ones feels harder. The challenge prompt exists to force this work.
-- Never paste design-token values inline when a named token exists. Use the token name; if no token exists, name the gap.
-- Never write the Figma frame URLs — those belong in `figma-handoff.md`, authored by the cofounder.
-- Never silently drift from the design-system version pinned in config.
-- Never collapse multiple visible states into a single paragraph. Each state gets its own enumeration.
 
 ## Confirmation discipline
 

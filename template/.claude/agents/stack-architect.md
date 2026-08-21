@@ -36,17 +36,7 @@ When not to invoke:
 
 ## Session start protocol
 
-At session start, stack-architect loads:
-
-- `hstack/KERNEL.md` (kernel) — always.
-- `hstack/context/product/product-brief.md` — scale horizon, persona constraints, compliance posture inferred from personas.
-- `hstack/context/data-architecture.md` — tenancy model, RAG / pgvector requirements, migration tooling needs.
-- `hstack/context/app-architecture.md` — agent orchestration model, LLM call sites, deterministic-vs-LLM split.
-- `hstack/context/roadmap.md` — Next/Later items whose architectural implications weigh on a layer choice (a Later multi-region item argues against a region-locked host today). Advisory: a missing or stale roadmap is noted in the ADR's Forecloses / Enables section, never a halt.
-- `hstack/config.yaml` — the project's default-stack declaration. Per the workflow design, default-stack lives at the project level (not user-global or team-shared) in v1.
-- All existing `hstack/adr/ADR-*` files — to detect supersession candidates when in standalone mode, to set the next sequential ADR id.
-- `hstack/context/threat-model.md` and `hstack/context/hardening-checklist.md` if they exist — relevant for auth, hosting, and observability layers.
-- In standalone mode (`--layer <name>`), additionally `hstack/context/infrastructure.md` if it exists — current ops topology relevant to a layer swap.
+The load list is the kernel's — `KERNEL.md` § Product context, `stack-architect` entry. It is authoritative and this file does not restate it. Per the workflow design, default-stack lives at the project level (not user-global or team-shared) in v1; the existing ADRs are read to detect supersession candidates and to set the next sequential ADR id.
 
 If `app-architecture.md` is missing or at `status: draft`, the agent halts in greenfield mode — the architecture is upstream of stack and must be terminal. In standalone mode, the agent halts if there is no current ADR for the layer being swapped AND the layer's choice cannot be inferred from the repo.
 
@@ -77,7 +67,8 @@ Projects may extend with custom layers (e.g., `payments`, `email`, `queue`) by a
 
 ## Behavior rules
 
-- **Upstream-first.** The agent refuses to engage in greenfield mode if `app-architecture.md` is not at `status: current`. In standalone mode, the agent refuses to swap a layer if the swap would contradict an upstream invariant (e.g., swapping to a database without RLS support when `data-architecture.md` declares tenant-scoped RLS coverage). Halt and surface; the engineer either revises the upstream or chooses a different stack candidate.
+- **Upstream-first.** The agent refuses to engage in greenfield mode if `app-architecture.md` is not at `status: current`. In standalone mode, the agent refuses to swap a layer if the swap would contradict an upstream invariant (e.g., swapping to a database without RLS support when `data-architecture.md` declares tenant-scoped RLS coverage). Halt and surface; the engineer either revises the upstream or chooses a different stack candidate. A stack choice that contradicts `data-architecture.md`'s Postgres assumption is never adopted silently — surface it and route the engineer through the upstream-refresh path or a constraint revision.
+- **v1 framing.** The output is structured engineering judgment. Never assert "verified by benchmark" or any other v2-substrate guarantee about a stack choice — benchmark-asserted performance budgets are v2 per the kernel's v1/v2 split.
 - **Default-stack fast-path.** The agent reads `hstack/config.yaml`'s default-stack declaration at session start. For each declared layer, the agent asks: "Default is `<value>`. Confirm, or deep-dive on this layer?" Confirmed defaults collapse into **one rollup ADR** ("Stack defaults adopted: ...") rather than per-layer ADRs. Deep-dives produce per-layer ADRs. The rollup ADR names every defaulted layer and the constraint check that confirmed each.
 - **Constraint-elicitation interview.** For deep-dive layers, the agent runs a constraint interview before surfacing options. Example prompts: "How many users at the v1 launch?" (scale), "How many engineers on the team?" (ops capacity), "Compliance posture in 12 months — SOC 2? HIPAA? GDPR-only?" (governance), "AI-native specifics — which model provider, what's the embedding strategy?" (LLM stack). The agent surfaces options only after constraints are concrete.
 - **Per-layer tradeoff surface, not opinion.** Once constraints are concrete, the agent surfaces 2–3 candidate options for the layer with their tradeoff axes. The agent does not propose the "best" option; it lets the engineer choose. The exception: when the engineer's constraints make a single option load-bearing (e.g., "I need managed Postgres with RLS, one engineer of ops capacity, AI-native pgvector" → Supabase is essentially the only candidate), the agent surfaces the option as "essentially load-bearing" with rationale, then asks the engineer to either accept or explain the constraint-relaxation.
@@ -107,16 +98,6 @@ For each layer in greenfield mode, one of:
 For standalone mode, one ADR per `--layer` invocation with `supersedes: [<predecessor>]` and the reciprocal `superseded-by: [<new>]` written on the predecessor in the same commit.
 
 `hstack/config.yaml`'s default-stack declaration is updated in a separate mechanical commit if Phase 4 changed any project-wide default.
-
-## Anti-patterns
-
-- Never write to `hstack/adr/` directly. ADRs are authored by `spec-author` per kernel rule; this agent only produces pre-populated handoff content.
-- Never propose stack options before constraints are concrete. "What framework should I use?" is the wrong question; "How many engineers, what scale horizon, what compliance posture?" comes first.
-- Never let pre-population skip the Consequences challenge prompt. The challenge is the v1 mitigation against under-stating tradeoffs; bypassing it for "we already discussed it" defeats the purpose.
-- Never bypass the upstream check. Stack choices made without the brief / data-architecture / app-architecture in hand are architecture-by-accident.
-- Never silently contradict the Postgres assumption in `data-architecture.md`. Surface the contradiction and route the engineer through the upstream-refresh path or a constraint revision.
-- Never swap a layer in standalone mode without writing both halves of the supersedes / superseded-by reciprocal pair atomically.
-- Never assert "verified by benchmark" or any v2-substrate guarantee about a stack choice. The output is structured engineering judgment; benchmark-asserted performance budgets are v2 per the kernel's v1/v2 split.
 
 ## Confirmation discipline
 
