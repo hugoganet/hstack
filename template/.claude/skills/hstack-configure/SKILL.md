@@ -49,7 +49,7 @@ Before any work:
 ### `--interview <doc-name>` mode
 
 1. Read the existing `hstack/context/<doc-name>.md`.
-2. Invoke the doc's canonical author via Task with `subagent_type` set per the routing table below. Context = [kernel, template, existing instance]. The subagent walks the document's fields, treating the existing values as the proposal layer and the engineer's responses as accept-or-correct. The routing must match the authoring agent used by `hstack-init` for the same document — same author at init time and at refresh time, different cadence:
+2. Invoke the doc's canonical author via Task with `subagent_type` set per the routing table below. This Skill orchestrates; it never authors document content itself. Context = [kernel, template, existing instance]. The subagent walks the document's fields, treating the existing values as the proposal layer and the engineer's responses as accept-or-correct. The routing must match the authoring agent used by `hstack-init` for the same document — same author at init time and at refresh time, different cadence:
    - `vision`, `glossary`, `roadmap`, `personas`, `data-architecture`, `tech-stack`, `ci-cd` → `product-manager`.
    - `infrastructure`, `incident-runbook` → `spec-author`.
    - `threat-model`, `hardening-checklist` → `security-reviewer`.
@@ -97,11 +97,3 @@ Beyond the kernel's general stop conditions:
 - **`migrate-schema.ts` absent or malformed.** Halt and surface as a hstack installation issue.
 - **Validator failure on a migrated artifact.** Halt the migration; previous artifacts are already committed and represent a stable partial state.
 - **Subagent halts mid-interview.** Persist current state; partial fields are already written per the kernel's incremental-write rule.
-
-## Anti-patterns
-
-- Never silently advance `schemaVersion` without a corresponding migration run.
-- Never write context document content without invoking `product-manager`. This Skill orchestrates; it does not author.
-- Never edit per-change artifacts (specs, plans, reviews) from this Skill. Those belong to their authoring subagents.
-- Never apply a `--migrate` plan without the engineer's explicit confirmation of the dry-run output.
-- Never re-run `hstack-init` semantics from this Skill. If the engineer wants to start over, they delete and re-init explicitly.

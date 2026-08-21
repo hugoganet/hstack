@@ -49,7 +49,8 @@ Before any work:
 
 ## Outputs
 
-- A git branch checkout (existing) or create-and-checkout (new). No artifact writes. No commits.
+- A git branch checkout (existing) or create-and-checkout (new). No artifact writes, no commits, and no push — pushing is hard to reverse and stays the engineer's explicit call.
+- No branch deletion. Cleaning up obsolete `change/*` branches is post-ship hygiene, outside this Skill's domain.
 
 ## Auto-commit triggers
 
@@ -65,7 +66,7 @@ None. Branch operations do not create commits.
 Beyond the kernel's general stop conditions:
 
 - The named `<change-id>` does not correspond to an existing change-spec.
-- The working tree has uncommitted changes that would be lost or conflict on switch. Halt and ask: "Uncommitted changes detected — stash, commit, or discard before switching?" (recommend `/hstack:commit` for the commit path; never auto-stash; never auto-discard).
+- The working tree has uncommitted changes that would be lost or conflict on switch. Halt and ask: "Uncommitted changes detected — stash, commit, or discard before switching?" (recommend `/hstack:commit` for the commit path; never auto-stash, and never discard via `git checkout -- <files>` or any other path-discarding form — stash policy is the engineer's call).
 - The engineer requested a `<base-branch>` that does not exist.
 - The current branch is already the target branch — exit cleanly with the no-op message.
 
@@ -73,12 +74,3 @@ Beyond the kernel's general stop conditions:
 
 - **`git checkout` fails due to conflicting local changes.** Surface the git error; do not retry. The engineer resolves manually.
 - **Branch name collision with an unrelated existing branch.** If `change/<change-id>` exists but points at unrelated history (someone created it manually for another purpose), warn the engineer; do not silently overwrite. Engineer renames the unrelated branch or uses `--from` to specify their intent.
-
-## Anti-patterns
-
-- Never use `git checkout -B` (force-create). Use `git checkout -b` (create or fail) and let the engineer resolve collisions.
-- Never auto-stash. Stash policy is the engineer's call.
-- Never `git checkout -- <files>` or any path-discarding form.
-- Never force-delete a branch. Cleanup of obsolete `change/*` branches is post-ship hygiene, not this Skill's domain.
-- Never push the new branch automatically. Push is hard-to-reverse; the engineer pushes when ready.
-- Never branch from anywhere other than the configured default (typically `main`) unless `--from` is explicit. The kernel's branching convention starts every change from `main`.

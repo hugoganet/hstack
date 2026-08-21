@@ -65,7 +65,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
    Ask "Proceed with these writes? (Y/n)". Default Yes. On `n`, halt.
 
 6. **Write the TD (direct write + immediate validation).** Edit `hstack/tech-debt/<td-id>.md`:
-   - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs authored before the template included this section), append `\n## Resolution Log\n` to the end of the file first.
+   - Defensive log-header check per the kernel: if `## Resolution Log` is absent, append it before writing the entry.
    - Edit frontmatter: `status: open → in-progress`, `resolution-attempted-at: <today>`, `updated: <today>`.
    - Append the Resolution Log entry: `status: open → in-progress on <today> by <owner>. Resolution change-spec: <change-id>.`
    - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. On validation failure, halt — do NOT proceed to step 7. Unstaged changes can be reverted via `git checkout -- <td-file>`.
@@ -99,7 +99,7 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
 
 - Re-running on a TD already at `in-progress`: the Skill reads the TD's Resolution Log to find the existing resolving change-spec id, verifies the change folder exists, and reports its current state ("Resolution in progress at `<change-id>`; current change-spec status: `<status>`. Continue with `<next-skill>`."). No new scaffold is created.
 - Re-running mid-interview after a halt: the Skill reads `hstack/.session-state/td-resolve-<td-id>.yaml` and resumes at the next un-confirmed Pre-condition.
-- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency. Reconciliation is manual: either (a) `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state if the inconsistency came from an interrupted finalize, or (b) directly edit the TD frontmatter to set `resolved-by: null` and re-run `node hstack/scripts/validate-spec.mjs <path>`. Do not invoke `spec-author` for this reconciliation — the kernel forbids it for reciprocal-back-reference writes.
+- Re-running after the TD's `resolved-by` is set but status is still `in-progress` (an inconsistent state): the Skill halts and surfaces the inconsistency. Reconciliation is manual: either (a) `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state if the inconsistency came from an interrupted finalize, or (b) directly edit the TD frontmatter to set `resolved-by: null` and re-run `node hstack/scripts/validate-spec.mjs <path>`.
 
 ## Stop conditions
 
@@ -119,12 +119,3 @@ Beyond the kernel's general stop conditions:
 - **TD's Acceptance is too vague to satisfy mechanically.** The Skill scaffolds anyway but flags in the change-spec's Open Questions that the adversarial-reviewer will need to interpret. The engineer is reminded that AR-07 makes Acceptance-satisfied a mandatory finding lens.
 - **Pre-condition confirmation session interrupted.** Resumable via the session-state file; engineer continues from the next un-confirmed bullet.
 - **A direct write fails mid-scaffold.** Halt before any commit. Per the new ordering (step 6 writes TD, step 7 writes change-spec, step 9 commits both atomically), no partial commit is possible — the failure leaves both files unstaged for the engineer to inspect or discard via `git checkout -- <file>`.
-
-## Anti-patterns
-
-- Never invoke `spec-author` for the TD status flip. Per the kernel's Mechanical operations section (ADR-0001), this Skill performs the flip directly via the `Edit` tool. The kernel's "spec-author is the only subagent permitted to write" rule applies to subagents; this Skill runs in the main session.
-- Never accept blanket "all pre-conditions are met" confirmations. Each bullet must be individually confirmed with a one-sentence justification.
-- Never silently downgrade a mechanical halt to a soft warning. Mechanical halts represent upstream state that must actually change.
-- Never scaffold without quoting the TD's Acceptance into the change-spec's Resolves Tech-Debt section. The quote is what AR-07 checks against.
-- Never accept `--partial`. Direct the engineer to split the TD via `/hstack:tech-debt-new` instead.
-- Never proceed when the TD is at a terminal status. Resolved is resolved; wontfix is final.

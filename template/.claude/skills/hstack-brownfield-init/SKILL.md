@@ -40,7 +40,7 @@ If the engineer signals "start fresh, abandon the prior partial init," archive t
 
 ## Orchestration steps
 
-Init is split into discrete mini-sessions, each commitable independently. The order is fixed because later documents reference earlier ones.
+Init is split into discrete mini-sessions, each commitable independently — that structure IS the resumability contract, so it is never collapsed into one long block. The order is fixed because later documents reference earlier ones.
 
 1. **Mini-session 0 — config skeleton.** Every prompt in this mini-session is about THE CONSUMING REPO (not about hstack itself). Interview the engineer for:
    - **Story store** for this repo's user stories — Notion DB, Linear, GitHub Issues, or `hstack/stories/`.
@@ -77,7 +77,7 @@ Init is split into discrete mini-sessions, each commitable independently. The or
    - `threat-model.md` and `hardening-checklist.md` are authored by `security-reviewer` via the Task tool with `subagent_type: security-reviewer`. The same subagent that scores per-change security-reviews at change time also authors the slow-changing policy these reviews score against — different cadence, same security framing (bias toward CONCERNS, challenge-driven prompts). Generalist subagents (spec-author, product-manager) are NOT offered here; the security-specific framing is load-bearing.
    - `incident-runbook.md` is authored by `spec-author` from a founder-style interview — kill switches, revocation flows, comms templates are operational content, not threat-modeling.
 
-   `incident-runbook.md` is written with `git-ignored: true` in its frontmatter; the Skill verifies an entry exists in the repo's `.gitignore` before proceeding (creating the entry with confirmation if absent). The Skill warns the engineer at the start of this mini-session that incident-runbook content will not be committed to git and will need an out-of-band sync target named in `hstack/config.yaml`. Commit each context file as it lands.
+   `incident-runbook.md` is written with `git-ignored: true` in its frontmatter; the Skill verifies an entry exists in the repo's `.gitignore` before proceeding (creating the entry with confirmation if absent). The Skill warns the engineer at the start of this mini-session that incident-runbook content will not be committed to git and will need an out-of-band sync target named in `hstack/config.yaml`. Its contents are sensitive: confirm them in summary form rather than pasting them verbatim into the conversation transcript. Commit each context file as it lands.
 
 The Skill maintains `hstack/.session-state/<session-id>.yaml` continuously, updating after every confirmed field write. The state file captures which mini-session is in progress, which fields within it are confirmed, and what the next prompt should be.
 
@@ -129,11 +129,3 @@ Beyond the kernel's general stop conditions, this Skill halts when:
 - **Subagent unreachable mid-mini-session.** Persist current state; instruct the engineer to retry in a moment.
 - **Notion/Linear/GitHub MCP unreachable but configured as the story store.** Halt and ask the engineer to wire it; do not silently fall back to `hstack/stories/`.
 - **`.gitignore` write refused.** The Skill cannot proceed past mini-session 7's incident-runbook step without it. Halt and surface the issue.
-
-## Anti-patterns
-
-- Never write `hstack/config.yaml` silently from inferred defaults. Every field passes through the engineer's confirmation gate via the `product-manager` subagent.
-- Never collapse the eight mini-sessions into one long block. The mini-session structure is the resumability contract.
-- Never advance `init-status: complete` while any required context document is below `current`.
-- Never write `incident-runbook.md` content to the conversation transcript more than necessary; the file's contents are sensitive and should be confirmed in summary form rather than pasted verbatim.
-- Never re-interview a completed mini-session on resume. Read the disk; trust the prior commit.

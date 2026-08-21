@@ -49,7 +49,7 @@ Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:te
 5. **Verify the answer length.** If the answer exceeds 300 characters, ask for a tighter version — stale verification methods are short, specific, and load-bearing. If the engineer cannot tighten below 300 chars without losing evidence, the verification probably isn't structural enough to qualify as stale; consider whether wontfix is the right path.
 
 6. **Write the stale transition (direct write).** Per the kernel's Mechanical operations section, this Skill performs the writes itself via the `Edit` tool — no `spec-author` invocation. Edit `hstack/tech-debt/<td-id>.md`:
-   - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs authored before the template included this section), append `\n## Resolution Log\n` to the end of the file first.
+   - Defensive log-header check per the kernel: if `## Resolution Log` is absent, append it before writing the entry.
    - Edit frontmatter: `stale-verified-at: <today>`, `stale-verification-method: <answer>`, `status: open → stale-no-longer-reproducible`, `updated: <today>`.
    - Append to the Resolution Log section: `status: open → stale-no-longer-reproducible on <today> by <owner>. Verification method: <answer>.`
 
@@ -84,11 +84,3 @@ Beyond the kernel's general stop conditions:
 
 - **Direct write fails (filesystem, validator, or git).** Halt; the four frontmatter writes plus the Resolution Log append must land in a single auto-commit. Partial writes are not possible if the Skill aborts on validator failure before staging. Concrete recovery: `git checkout -- hstack/tech-debt/<td-id>.md` to revert to the prior committed state.
 - **Stale claim turns out to be reproducible after closure.** Per TD-03 the closed TD is immutable; the engineer authors a new tech-debt via `/hstack:tech-debt-new` describing the reappeared claim. The new TD references the closed one in its Title or Why-we-took-the-shortcut for audit-trail continuity.
-
-## Anti-patterns
-
-- Never accept a stale verification that reads as a deferral. The check is mandatory and is the v1 defense against misusing stale to clear backlog without an actual claim-absence verification.
-- Never write `status: stale-no-longer-reproducible` without both `stale-verified-at` and `stale-verification-method` non-null. TD-07 enforces this at validation (once the validator ships); the Skill's structured-elicitation loop enforces it at write time.
-- Never invoke `spec-author` for this transition. Per the kernel's Mechanical operations section (ADR-0001), this Skill performs the writes directly. The status flip, two field writes, and Resolution Log append land atomically in a single Skill-driven commit.
-- Never re-open a stale-no-longer-reproducible TD. Per TD-03, the status is terminal — author a new TD instead if the claim reappears.
-- Never use this Skill as a faster path to `wontfix`. The semantic distinction (absence vs choice) is load-bearing for audit signal honesty. If the engineer is tempted to bypass `wontfix`'s two-question discipline by routing through stale, the Skill's semantic check (step 3) is the v1 defense.

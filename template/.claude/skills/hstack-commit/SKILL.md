@@ -46,7 +46,7 @@ Before any work:
 4. **Draft a Commitizen-format commit message.** Following the format codified for hstack:
    - Format: `<type>(<scope>): <summary>`
    - `<type>` is one of: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`, `perf`, `ci`
-   - `<scope>` names the area being touched. For commits inside hstack-governed code, prefer the change-id, the area, the Skill name, or the artifact type (e.g., `change-plan`, `billing`, `implement`, `data-review`). For non-hstack commits in the same repo, use the natural area (e.g., `auth`, `orchestrator`, `webhooks`).
+   - `<scope>` names the area actually touched — never an invented or aspirational one. For commits inside hstack-governed code, prefer the change-id, the area, the Skill name, or the artifact type (e.g., `change-plan`, `billing`, `implement`, `data-review`). For non-hstack commits in the same repo, use the natural area (e.g., `auth`, `orchestrator`, `webhooks`). When the change spans several unrelated areas, no single honest scope exists — propose splitting into multiple commits.
    - `<summary>` ≤ 72 characters, imperative present tense ("add" not "added"), no trailing period.
    - Body (optional): the "why" rather than the "what". For commits inside hstack workflow, name the related change-id or artifact. For status transitions, name the transition explicitly.
    - **Never add "Generated with Claude Code" or similar attribution.** The user's global rule.
@@ -54,9 +54,11 @@ Before any work:
 
 5. **Confirm and commit.** Show the proposed commit message to the engineer. On confirmation, run `git commit -m "<subject>" -m "<body>"` (HEREDOC for multi-line bodies). Honor every git hook — `--no-verify`, `--no-gpg-sign`, and other bypass flags are forbidden.
 
-6. **Verify the commit landed.** Run `git log -1 --format='%h %s'` and surface the result.
+6. **Kernel rules still apply.** Committing by hand does not relax the kernel's database-workflow or forbidden-tools rules. A `service_role` key, a `supabase db push` against a remote project, or any other kernel-forbidden artifact is forbidden on this path exactly as it is on the subagent path.
 
-7. **Push (only with explicit confirmation).** Push is hard-to-reverse and visible to others — never auto-push. If `--push` was provided, ask for confirmation in the conversation; if not provided, end without pushing. When pushing, use the current branch's tracked upstream (no `--force`, no force-with-lease without per-invocation authorization, no push to `main` if the current branch is `main` without explicit confirmation).
+7. **Verify the commit landed.** Run `git log -1 --format='%h %s'` and surface the result.
+
+8. **Push (only with explicit confirmation).** Push is hard-to-reverse and visible to others — never auto-push. If `--push` was provided, ask for confirmation in the conversation; if not provided, end without pushing. When pushing, use the current branch's tracked upstream (no `--force`, no force-with-lease without per-invocation authorization, no push to `main` if the current branch is `main` without explicit confirmation).
 
 ## Outputs
 
@@ -81,6 +83,7 @@ Beyond the kernel's general stop conditions:
 - A pre-commit hook fails. Investigate and fix the underlying issue — do NOT bypass with `--no-verify`. If the fix requires out-of-scope edits (when committing inside an hstack-governed change), halt and surface as a scope-amendment situation.
 - The proposed commit message exceeds 72 characters on the summary line. Re-draft.
 - A destructive push operation is requested (`--force`, force-with-lease, push to `main`) without explicit per-invocation authorization in the current conversation. Halt and confirm.
+- `git commit --amend` would rewrite a commit that has already been pushed. Halt and confirm per-invocation; amending published history is not a default.
 - The engineer requested `--push` but the current branch has no upstream. Halt and ask which remote / branch to push to.
 
 ## Failure modes
@@ -89,15 +92,3 @@ Beyond the kernel's general stop conditions:
 - **`gpg-sign` configured but signing key unavailable.** Surface the gpg error; do NOT bypass with `--no-gpg-sign`. Engineer fixes their gpg config and re-runs.
 - **`git push` rejected (non-fast-forward).** Surface the rejection; recommend `git pull --rebase` then re-attempt; never propose `--force` without explicit authorization.
 - **Empty commit attempted.** If `git add` left the index empty (e.g., every staged change was already committed), halt with the empty-commit message; do not use `--allow-empty` without engineer confirmation.
-
-## Anti-patterns
-
-- Never use `git add -A` silently. Default to staging by named path; sweep only with explicit engineer confirmation.
-- Never use `--no-verify`, `--no-gpg-sign`, or any hook-bypass flag.
-- Never use `git commit --amend` to modify a published (pushed) commit without explicit per-invocation authorization. The system prompt's safety rule applies.
-- Never auto-push. Push is a separate, explicit, per-invocation decision.
-- Never use `git push --force` or `--force-with-lease` without explicit per-invocation authorization in the current conversation.
-- Never add "Generated with Claude Code" or any AI-attribution footer to the commit message. The user's global rule forbids it.
-- Never invent a `<scope>` that doesn't reflect what was actually touched. If the change spans multiple unrelated areas, propose splitting into multiple commits.
-- Never commit a file whose name matches the sensitive-pattern list without explicit engineer confirmation.
-- Never bypass the kernel's database-workflow or forbidden-tools rules even when committing manually — `service_role` keys, `supabase db push` against remote, etc., are forbidden regardless of the commit path.

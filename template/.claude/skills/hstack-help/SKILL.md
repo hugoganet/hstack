@@ -127,7 +127,8 @@ Run `node hstack/scripts/validate-spec.mjs` against every artifact under `hstack
 
 ## Outputs
 
-- Console-rendered status report. No disk writes. No commits.
+- Console-rendered status report. No disk writes, no commits, and no network: the report is computed from local file reads and git alone, never from an MCP call.
+- Where an artifact's status is ambiguous, the report prints the ambiguity. It never invents a next action to fill the gap.
 - No mutation of any artifact frontmatter.
 
 ## Auto-commit triggers
@@ -150,11 +151,3 @@ Beyond the kernel's general stop conditions:
 - **Cofounder runs the Skill before vendoring is complete.** Print the install pointer; do not try to compute a status report.
 - **Many in-flight change-specs with conflicting next-action recommendations.** Just list them all; let the engineer prioritize.
 - **Git state cannot be read (not a git repo).** Skip the git-related health lines; surface a "git not initialized" note.
-
-## Anti-patterns
-
-- Never write to any artifact, never auto-commit. The Skill's value is that it's safe to run any time.
-- Never invoke a subagent. Status awareness does not require the conversational interview machinery.
-- Never invent a "next action" for an artifact whose status is ambiguous — print the ambiguity, not a guess.
-- Never run the validators with `--fix` or any write flag (when the validator gains those).
-- Never call MCPs or perform network requests for the status report. Local file reads only.

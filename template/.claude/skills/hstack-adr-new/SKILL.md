@@ -14,7 +14,7 @@ tools:
 
 ## Purpose
 
-`hstack-adr-new` captures a new ADR via the `spec-author` subagent. ADRs live at `hstack/adr/ADR-NNNN-<slug>.md`, are append-only, and use Michael Nygard's six-section format. The Skill is the cross-cutting capture point: it is invoked directly by the engineer when a decision warrants the record, or indirectly by `hstack-research --promote` when a research session is being elevated.
+`hstack-adr-new` captures a new ADR via the `spec-author` subagent. ADRs live at `hstack/adr/ADR-NNNN-<slug>.md`, are append-only — an `accepted` ADR's body is never modified; a revision is a new ADR that supersedes it — and use Michael Nygard's six-section format. The Skill is the cross-cutting capture point: it is invoked directly by the engineer when a decision warrants the record, or indirectly by `hstack-research --promote` when a research session is being elevated.
 
 ## When to invoke
 
@@ -94,12 +94,3 @@ Beyond the kernel's general stop conditions:
 - **ADR id sequence has a gap (e.g., ADR-0001, ADR-0003 with no ADR-0002).** AD-01 fails on the existing set, not the new write. Surface as a pre-existing problem and halt; the engineer reconciles before authoring a new ADR.
 - **Validator fails AD-03 because the section structure deviates.** The subagent re-runs the missing section.
 - **Engineer wants to keep the ADR at `proposed` and circulate.** Honor — `spec-author` writes the file at `proposed` and the auto-commit fires. Advancing to `accepted` later is a separate edit.
-
-## Anti-patterns
-
-- Never invent or reuse an ADR id. Sequential and immutable per AD-01.
-- Never skip the Consequences challenge prompt. Under-stated trade-offs are the predictable ADR failure mode.
-- Never write `status: accepted` without the engineer's confirmation.
-- Never write supersession in one direction only. Reciprocity per AD-02 is mandatory.
-- Never paraphrase research findings into the Context section without the engineer's review. The promotion path runs through `spec-author`'s confirmation gates.
-- Never modify an `accepted` ADR's body. ADRs are append-only; updates happen by superseding with a new ADR.

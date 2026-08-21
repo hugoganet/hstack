@@ -74,39 +74,13 @@ The security-review is not a planner precondition — security-review and the pl
 
 ## Session boundary
 
-`change-plan` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `plan.md` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`change-plan` is a natural session cut: the auto-commit above left `plan.md` on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: change-plan complete — cut recommended before implement.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:implement <first-phase-id> <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:implement <first-phase-id> <change-id>`.
 
 ## Idempotency contract
 
@@ -132,12 +106,3 @@ Beyond the kernel's general stop conditions:
 - **`ui-brief.md` exists at `draft` rather than `drafted`.** Halt; the brief is incomplete.
 - **Validator fails PL-04.** The planner halts immediately at the offending phase; the engineer either reshapes the phase or amends in-scope.
 - **`planner` halts on cross-phase risk surfacing an invariant gap.** Halt; the engineer amends the change-spec via `spec-author`, then re-runs this Skill.
-
-## Anti-patterns
-
-- Never write code. Plans are prose plus YAML.
-- Never silently accept a non-terminal upstream artifact.
-- Never invent invariants or modify the change-spec's Invariants section — that is `spec-author`'s domain.
-- Never write `steps-completed` values; the field belongs to the implementer.
-- Never produce a multi-phase plan with empty Cross-Phase Risks without exercising the challenge prompt.
-- Never write a rollback section with a plausible-sounding default the engineer did not endorse.

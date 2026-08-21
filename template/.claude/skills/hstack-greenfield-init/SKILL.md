@@ -65,7 +65,9 @@ The second agent action (after the engineer picks a technique) MUST be a `Task` 
 
 ## Orchestration steps
 
-Six phases, hard-gated. The Skill does not advance past a phase until its artifact is at `status: current`.
+Six phases, hard-gated. The Skill does not advance past a phase until its artifact is at `status: current`, and `init-status` reaches `complete` only when every phase artifact is at `current` and the bootstrap change-spec is at `shipped`.
+
+The phase structure is doing two jobs at once — it is the resumability contract and the gate-discipline contract — so it is never collapsed into one long block. Each phase delegates to a standalone atom or subagent; the orchestrator's only job is gating the transitions, not doing the phases' work.
 
 ### Phase 0 — Config skeleton (inline, deferred to Phase-1 boundary)
 
@@ -142,15 +144,5 @@ Beyond the kernel's general stop conditions, this Skill halts when:
 ## Failure modes
 
 - **Phase 6 implementer halts.** Bootstrap is partially scaffolded; the change-spec is at `ready-for-implementation` with some phases of `plan.md` complete. Re-running greenfield-init resumes from the first incomplete plan phase via the standard `/hstack:implement` idempotency.
-- **Bidirectional drift recovery during Phases 2–4.** A downstream phase finds an upstream gap; the Skill routes the engineer through `/hstack:configure <upstream-atom>` and resumes after the upstream artifact returns to `current`.
+- **Bidirectional drift recovery during Phases 2–4.** A downstream phase finds an upstream gap; the Skill routes the engineer through `/hstack:configure <upstream-atom>` and resumes after the upstream artifact returns to `current`. This path is never bypassed — the upstream MUST be refreshed before the downstream resumes, because a silent override produces contradictions between artifacts that nothing downstream will catch.
 - **Stack-architect contradicts data-architecture's Postgres assumption.** Phase 4 halts and surfaces; the engineer either revises data-architecture or revises the stack choice.
-
-## Anti-patterns
-
-- Never invoke greenfield-init against a non-empty repo. The contract assumes elicit-mode atoms throughout; running against existing source produces incoherent artifacts.
-- **Never reply to `/hstack:greenfield-init` with a flat numbered question list** ("answer #1 and #8", "for #2–7 I'll accept defaults"). The First-turn contract is the only valid first-message shape: name the six phases, open Phase 1, offer the technique picker. Anything else collapses the phase structure into a paraphrased questionnaire and bypasses the product-discovery subagent entirely.
-- **Never paraphrase, summarize, or run Phase 1 inline in the main session.** Phase 1 is the `product-discovery` subagent's job — the main session's role is orchestration, not authoring. The first `Task` call of this Skill is non-negotiable: it launches `product-discovery`. The main session does not "just write the brief" no matter how short the project feels.
-- Never collapse the six phases into one long block. The phase structure is the resumability contract AND the gate-discipline contract. Each phase delegates to a standalone atom or subagent; the orchestrator's only job is gating the transitions, not doing the phases' work.
-- Never skip Phase 5 (threat-model + hardening) to get to Phase 6 faster. Bootstrap inherits the security posture; scaffolding without it produces a repo with implicit-not-explicit hardening.
-- Never bypass the bidirectional drift recovery. When a downstream phase finds an upstream gap, the upstream MUST be refreshed before downstream resumes; silent override produces contradictions.
-- Never advance `init-status: complete` while any phase artifact is below `current` or while the bootstrap change-spec is below `shipped`.

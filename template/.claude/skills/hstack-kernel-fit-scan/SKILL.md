@@ -82,7 +82,7 @@ The Skill is opt-in. There is no cron, no automatic invocation, no event-driven 
    Promote:  /hstack:kernel-fit-promote KF-NNNN --slug <adr-slug>
    ```
 
-   Bundle multiple findings into a single message when more than one fires in this scan. When flag-processing occurred, append the **flag tail summary** as the last line of the same Slack message:
+   Bundle multiple findings into a single message when more than one fires in this scan — one scan, one message, never carried across runs. When flag-processing occurred, append the **flag tail summary** as the last line of the same Slack message:
 
    ```
    Flags processed: <P> total — <FF> folded, <E> emitted, <NA> not-actionable, <TT> transcript-truncated.
@@ -140,15 +140,3 @@ Slack-MCP-unreachable is NOT a stop condition. See step 7.
 One-time consumer setup, not scan-time reading. The full procedure — MCP wiring and the `chat:write` scope, the `kernel-fit` block in `hstack/config.yaml` (`slack-channel`, `slack-fallback`), and the `--no-slack` dry-run — lives in `references/slack-setup.md` alongside this file.
 
 Read that file only when the engineer is wiring Slack for the first time, or when a run reported a Slack auth / channel / destination problem. Do not read it on a normal scan: Slack is opt-in, the disk artifact is canonical, and an unwired or unreachable Slack is not a stop condition (step 7).
-
-## Anti-patterns
-
-- Never invoke the `kernel-fit-analyst` subagent when no patterns fired. Empty invocations waste tokens and produce nothing.
-- Never auto-promote a finding to an ADR. Promotion is a separate, human-invoked Skill (`/hstack:kernel-fit-promote`). The contract is non-negotiable per ADR-0004.
-- Never silently retry Slack on transient failure. The disk artifact is canonical; the engineer's `/hstack:help` covers the missed-notification case.
-- Never write outside `hstack/kernel-fit/findings/` or modify any artifact not produced by the analyst this run. This Skill orchestrates; it does not author.
-- Never claim the analyst's output is measured truth. Frame every finding as LLM-strategized judgment per the kernel's v1 / v2 split rule.
-- Never bundle a Slack notification across scan runs. One scan, one message (or zero, when the dedup gate suppresses or Slack is unreachable).
-- Never re-process a pin already in `hstack/kernel-fit/flags/processed/`. The analyst's discipline rule (no re-processing) is mirrored here: the Skill globs only `pending/`, never `processed/`. If the engineer believes a processed pin was mis-classified, the path is to re-flag (creating a fresh pin), not to move the prior pin back.
-- Never include the flag tail summary in the Slack message when every pin was classified `not-actionable`. The tail's purpose is to surface actionable signal — the all-not-actionable case is pure noise and the suppression is deliberate.
-- Never commit a pin move. Pins are gitignored per ADR-0005; the `git mv` from `pending/` to `processed/` is filesystem-only and produces no staged change.

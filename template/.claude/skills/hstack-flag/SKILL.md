@@ -12,7 +12,7 @@ tools:
 
 `hstack-flag` is the engineer-triggered feeder into the kernel-fit closed loop (ADR-0005). It captures a *pointer to the moment* — session-id, transcript path, branch, HEAD, timestamp — so the `kernel-fit-analyst` can later read the surrounding transcript window and classify whatever friction prompted the flag. The Skill carries no engineer interpretation of the friction; the analyst forms its classification independently to preserve the no-contamination contract.
 
-This Skill is mechanical per ADR-0001. No subagent is invoked. The values to write are determined entirely by the invocation context (git state, working directory, the active Claude Code session-id, current transcript message count) plus the optional one-word hint. There is no interview, no confirmation gate, no proposed-diff preview, and no commit — the pin is additive, immutable, and out-of-band from the lifecycle state machine.
+This Skill is mechanical per ADR-0001. No subagent is invoked. The values to write are determined entirely by the invocation context (git state, working directory, the active Claude Code session-id, current transcript message count) plus the optional one-word hint. There is no interview, no confirmation gate, no proposed-diff preview, and no commit — the pin is additive, immutable, and out-of-band from the lifecycle state machine. The whole invocation has a wall-clock budget under one second and never blocks the conversation; where a measurement would be slow, take the approximation.
 
 ## When to invoke
 
@@ -65,6 +65,7 @@ Do NOT invoke for:
 
 - One new file at `hstack/kernel-fit/flags/pending/<pin-id>.md`.
 - No git operations. No commits. No subagent invocations. No edits to any other file.
+- No escalation. A flag never becomes a tech-debt item, an ADR, or a research session on its own — the analyst decides at scan time, gated by the engineer through `/hstack:kernel-fit-triage` and `/hstack:kernel-fit-promote`. This Skill is a feeder, not a router.
 
 ## Auto-commit triggers
 
@@ -96,13 +97,3 @@ No halt sentinel is emitted by this Skill in the success path. The success path 
 - **Engineer flags many times in rapid succession.** Each flag produces a distinct pin (timestamp granularity + session-id-short suffix prevents collisions). The high flag-rate itself becomes signal in the next scan's Slack tail summary.
 - **Engineer flags from inside a subagent's session.** The encoded-cwd heuristic resolves to the main-session jsonl (subagents do not get their own jsonl under `~/.claude/projects/`), which is correct — the analyst wants the main session's transcript. No special handling required.
 - **Engineer passes a quoted multi-word hint.** Truncate to the first token, note it in stdout, write the pin. Do not halt.
-
-## Anti-patterns
-
-- Never prompt the engineer for a description of the friction. The Skill is one-shot and silent. Asking for prose re-opens the contamination surface the analyst guards against and defeats the zero-friction goal.
-- Never invoke a subagent. The pin's value is determined by invocation context; no subagent decision-making is needed.
-- Never commit the pin. Pins are gitignored. Committing them would (a) defeat the cadence (every flag becomes a commit), (b) pollute git history with derivative-cache files, and (c) break the gitignore decision recorded in ADR-0005's Decision and Consequences.
-- Never edit an existing pin to add context. Pins are immutable from the engineer's perspective; the only legal post-creation writes are by the analyst at processing time. To add context, re-flag in a follow-up turn.
-- Never invoke a confirmation gate. The proposed-diff preview rule from the kernel's Mechanical operations section does not apply here because the pin is additive (not a state-machine write) and there is no risk to mitigate: the pin is immutable, gitignored, and out-of-band from every lifecycle gate.
-- Never block the conversation on slow operations. The Skill's wall-clock budget is <1s. If `wc -l` against a multi-gigabyte jsonl is too slow, accept an approximate count (the field is for change-detection at scan-time, not exact accounting) — but `wc -l` on jsonl files in practice completes in tens of milliseconds and this concern is theoretical.
-- Never escalate a flag into a tech-debt item, ADR, or research session automatically. Promotion is exclusively the analyst's call at scan-time, gated by the engineer via `/hstack:kernel-fit-triage` and `/hstack:kernel-fit-promote`. The Skill is a feeder, not a router.

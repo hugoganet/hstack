@@ -48,7 +48,7 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
 3. **Print the finding in full.** Read the resolved file and print its full body to the conversation. The engineer should re-read before committing to the triage action.
 
-4. **Compose the frontmatter edit.** Compute the exact frontmatter changes:
+4. **Compose the frontmatter edit.** These fields, and only these, are triage's to write — `pattern`, `evidence-rows`, `evidence-row-count` and `confidence` are the analyst's domain and are never edited here. Compute the exact frontmatter changes:
 
    For `--action acknowledge`:
    - `status: open → acknowledged`
@@ -73,7 +73,7 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
    - `status: <prev> → dismissed` on <today> by <owner>. Reason: <dismissed-reason>.
    ```
 
-   Defensive Triage Log check: if `## Triage Log` is not present in the file (legacy findings authored before the template included this section), append `\n## Triage Log\n` to the end of the file first.
+   Defensive log-header check per the kernel: if `## Triage Log` is absent, append it before writing the entry.
 
 6. **Print the proposed diff.** Show the engineer the exact frontmatter changes and the exact Triage Log entry that will land. This is the kernel's mechanical-operations confirmation gate: the engineer sees what will land before it lands. The validator run in step 7 is the mechanical half of the same check.
 
@@ -119,12 +119,3 @@ Beyond the kernel's general stop conditions:
 - **Edit fails (filesystem, validator, git).** The frontmatter flip and the Triage Log append must land together in a single auto-commit. If `Edit` succeeds but `git add` or `git commit` fails, the working tree carries the unstaged change — revert via `git checkout -- <finding-file>` and re-invoke.
 - **Drive-by dismissal attempt.** The ≥50-character check at step 2 is the v1 defense. Short reasons fail before any write occurs.
 - **Stale finding (post-scan supersession in flight).** If a concurrent `/hstack:kernel-fit-scan` has just superseded the finding the engineer is triaging, the post-edit validator would catch the inconsistent state (superseded finding cannot be re-triaged). Halt and let the engineer re-fetch the working tree.
-
-## Anti-patterns
-
-- Never invoke a subagent for triage. The action's value is fully determined by `--action` and `--reason`; the kernel's Mechanical operations section requires direct Skill writes for cases like this (saving ~25k subagent-context tokens per call).
-- Never accept a dismissal reason shorter than 50 characters. The audit signal depends on substantive rationales — drive-bys defeat the loop.
-- Never edit a finding's `pattern`, `evidence-rows`, `confidence`, or `evidence-row-count` fields. Those are the analyst's domain; triage only flips `status`, sets `owner` / `updated`, and writes `dismissed-reason` (when dismissing).
-- Never edit a `promoted` finding's `promoted-to` field. That is owned by `/hstack:kernel-fit-promote` and is reciprocally bound to the target ADR.
-- Never re-open a `dismissed` or `superseded` finding. If the kernel-fit pattern recurs with new evidence, the next `/hstack:kernel-fit-scan` will produce a new finding with a new id — that's the right path.
-- Never invoke `spec-author` for the triage action. Per ADR-0001, the Skill writes directly.

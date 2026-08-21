@@ -39,18 +39,18 @@ Before any work:
 - Verify `hstack/specs/changes/<change-id>/spec.md` exists. Read `status` and `resolves-tech-debt`.
 - Verify `status: ready-to-ship`. If at `ready-for-review` (ship hasn't run yet), halt and direct the engineer to `/hstack:ship` first. If at `shipped` or `archived`, halt as a no-op with the terminal status named.
 - **Verify the merge landed.** Run `git log <default-branch> --grep="<change-id>"` and `git log <default-branch> --merges --oneline` and check that the change's branch merge commit exists on the default branch. Multiple verification heuristics are acceptable: (a) a merge commit whose message references the change-id; (b) the change-spec's auto-commit history appearing in the default branch's log via `git log <default-branch> -- hstack/specs/changes/<change-id>/`; (c) the change branch's tip being an ancestor of the default branch's tip (`git merge-base --is-ancestor`). If none of these is true, halt — finalize is post-merge cleanup, never pre-merge.
-- For each entry in `resolves-tech-debt`: verify the tech-debt artifact exists, is at `status: in-progress`, and its `resolved-by` field is currently `null`. Any deviation halts. Reconciliation is manual: `git log -- hstack/tech-debt/<td-id>.md` to see the recent state changes; `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert if the deviation came from a partial prior finalize; or direct frontmatter edit + a `node hstack/scripts/validate-spec.mjs <path>` rerun if the deviation reflects intentional out-of-band state. Do not invoke `spec-author` — the kernel forbids it for status flips and reciprocal back-reference writes.
+- For each entry in `resolves-tech-debt`: verify the tech-debt artifact exists, is at `status: in-progress`, and its `resolved-by` field is currently `null`. Any deviation halts. Reconciliation is manual: `git log -- hstack/tech-debt/<td-id>.md` to see the recent state changes; `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert if the deviation came from a partial prior finalize; or direct frontmatter edit + a `node hstack/scripts/validate-spec.mjs <path>` rerun if the deviation reflects intentional out-of-band state.
 - **Adversarial-review id preflight read.** When `resolves-tech-debt` is non-empty, read `hstack/specs/changes/<change-id>/adversarial-review.md` and capture its frontmatter `id` field. This id is interpolated into each TD's Resolution Log entry (see step 2). If the adversarial-review file is missing, halt — the AR-07 Acceptance-satisfied confirmation that GT-11 already verified would not be locatable from the resulting Resolution Log entry. The captured id is surfaced in the proposed-diff preview alongside the other writes.
 
 ## Orchestration steps
 
-0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
 
 1. **Print the plan.** Summarize what will be written: "Finalize change `<change-id>`: status `ready-to-ship → shipped`. Resolve tech-debt: `[TD-NNNN, TD-MMMM]` (or `none`). Proceed? (Y/n)". Default Yes.
 
 2. **Resolve each referenced tech-debt FIRST (direct write per TD, in order).** Per the kernel's ordering rule for finalize: every TD must be resolved before the change-spec advances to `shipped`. This ensures a mid-finalize failure leaves the change-spec at `ready-to-ship` (recoverable by re-running finalize), never at `shipped` referencing an unresolved TD. For each entry in `resolves-tech-debt`, perform the following:
    - `Edit` `hstack/tech-debt/<td-id>.md`:
-     - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs), append `\n## Resolution Log\n` to the end of the file first.
+     - Defensive log-header check per the kernel: if `## Resolution Log` is absent, append it before writing the entry.
      - Edit frontmatter: `resolved-by: <change-id>`, `status: in-progress → resolved`, `updated: <today>`.
      - Append to the Resolution Log section: `status: in-progress → resolved on <today> by <owner>. Resolving change-spec: <change-id>. Adversarial-review Acceptance-satisfied confirmation: <adversarial-review-id>.`
    - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-04 (resolves-tech-debt ↔ resolved-by) and TD-05 (status:resolved requires resolved-by non-null) must pass. On validation failure, halt — the change-spec remains at `ready-to-ship`, prior TDs in this run have already committed (idempotent on re-run), and the engineer reconciles the failing TD before re-invoking finalize.
@@ -61,9 +61,9 @@ Before any work:
    - Frontmatter `status: ready-to-ship → shipped`.
    - Frontmatter `updated: <today>`.
 
-   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. On validation pass, `git add` the file and commit with message `change-spec(<change-id>): shipped`. Do not invoke `spec-author` — this is a mechanical write per the kernel.
+   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. On validation pass, `git add` the file and commit with message `change-spec(<change-id>): shipped`.
 
-4. **Validate reciprocity.** Run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec and each affected tech-debt. TD-04 (resolves-tech-debt ↔ resolved-by reciprocity) and TD-05 (status:resolved requires resolved-by non-null) must pass. If either fails, halt and surface — the audit trail is broken. Concrete reconciliation: `git log` the affected files to find the last known-good commit; `git revert <commit>` the bad commit if it landed; or direct frontmatter edit + `validate-spec.mjs` rerun if the corruption is isolated to one field. Do not invoke `spec-author` — the kernel forbids it for reciprocal back-reference writes.
+4. **Validate reciprocity.** Run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec and each affected tech-debt. TD-04 (resolves-tech-debt ↔ resolved-by reciprocity) and TD-05 (status:resolved requires resolved-by non-null) must pass. If either fails, halt and surface — the audit trail is broken. Concrete reconciliation: `git log` the affected files to find the last known-good commit; `git revert <commit>` the bad commit if it landed; or direct frontmatter edit + `validate-spec.mjs` rerun if the corruption is isolated to one field.
 
 5. **Confirm completion.** Print: "Finalized: change-spec at `shipped`, [TD-NNNN, TD-MMMM] at `resolved`. Per TD-03, these tech-debt items are now immutable. The change-spec may later move to `archived` via direct edit when historical pruning is desired."
 
@@ -99,43 +99,17 @@ At the change-spec `shipped` commit (the final write in the finalize sequence), 
 
 The finalize sidecar is the most valuable of the five — it closes the per-change observability loop and lets `/hstack:telemetry` compute end-to-end change cycle time without walking transcripts. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
-`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
+The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
 ## Session boundary
 
-`finalize` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `the change-spec at shipped and the resolved tech-debt` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`finalize` is a natural session cut: the auto-commit above left the change-spec at `shipped` and the resolved tech-debt on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: finalize complete — cut recommended before the next change.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:help <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:help <change-id>`.
 
 ## Idempotency contract
 
@@ -143,9 +117,7 @@ Under the TDs-first-then-change-spec ordering, the legitimate resume cases are:
 
 - **Change-spec at `ready-to-ship` with all `resolves-tech-debt` items at `resolved`**: the Skill skips the (already-completed) TD resolutions and advances the change-spec to `shipped`.
 - **Change-spec at `ready-to-ship` with some TDs at `resolved` and others at `in-progress`**: the Skill detects per-TD status, skips the resolved ones (no-op on those), and resumes from the first un-resolved TD. Once all TDs are resolved, it advances the change-spec.
-- **Change-spec at `shipped`**: clean no-op halt with the terminal status reported. By construction this state cannot coexist with any TD at `in-progress` (the ordering rule guarantees TDs finish first), so no resume work is needed.
-
-The state "change-spec at `shipped` with a TD still at `in-progress`" is not reachable from a normal partial run under the new ordering. If observed (e.g., manual frontmatter edit, prior-run before this ADR landed), the Skill halts at the change-spec `shipped` precondition and the engineer reconciles via manual investigation.
+- **Change-spec at `shipped`**: clean no-op halt with the terminal status reported. The step-2 ordering makes "`shipped` with a TD still at `in-progress`" unreachable from a normal partial run; if it is observed anyway (manual frontmatter edit, or a run predating this ordering), the Skill halts at the change-spec `shipped` precondition and the engineer reconciles by hand.
 
 ## Stop conditions
 
@@ -159,16 +131,10 @@ Beyond the kernel's general stop conditions:
 
 ## Failure modes
 
-- **A direct write fails mid-resolution.** Because TDs are resolved BEFORE the change-spec advances to `shipped`, a mid-finalize failure leaves the change-spec at `ready-to-ship` — never at `shipped` referencing an unresolved TD. Prior TDs in the current run may have already committed; the Skill is idempotent on re-run (already-resolved TDs are detected and skipped). The audit trail records the partial state honestly.
+- **A direct write fails mid-resolution.** Prior TDs in the current run may have already committed; the Skill is idempotent on re-run (already-resolved TDs are detected and skipped), and step 2's ordering guarantees the change-spec is still at `ready-to-ship`. The audit trail records the partial state honestly.
 - **Resolved tech-debt was not actually delivered by the merged change.** The adversarial-review's AR-07 Acceptance-satisfied confirmation is the upstream guard. If a tech-debt is flipped to `resolved` but the change did not actually deliver it, that is an adversarial-review failure, not a finalize failure. Surface it as a `wontfix → re-open` is not permitted; the engineer authors a new TD via `/hstack:tech-debt-new`.
 - **Default branch detection fails.** The Skill reads `hstack/config.yaml` for the configured default branch; if absent, defaults to `main`. If neither resolves, halt and ask the engineer.
 
-## Anti-patterns
+## Merge-strategy caveat
 
-- Never flip a tech-debt to `resolved` without an accompanying change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal-write pair is the only legal path.
-- Never run finalize pre-merge. The merge-verification check is mandatory.
-- Never run finalize on the (now-merged) change branch. The Skill's auto-commits land on the current branch; running on a merged change branch strands the `shipped` and `resolved` commits where the default branch never sees them. The default-branch precondition enforces this.
-- Never overwrite a non-null `resolved-by` field. Per TD-03, a resolved tech-debt is immutable.
-- Never invoke `spec-author` for these writes. They are mechanical operations per the kernel's Mechanical operations section; the Skill performs them directly via the `Edit` tool. Invoking `spec-author` costs ~25k tokens per call for what is a handful of frontmatter character changes.
-- Never skip TD-04/TD-05 post-write validation. The reciprocity check is the v1 substitute for the v2 substrate's mechanical cross-graph validator.
-- Never accept a force-merge or rebase-merge that loses the change branch's auto-commit history. The merge-verification heuristics assume the auto-commit log lands on the default branch; squash-merges that compress the history break heuristic (b). The engineer should configure merge strategy to preserve history, or the Skill should be re-run after manual confirmation.
+The merge-verification heuristics assume the change branch's auto-commit log lands on the default branch. A squash-merge compresses that history and breaks heuristic (b); a force-merge or rebase-merge can lose it entirely. Configure the repo's merge strategy to preserve history, or re-run finalize after confirming the merge by hand.

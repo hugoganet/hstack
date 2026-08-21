@@ -33,6 +33,7 @@ tools:
 - `hstack/config.yaml` at `init-status: minimal-complete` or later, with the default-stack declaration present (set in greenfield-init Phase 0 or via `/hstack:configure default-stack`).
 - `hstack/context/app-architecture.md` at `status: current` (greenfield/brownfield mode). In standalone mode, the atom may run without app-architecture only if the layer being swapped doesn't depend on architecture decisions (rare).
 - `hstack/templates/adr.md` present.
+- No layer choice contradicts `data-architecture.md`'s `assumes-database`. A non-Postgres choice against `assumes-database: postgres` is never honored silently — halt and surface, and the engineer either refreshes the upstream atom or revises the constraint.
 - Existing ADRs read at session start to set the next sequential ADR id and detect supersession candidates.
 
 ## Orchestration steps
@@ -78,12 +79,3 @@ tools:
 
 - **spec-author handoff fails partway** (e.g., Consequences challenge produces a finding the engineer doesn't accept). The pending ADR sits at `draft`; the engineer either revises or routes through `/hstack:configure adr-author <id>` per spec-author's recovery path.
 - **Research subagent unavailable when needed.** Persist constraint interview state; resume later.
-
-## Anti-patterns
-
-- Never write to `hstack/adr/` from this Skill directly. ADR authoring is `spec-author`'s exclusive ownership per kernel rule.
-- Never let pre-population skip the Consequences challenge prompt. Pre-population covers Context / Decision / Alternatives; Consequences fires fresh.
-- Never propose stack options before constraints are concrete.
-- Never bypass the upstream check (app-architecture must be `current` in greenfield/brownfield mode).
-- Never silently honor a non-Postgres DB choice when `data-architecture.md`'s `assumes-database: postgres` says otherwise. Halt and surface.
-- Never split the supersedes / superseded-by reciprocal pair across two commits in standalone mode.
