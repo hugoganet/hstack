@@ -11,7 +11,7 @@ tools:
   - Task
   - "{{TODO-SKILL: /hstack:adr-new — invoked via spec-author handoff for ADR authoring}}"
   - "{{TODO-SKILL: /hstack:research — invoked for unfamiliar-territory deep-dives}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Purpose

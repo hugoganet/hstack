@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the TD frontmatter flip and TD-06 (wontfix-reason and wontfix-accepted-alternative both non-null)}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the TD frontmatter flip and TD-06 (wontfix-reason and wontfix-accepted-alternative both non-null)"
 ---
 
 ## Purpose
@@ -45,7 +45,7 @@ Invoke when a tech-debt item at `status: open` will not be fixed and the team ha
    - Edit frontmatter: `wontfix-reason: <answer-a>`, `wontfix-accepted-alternative: <answer-b>`, `status: open → wontfix`, `updated: <today>`.
    - Append to the Resolution Log section: `status: open → wontfix on <today> by <owner>. Reason: <answer-a>. Accepted alternative: <answer-b>.`
 
-   Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. TD-06 (wontfix requires both rationale fields non-null) must pass. On validation pass, `git add` the file and commit with message `tech-debt(<td-id>): wontfix`. The four frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
+   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-06 (wontfix requires both rationale fields non-null) must pass. On validation pass, `git add` the file and commit with message `tech-debt(<td-id>): wontfix`. The four frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
 
 7. **Confirm completion.** Print: "TD-NNNN is now `wontfix`. Per TD-03, no further field rewrites are permitted on this artifact. If the team's decision later reverses, author a new tech-debt via `/hstack:tech-debt-new` rather than re-opening this one."
 

@@ -11,7 +11,7 @@ tools:
   - Bash
   - "{{TODO-SKILL: /hstack:verify — invokes verifier after implementation completion}}"
   - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates verification.md frontmatter and V-01/V-02/V-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates verification.md frontmatter and V-01/V-02/V-05"
 ---
 
 ## Role

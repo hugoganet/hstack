@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-MCP: Slack — mcp__claude_ai_Slack__slack_send_message — required for kernel-fit notifications. Without it, findings still land on disk; the Skill logs to stderr and exits 0 (deliberate carve-out from the kernel's general MCP-unreachable stop condition — Slack is a side-channel pointer, not authoritative state).}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates kernel-fit-finding frontmatter and KF-01 through KF-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates kernel-fit-finding frontmatter and KF-01 through KF-05"
 ---
 
 ## Purpose

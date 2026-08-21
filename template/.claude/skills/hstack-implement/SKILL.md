@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates plan.steps-completed updates against PL-03/PL-04/PL-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates plan.steps-completed updates against PL-03/PL-04/PL-05"
   - "{{TODO-OTHER: in-scope-enforcement guard — runtime check at every Edit/Write that refuses paths outside change-spec.in-scope; v1 implemented inside the implementer subagent's prompt; v2 substrate moves to a subagent-runtime hook}}"
 ---
 
@@ -75,7 +75,7 @@ If the named phase appears to require any of the above, halt before invoking —
 
 8. **Test-immutability protocol.** When the subagent determines an existing test file must be modified, deleted, or have a snapshot updated, it halts before touching the file and runs the kernel's authorization protocol: surface the test name, the reason, the proposed change, and the alternatives; wait for the canonical phrase verbatim (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`); echo the phrase in the commit message body and add a footnote under the relevant phase in `plan.md`. The Skill enforces this defense-in-depth — if a subagent's diff shows a modified pre-existing test file without a matching authorization in the conversation, the Skill blocks the commit.
 
-8. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the plan — PL-03 (every `steps-completed` entry matches a plan phase id), PL-04 (every Files Touched path is a subset of `in-scope`), PL-05 (plan status gating).
+8. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the plan — PL-03 (every `steps-completed` entry matches a plan phase id), PL-04 (every Files Touched path is a subset of `in-scope`), PL-05 (plan status gating).
 
 ## Outputs
 

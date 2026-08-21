@@ -7,7 +7,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates every artifact's frontmatter}}"
+  - "node hstack/scripts/validate-spec.mjs — validates every artifact's frontmatter"
   - "{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts — computes the nine-gate scorecard from artifact frontmatter}}"
 ---
 
@@ -50,7 +50,7 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
    - GT-11: When `change-spec.resolves-tech-debt` is non-empty: (a) every referenced tech-debt must exist and be at `status: in-progress` with `resolution-attempted-at` set; (b) the adversarial-review must contain the AR-07 Acceptance-satisfied confirmation enumerating each TD's Acceptance bullets against the diff; (c) no referenced tech-debt may have a non-null `resolved-by` already (that would indicate a double-resolution attempt). When `resolves-tech-debt` is empty, GT-11 is `not-applicable`.
    - GT-12 (SP-13 mutual exclusion): `internal-tooling: true` AND `enables` non-empty is forbidden. Hard FAIL. Reciprocity (SP-14): for every id in `enables`, the named downstream spec must exist on disk and must list this change-id in its `enabled-by` array. Missing downstream specs are a FAIL (forward references are only legal at authoring time — by ship time, the downstream must be scaffolded so reciprocity holds). The reverse direction (`enabled-by` entries that point at non-existent or non-listing upstream specs) is also FAIL.
 
-3. **Frontmatter validation.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` across every artifact. Any FM-* or per-type validation failure blocks ship.
+3. **Frontmatter validation.** Run `node hstack/scripts/validate-spec.mjs` across every artifact. Any FM-* or per-type validation failure blocks ship.
 
 4. **Generate the PR description body.** Write `hstack/specs/changes/<change-id>/pr-body.md` containing:
    - Title: the change-spec's `Problem` first sentence, prefixed with the change id.

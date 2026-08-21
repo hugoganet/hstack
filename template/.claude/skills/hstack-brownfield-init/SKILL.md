@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — frontmatter validator run after every confirmed field write}}"
+  - "node hstack/scripts/validate-spec.mjs — frontmatter validator run after every confirmed field write"
   - "{{TODO-SCRIPT: hstack/scripts/init-detect-mcps.sh — probes the consuming repo's Claude Code config for available MCPs and writes hstack/context/mcp-status.md}}"
 ---
 

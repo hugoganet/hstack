@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the change-spec and tech-debt status flips and TD-04/TD-05 reciprocity}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the change-spec and tech-debt status flips and TD-04/TD-05 reciprocity"
 ---
 
 ## Purpose
@@ -39,7 +39,7 @@ Before any work:
 - Verify `hstack/specs/changes/<change-id>/spec.md` exists. Read `status` and `resolves-tech-debt`.
 - Verify `status: ready-to-ship`. If at `ready-for-review` (ship hasn't run yet), halt and direct the engineer to `/hstack:ship` first. If at `shipped` or `archived`, halt as a no-op with the terminal status named.
 - **Verify the merge landed.** Run `git log <default-branch> --grep="<change-id>"` and `git log <default-branch> --merges --oneline` and check that the change's branch merge commit exists on the default branch. Multiple verification heuristics are acceptable: (a) a merge commit whose message references the change-id; (b) the change-spec's auto-commit history appearing in the default branch's log via `git log <default-branch> -- hstack/specs/changes/<change-id>/`; (c) the change branch's tip being an ancestor of the default branch's tip (`git merge-base --is-ancestor`). If none of these is true, halt — finalize is post-merge cleanup, never pre-merge.
-- For each entry in `resolves-tech-debt`: verify the tech-debt artifact exists, is at `status: in-progress`, and its `resolved-by` field is currently `null`. Any deviation halts. Reconciliation is manual: `git log -- hstack/tech-debt/<td-id>.md` to see the recent state changes; `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert if the deviation came from a partial prior finalize; or direct frontmatter edit + `validate-spec.ts` rerun if the deviation reflects intentional out-of-band state. Do not invoke `spec-author` — the kernel forbids it for status flips and reciprocal back-reference writes.
+- For each entry in `resolves-tech-debt`: verify the tech-debt artifact exists, is at `status: in-progress`, and its `resolved-by` field is currently `null`. Any deviation halts. Reconciliation is manual: `git log -- hstack/tech-debt/<td-id>.md` to see the recent state changes; `git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert if the deviation came from a partial prior finalize; or direct frontmatter edit + a `node hstack/scripts/validate-spec.mjs <path>` rerun if the deviation reflects intentional out-of-band state. Do not invoke `spec-author` — the kernel forbids it for status flips and reciprocal back-reference writes.
 - **Adversarial-review id preflight read.** When `resolves-tech-debt` is non-empty, read `hstack/specs/changes/<change-id>/adversarial-review.md` and capture its frontmatter `id` field. This id is interpolated into each TD's Resolution Log entry (see step 2). If the adversarial-review file is missing, halt — the AR-07 Acceptance-satisfied confirmation that GT-11 already verified would not be locatable from the resulting Resolution Log entry. The captured id is surfaced in the proposed-diff preview alongside the other writes.
 
 ## Orchestration steps
@@ -53,7 +53,7 @@ Before any work:
      - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs), append `\n## Resolution Log\n` to the end of the file first.
      - Edit frontmatter: `resolved-by: <change-id>`, `status: in-progress → resolved`, `updated: <today>`.
      - Append to the Resolution Log section: `status: in-progress → resolved on <today> by <owner>. Resolving change-spec: <change-id>. Adversarial-review Acceptance-satisfied confirmation: <adversarial-review-id>.`
-   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. TD-04 (resolves-tech-debt ↔ resolved-by) and TD-05 (status:resolved requires resolved-by non-null) must pass. On validation failure, halt — the change-spec remains at `ready-to-ship`, prior TDs in this run have already committed (idempotent on re-run), and the engineer reconciles the failing TD before re-invoking finalize.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-04 (resolves-tech-debt ↔ resolved-by) and TD-05 (status:resolved requires resolved-by non-null) must pass. On validation failure, halt — the change-spec remains at `ready-to-ship`, prior TDs in this run have already committed (idempotent on re-run), and the engineer reconciles the failing TD before re-invoking finalize.
    - On validation pass, `git add` and commit with message `tech-debt(<td-id>): resolved (resolved-by: <change-id>)`.
    - Per TD-03, no further field rewrites are permitted after this commit.
 
@@ -61,9 +61,9 @@ Before any work:
    - Frontmatter `status: ready-to-ship → shipped`.
    - Frontmatter `updated: <today>`.
 
-   Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. On validation pass, `git add` the file and commit with message `change-spec(<change-id>): shipped`. Do not invoke `spec-author` — this is a mechanical write per the kernel.
+   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. On validation pass, `git add` the file and commit with message `change-spec(<change-id>): shipped`. Do not invoke `spec-author` — this is a mechanical write per the kernel.
 
-4. **Validate reciprocity.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the change-spec and each affected tech-debt. TD-04 (resolves-tech-debt ↔ resolved-by reciprocity) and TD-05 (status:resolved requires resolved-by non-null) must pass. If either fails, halt and surface — the audit trail is broken. Concrete reconciliation: `git log` the affected files to find the last known-good commit; `git revert <commit>` the bad commit if it landed; or direct frontmatter edit + `validate-spec.ts` rerun if the corruption is isolated to one field. Do not invoke `spec-author` — the kernel forbids it for reciprocal back-reference writes.
+4. **Validate reciprocity.** Run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec and each affected tech-debt. TD-04 (resolves-tech-debt ↔ resolved-by reciprocity) and TD-05 (status:resolved requires resolved-by non-null) must pass. If either fails, halt and surface — the audit trail is broken. Concrete reconciliation: `git log` the affected files to find the last known-good commit; `git revert <commit>` the bad commit if it landed; or direct frontmatter edit + `validate-spec.mjs` rerun if the corruption is isolated to one field. Do not invoke `spec-author` — the kernel forbids it for reciprocal back-reference writes.
 
 5. **Confirm completion.** Print: "Finalized: change-spec at `shipped`, [TD-NNNN, TD-MMMM] at `resolved`. Per TD-03, these tech-debt items are now immutable. The change-spec may later move to `archived` via direct edit when historical pruning is desired."
 

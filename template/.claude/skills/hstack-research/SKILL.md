@@ -13,7 +13,7 @@ tools:
   - WebFetch
   - "{{TODO-MCP: Notion MCP — optional; useful when research must include prior team decisions in Notion}}"
   - "{{TODO-MCP: GitHub MCP — optional; useful for searching issues and PRs on third-party SDK repos}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates research session frontmatter}}"
+  - "node hstack/scripts/validate-spec.mjs — validates research session frontmatter"
   - "{{TODO-SCRIPT: hstack/scripts/garbage-collect-research.sh — clears sessions past their garbage-collect-after date; promoted sessions exempt}}"
 ---
 

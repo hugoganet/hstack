@@ -8,7 +8,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the seeded change-spec frontmatter}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the seeded change-spec frontmatter"
 ---
 
 ## Purpose
@@ -45,7 +45,7 @@ Before any work:
 
 4. **Forward-reference reconciliation for `enables` chains.** Grep every existing `hstack/specs/changes/*/spec.md` for the new `<id>` in `enables:` arrays. For each match: the matched (upstream) spec already declares this new (downstream) spec as a Category-B enabler. Per SP-14, write the reciprocal `enabled-by: [<upstream-id>, ...]` array on the newly-seeded spec in the same scaffold commit (this is the atomic-pair guarantee — both halves land together). When no match exists, leave `enabled-by: []`. Read-only on the upstream spec — its `enables` array was already written when the upstream was authored; no edit there. This is a mechanical operation per the kernel's Mechanical-operations section; no subagent is invoked. Surface the reconciliation to the engineer: "Detected upstream spec(s) declaring `enables: [<id>]` — populating `enabled-by` reciprocally."
 
-5. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the seeded file. Validation at `status: draft` is permissive — empty arrays and empty prose are allowed at draft — but the universal floor (FM-01) must pass.
+5. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the seeded file. Validation at `status: draft` is permissive — empty arrays and empty prose are allowed at draft — but the universal floor (FM-01) must pass.
 
 6. **Offer branch creation.** Run `git branch --show-current`. If the current branch is `main` (or the configured default), ask the engineer: "You're on `<current-branch>`. Convention is one branch per change-spec — create `change/<id>` from here and check out before the scaffold commits? [Y/n/type-different-name]". Default Yes. On confirmation, run `git checkout -b change/<id>` BEFORE step 7 so the scaffold commit lands on the correct branch from the start. If the engineer declines or names a different branch, honor the choice and continue on the chosen branch. If the current branch is anything other than the configured default (i.e., already on a feature branch), do nothing — the engineer has a deliberate branching strategy and the Skill respects it.
 

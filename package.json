@@ -1,6 +1,6 @@
 {
   "name": "hstack",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A spec-driven engineering workflow that ships as Claude Code Skills and subagents.",
   "keywords": [
     "claude-code",
@@ -29,6 +29,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "node scripts/test-validate-spec.mjs",
     "dev": "tsx src/cli.ts",
     "clean:pyc": "find template -type d -name __pycache__ -prune -exec rm -rf {} + ; find template -name '*.pyc' -delete",
     "prepack": "npm run build && npm run clean:pyc",

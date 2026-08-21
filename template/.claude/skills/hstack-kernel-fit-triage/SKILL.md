@@ -8,7 +8,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates the finding frontmatter flip and KF-05 (dismissed-reason ≥50 chars when status: dismissed)}}"
+  - "node hstack/scripts/validate-spec.mjs — validates the finding frontmatter flip and KF-05 (dismissed-reason ≥50 chars when status: dismissed)"
 ---
 
 ## Purpose
@@ -75,13 +75,13 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
    Defensive Triage Log check: if `## Triage Log` is not present in the file (legacy findings authored before the template included this section), append `\n## Triage Log\n` to the end of the file first.
 
-6. **Print the proposed diff.** Show the engineer the exact frontmatter changes and the exact Triage Log entry that will land. This is the kernel's mechanical-operations confirmation gate — until `validate-spec.ts` ships, the proposed-diff preview is the only contract check between the `Edit` and the commit.
+6. **Print the proposed diff.** Show the engineer the exact frontmatter changes and the exact Triage Log entry that will land. This is the kernel's mechanical-operations confirmation gate: the engineer sees what will land before it lands. The validator run in step 7 is the mechanical half of the same check.
 
 7. **Confirm.** Print "Apply triage to <finding-id>? (Y/n)". Default Yes. On `n`, abort without writing.
 
 8. **Edit + validate + commit.** On `Y`:
    - `Edit` the file: frontmatter changes + Triage Log append.
-   - Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the file. KF-01 through KF-05 must pass; specifically KF-05 (`dismissed-reason` non-null and ≥50 chars when `status: dismissed`) gates dismissal.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. KF-01 through KF-05 must pass; specifically KF-05 (`dismissed-reason` non-null and ≥50 chars when `status: dismissed`) gates dismissal.
    - On validation pass: `git add` the file and commit with message `kernel-fit(<finding-id>): <action>` (e.g. `kernel-fit(KF-0001): acknowledge`).
    - On validation failure: halt; revert via `git checkout -- <finding-file>`. Report the failing rule to the engineer.
 

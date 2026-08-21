@@ -12,7 +12,7 @@ tools:
   - "{{TODO-MCP: Notion MCP — required when configured story store is Notion}}"
   - "{{TODO-MCP: Linear MCP — required when configured story store is Linear}}"
   - "{{TODO-MCP: GitHub MCP — required when configured story store is GitHub Issues}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates story frontmatter and ST-01/ST-02/ST-03}}"
+  - "node hstack/scripts/validate-spec.mjs — validates story frontmatter and ST-01/ST-02/ST-03"
 ---
 
 ## Purpose
@@ -56,7 +56,7 @@ Before any work:
 
 6. **Persist.** When the story store is external (Notion/Linear/GitHub), `product-manager` writes via the MCP and produces a local sync stub at `hstack/stories/<id>.md` referencing the external record. When the store is `hstack/stories/`, the file is written directly.
 
-7. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the story — ST-01 (persona references existing), ST-02 (linked-change-specs non-empty at `in-flight`), ST-03 (success metric non-empty string).
+7. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the story — ST-01 (persona references existing), ST-02 (linked-change-specs non-empty at `in-flight`), ST-03 (success metric non-empty string).
 
 ## Outputs
 

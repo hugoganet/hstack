@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates frontmatter after every migration write}}"
+  - "node hstack/scripts/validate-spec.mjs — validates frontmatter after every migration write"
   - "{{TODO-SCRIPT: hstack/scripts/migrate-schema.ts — applies declarative migration steps between schema-version values}}"
 ---
 
@@ -60,7 +60,7 @@ Before any work:
 
 1. Read `hstack/scripts/migrate-schema.ts` (or its current location) for the declarative migration steps between the current and target `schemaVersion`. Each step names: which artifact types it touches, which frontmatter fields it adds/renames/removes, and any prose-section structural changes.
 2. Run a dry-run scan over `hstack/` and produce a written migration plan that lists every artifact file the migration would touch and the specific edits per file. Present the plan to the engineer for confirmation.
-3. On confirmation, execute the migration step by step. After each artifact file is edited, run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against it; if validation fails, halt and surface the failure rather than continuing.
+3. On confirmation, execute the migration step by step. After each artifact file is edited, run `node hstack/scripts/validate-spec.mjs <path>` against it; if validation fails, halt and surface the failure rather than continuing.
 4. Update `hstack/config.yaml`'s `schemaVersion` to the target value on a successful migration. Commit.
 
 For destructive or ambiguous migrations (renames of frontmatter fields, status enum changes), the Skill presents each ambiguity to the engineer rather than guessing.

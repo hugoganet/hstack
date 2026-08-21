@@ -31,8 +31,9 @@ context, a decision, a heads-up — with `refs` pointing at the committed
 artifacts that carry the authoritative detail. The body summarizes; the refs
 are the source of truth.
 
-Validator rules (enforced by the proposed-diff preview in v1; validate-spec.ts
-is still a {{TODO-SCRIPT}} placeholder):
+Validator rules (`node hstack/scripts/validate-spec.mjs <path>`; CM-02
+immutability is a git-history claim the validator cannot see — it stays with
+the Skill and the reviewer):
 
 - CM-01: at send-time, `from-repo`, `from-branch`, `to-repo`, and `subject`
   are non-null. `status` is `sent` and never changes.

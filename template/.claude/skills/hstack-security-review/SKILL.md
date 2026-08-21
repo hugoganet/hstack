@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-SCRIPT: hstack/scripts/score-security-review.ts — computes overall status from the scores map}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates security-review frontmatter and SR-01..SR-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates security-review frontmatter and SR-01..SR-05"
   - "{{TODO-MCP: Supabase MCP — optional in v1 for live RLS introspection; v2 substrate will hard-fail when unreachable for db-surface changes}}"
 ---
 
@@ -57,7 +57,7 @@ Before any work:
 
 7. **Tech-debt for deferred concerns.** When a CONCERNS finding is being deferred rather than fixed, the subagent prompts the engineer to invoke `hstack-tech-debt-new` to create the paper trail. The Skill does not file the tech-debt itself; it surfaces the recommendation.
 
-8. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` and `{{TODO-SCRIPT: hstack/scripts/score-security-review.ts}}` — SR-01 through SR-05.
+8. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` and `{{TODO-SCRIPT: hstack/scripts/score-security-review.ts}}` — SR-01 through SR-05.
 
 ## Outputs
 

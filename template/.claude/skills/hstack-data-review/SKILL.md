@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-MCP: Supabase MCP — required for live schema, RLS policies, and pgvector index introspection; v1 permits a degraded-with-flag fallback, v2 hard-fails when unreachable}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates data-review frontmatter and DR-01..DR-06}}"
+  - "node hstack/scripts/validate-spec.mjs — validates data-review frontmatter and DR-01..DR-06"
 ---
 
 ## Purpose
@@ -56,7 +56,7 @@ Before any work:
 
 9. **Status transitions.** When every score is acceptable and validation passes, the subagent transitions to `status: passed`. When any RLS coverage is `partial` or `missing`, status moves only to `concerns-acknowledged` and only with explicit human acknowledgement plus a tech-debt item via `hstack-tech-debt-new`.
 
-10. **Validate.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` — DR-01 through DR-06.
+10. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — DR-01 through DR-06.
 
 ## Outputs
 

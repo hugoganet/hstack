@@ -10,7 +10,7 @@ tools:
   - Bash
   - Task
   - "{{TODO-TOOL: RepoMix — packs the module slice (paths from hstack/config.yaml) into a single context bundle for spec-author}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates module-spec frontmatter and MS-01/MS-02/MS-03}}"
+  - "node hstack/scripts/validate-spec.mjs — validates module-spec frontmatter and MS-01/MS-02/MS-03"
 ---
 
 ## Purpose
@@ -43,7 +43,7 @@ Before any work:
 
 3. **Exercise the Invariants challenge prompt.** Per the `spec-author` contract and MS-03, the Invariants section requires a minimum of three bullets, elicited via the challenge "What would a careless refactor in this module break that the tests would not catch?" The Skill does not bypass this even on refresh.
 
-4. **Validate.** After each confirmed field write, the subagent runs `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the in-progress file. The Skill verifies MS-01 (paths non-empty and resolve), MS-02 (no overlap with other module-specs' paths — important to surface mis-aligned module-to-paths mapping), MS-03 (Invariants ≥ 3 bullets).
+4. **Validate.** After each confirmed field write, the subagent runs `node hstack/scripts/validate-spec.mjs <path>` against the in-progress file. The Skill verifies MS-01 (paths non-empty and resolve), MS-02 (no overlap with other module-specs' paths — important to surface mis-aligned module-to-paths mapping), MS-03 (Invariants ≥ 3 bullets).
 
 5. **Transition to `status: current`.** When every section is confirmed and the validator passes, `spec-author` advances status from `drafted` to `current` and updates `last-refreshed` to today. Auto-commit fires.
 

@@ -9,7 +9,7 @@ tools:
   - Write
   - Bash
   - "{{TODO-SKILL: /hstack:kernel-fit-scan — invokes kernel-fit-analyst with the detector's JSON evidence blob}}"
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates kernel-fit-finding frontmatter and KF-01 through KF-05}}"
+  - "node hstack/scripts/validate-spec.mjs — validates kernel-fit-finding frontmatter and KF-01 through KF-05"
   - "{{TODO-OTHER: fresh-session-attestation — in v1, the agent self-attests the session is fresh and no implementer transcripts are loaded; v2 substrate will capture and compare Claude Code session-ids automatically, mirroring the adversarial-reviewer pattern}}"
 ---
 

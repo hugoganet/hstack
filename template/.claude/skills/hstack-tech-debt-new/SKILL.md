@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/validate-spec.ts — validates tech-debt frontmatter and TD-01..TD-03}}"
+  - "node hstack/scripts/validate-spec.mjs — validates tech-debt frontmatter and TD-01..TD-03"
 ---
 
 ## Purpose
@@ -58,7 +58,7 @@ Before any work:
 
 6. **Proposed-diff preview (confirmation gate).** Per the kernel's AI-writes-humans-confirm contract for mechanical operations, print the proposed reciprocal-write diff (the `creates-tech-debt` array append on the change-spec, the `updated` bump) and ask "Proceed with these writes? (Y/n)". Default Yes. On `n`, halt without staging the change-spec edit; the TD file remains unstaged so the engineer can `git checkout -- <td-file>` to discard.
 
-7. **Validate and atomic-commit both files.** Run `{{TODO-SCRIPT: hstack/scripts/validate-spec.ts}}` against the new TD and (when `--origin` is set) the modified change-spec. TD-01 (reciprocity), TD-02 (severity:critical requires target-resolve-by — v1 surfaces only), TD-03 (no field rewrites once resolved; v1 informational) all checked. On validation pass, `git add` both files and commit with message `tech-debt(TD-NNNN): open` (with `(introduced-by: <change-spec-id>)` appended when applicable). The reciprocal pair (TD `introduced-by` ↔ change-spec `creates-tech-debt`) lands in this single atomic commit. On validation failure, halt; both files remain unstaged for the engineer to inspect or discard.
+7. **Validate and atomic-commit both files.** Run `node hstack/scripts/validate-spec.mjs <path>` against the new TD and (when `--origin` is set) the modified change-spec. TD-01 (reciprocity), TD-02 (severity:critical requires target-resolve-by — v1 surfaces only), TD-03 (no field rewrites once resolved; v1 informational) all checked. On validation pass, `git add` both files and commit with message `tech-debt(TD-NNNN): open` (with `(introduced-by: <change-spec-id>)` appended when applicable). The reciprocal pair (TD `introduced-by` ↔ change-spec `creates-tech-debt`) lands in this single atomic commit. On validation failure, halt; both files remain unstaged for the engineer to inspect or discard.
 
 8. **Status note.** The new artifact lands at `status: open`. Advancing to `in-progress` or `resolved` is a separate later operation, not this Skill's domain.
 
