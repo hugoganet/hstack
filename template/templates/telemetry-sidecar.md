@@ -2,7 +2,7 @@
 
 This document describes the JSON sidecar files five hstack Skills emit alongside their canonical artifact writes, to make per-change telemetry attribution cheap. Sidecars are **derivative** of git + frontmatter + transcripts — re-runnable from source, never authoritative. The kernel's "no parallel tracker" rule is preserved by this derivative property.
 
-This file is the canonical schema. The five emitting Skills restate it; when they disagree with this document, this document wins.
+This file is the canonical schema and the only place the field rules are stated. The five emitting Skills reference it: each carries its own JSON schema block (its Skill-specific payload) and the executable step that opens the phase window, and points here for everything else. Per ADR-0012 they do not restate the rules below.
 
 ## Where sidecars live
 
@@ -41,10 +41,10 @@ Every sidecar carries three fields on top of its Skill-specific payload. They ex
 }
 ```
 
-Field rules — identical in all five Skills:
+Field rules — one statement, applying identically to all five Skills:
 
 - `session_id` — the active Claude Code session, resolved by `hstack/scripts/telemetry/session_id.py` (the most recently modified `*.jsonl` under `~/.claude/projects/<encoded-cwd>/`). One shared resolver, not a per-Skill heuristic. Unresolvable → `null`.
-- `phase_opened_at` — stamped when the Skill's preconditions pass, **before any subagent invocation**. Same script call as `session_id`, so both come from one read.
+- `phase_opened_at` — stamped when the Skill's preconditions pass, **before any subagent invocation**. Same script call as `session_id`, so both come from one read. The script is read-only, takes milliseconds, and never halts; if it fails or reports `"session_id": null`, the Skill holds `null` for both and continues.
 - `phase_closed_at` — stamped at the Skill's terminal state, in the same write that lands the sidecar.
 - All three are **best-effort by contract**. Any of them `null`, unparseable, or inverted makes the phase *unmeasured*: `parsers/transcripts.py:phase_usage` returns `null`, and TE-4/TE-5 print `unmeasured`. **Never zero** — a phase whose window cannot be honoured still spent tokens, and a zero would fold it into the averages as if it were free.
 - A sidecar write failure never blocks the canonical commit, and the window is never a halt condition. Measurement never gates the workflow.
