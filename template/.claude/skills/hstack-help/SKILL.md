@@ -95,7 +95,7 @@ No subagents are invoked. Every step is a direct file read or shell call.
 
 ### `--change <id>` mode
 
-Read every artifact in `hstack/specs/changes/<id>/`. Render the phase DAG as ASCII with status per node:
+Read the **frontmatter** of every artifact in `hstack/specs/changes/<id>/` — the DAG below is computed entirely from `status`, `steps-completed` and `blocked-on`, so no artifact body is read (kernel § Reading artifacts). Open a body only when the engineer asks a follow-up the frontmatter cannot answer. Render the phase DAG as ASCII with status per node:
 
 ```
 spec [ready-for-implementation]

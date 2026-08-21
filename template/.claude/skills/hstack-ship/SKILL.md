@@ -34,7 +34,7 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
 
 ## Orchestration steps
 
-1. **Read every change artifact.** Read `spec.md`, `plan.md`, `test-plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md`. Capture each artifact's `status` and key gating fields.
+1. **Read every change artifact's frontmatter.** `spec.md`, `plan.md`, `test-plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md` — capture each one's `status` and gating fields. Eleven of the twelve gates are computed from frontmatter, the diff, and the CI run alone, so no artifact body is read here (kernel § Reading artifacts). The exceptions are named where they arise: GT-11 needs the presence of the adversarial-review's "Acceptance Satisfied" subsection, and a sub-floor adversarial-review needs its Findings Floor Justification section — read those two sections, not those two files.
 
 2. **Compute the twelve-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
    - GT-01: spec presence — change folder exists with non-draft change-spec, or PR carries `trivial: true`.

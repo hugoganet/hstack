@@ -34,6 +34,18 @@ CI enforces the write boundary at PR time. Files modified outside In-Scope block
 
 ---
 
+## Reading artifacts
+
+Scope rules say *which* files may be read. This says *how much* of one.
+
+**Read frontmatter first, then the sections the task needs. Reading a whole artifact requires a reason, and the reason is that the task is about the whole artifact.** Frontmatter is the state machine (§ No parallel tracker), so a precondition check, a gate computation, a status report, or a routing decision is answered by frontmatter alone — the body adds nothing but tokens and a longer context for the model to reconcile.
+
+The reasons that do qualify, named so this is not read as "under-read the spec": the `adversarial-reviewer` auditing every artifact at terminal status; the `implementer` reading code within `in-scope`; a subagent loading a document its session-start list names; a Skill printing a tech-debt in full precisely so the engineer re-reads it before a terminal decision. When a task genuinely needs the whole file, read the whole file.
+
+The same rule already governs reads of a peer's committed state (§ Cross-session coordination), where a heavy multi-artifact read is additionally delegated to a read-only subagent that returns a distilled summary. Local artifacts get the discipline without the delegation.
+
+---
+
 ## Test immutability
 
 Once a test file exists in the working tree (committed or staged), **no hstack subagent may edit or delete it without per-test, per-conversation human authorization.** This rule exists because the dominant failure mode of LLM-driven implementation is the model editing an assertion or deleting a test to make the suite go green, rather than fixing the code under test. The rule is load-bearing and not negotiable by any individual subagent.
