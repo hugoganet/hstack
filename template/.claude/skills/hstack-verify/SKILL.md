@@ -9,7 +9,7 @@ tools:
   - Glob
   - Bash
   - Task
-  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
+  - "hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05"
   - "node hstack/scripts/validate-spec.mjs — validates verification.md frontmatter and V-01/V-02/V-05"
 ---
 
@@ -39,9 +39,9 @@ Before any work:
 
 0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
 
-1. **Invoke `verifier`.** Use the Task tool with `subagent_type: verifier` and context = [kernel, `hstack/templates/verification.md`, change-spec, plan, test-plan, ci-cd]. The subagent runs the canonical commands declared in `ci-cd.md` (or orchestrates `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}`) — every one of them, and nothing else. Extending the canonical command set is `hstack-configure --interview ci-cd`, not an ad-hoc addition here.
+1. **Invoke `verifier`.** Use the Task tool with `subagent_type: verifier` and context = [kernel, `hstack/templates/verification.md`, change-spec, plan, test-plan, ci-cd]. The subagent runs `hstack/scripts/run-gates.sh --change <change-id> --json`, which executes the canonical commands declared in `ci-cd.md` § Canonical Commands — every one of them, and nothing else. Extending the canonical command set is `hstack-configure --interview ci-cd`, not an ad-hoc addition here.
 
-2. **Capture output.** The subagent writes captured stdout/stderr to a pointer file at `hstack/specs/changes/<change-id>/test-output.txt` and references it from `verification.artifacts.test-output`.
+2. **Capture output.** `run-gates.sh` writes the captured stdout/stderr to `hstack/specs/changes/<change-id>/test-output.txt`; the subagent references that path from `verification.artifacts.test-output`.
 
 3. **Phase coverage mapping.** For each phase in `plan.steps-completed`, the subagent emits an entry in `phase-coverage` with a PASS / FAIL value computed from whether the phase's Verifier Expectations are met. Per V-01, `phase-coverage` keys must equal `plan.steps-completed`.
 
