@@ -1373,16 +1373,15 @@ export const RULES = [
     id: "AR-01",
     type: "adversarial-review",
     description:
-      "`findings` length is at least `findings-floor`, or `findings-fewer-than-floor: true` with a non-null `justification-when-fewer` and a filled Findings Floor Justification section.",
+      "A review that reaches a findings status with an EMPTY `findings` array carries `findings-fewer-than-floor: true`, a non-null `justification-when-fewer`, and a filled Findings Floor Justification section. Reading a change cold and reporting nothing is a claim, and the artifact defends it. The count above zero is not gated (ADR-0014): `findings-floor` is the area's expectation, measured by the telemetry sidecar, and whether a finding is real is the reviewer's judgment, not the validator's arithmetic.",
     check(a, world) {
       const out = parentChangeMatches(a, world);
       const findings = arr(a.fm.findings);
-      const floor = Number(a.fm["findings-floor"] ?? 3);
-      const under = findings.length < floor;
-      if (under && a.fm["findings-fewer-than-floor"] !== true) {
+      const empty = findings.length === 0 && isTerminal(a, ["findings-open", "findings-resolved"]);
+      if (empty && a.fm["findings-fewer-than-floor"] !== true) {
         out.push(
           F(
-            `${findings.length} finding(s) against a floor of ${floor}; set \`findings-fewer-than-floor: true\` with a defended justification or produce the floor`,
+            `status is \`${a.fm.status}\` with no findings; set \`findings-fewer-than-floor: true\` and defend the empty result, or file what you found`,
             a.lineOf("findings"),
           ),
         );
@@ -1493,7 +1492,7 @@ export const RULES = [
     id: "AR-06",
     type: "adversarial-review",
     description:
-      "`findings-floor` is 3 by default and 5 when the parent change-spec's `area` is in {agent, auth, billing}.",
+      "`findings-floor` is 3 by default and 5 when the parent change-spec's `area` is in {agent, auth, billing}. Since ADR-0014 the value gates nothing — it is the area's expected finding count, and this rule keeps the declared number honest so the telemetry sidecar's `findings_floor` / `findings_count` pair aggregates to something.",
     check(a, world) {
       const parent = parentSpec(a, world);
       if (!parent) return [];
@@ -2258,7 +2257,7 @@ export const RULES = [
     id: "KF-05",
     type: "kernel-fit-finding",
     description:
-      "`status: dismissed` requires a `dismissed-reason` of at least 50 characters; at any other status `dismissed-reason` stays null.",
+      "`status: dismissed` requires a non-null `dismissed-reason`; at any other status `dismissed-reason` stays null. Presence is mechanical. Whether the reason says something a reader could re-evaluate in six months is `/hstack:kernel-fit-triage`'s judgment — the old `>= 50 characters` clause measured length where it meant substance (ADR-0014).",
     check(a) {
       const status = String(a.fm.status);
       const reason = a.fm["dismissed-reason"];
@@ -2276,14 +2275,9 @@ export const RULES = [
       if (!present(reason)) {
         return [F("status is `dismissed` but `dismissed-reason` is null", a.lineOf("dismissed-reason"))];
       }
-      if (String(reason).length < 50) {
-        return [
-          F(
-            `dismissed-reason is ${String(reason).length} chars; KF-05 requires at least 50`,
-            a.lineOf("dismissed-reason"),
-          ),
-        ];
-      }
+      // ADR-0014: the old `>= 50 chars` clause measured length where it meant
+      // substance. It passed padding and rejected tight correct sentences.
+      // Whether the reason holds up is the triage Skill's judgment.
       return [];
     },
   },
@@ -2509,7 +2503,7 @@ export const RULES = [
     id: "FL-01",
     type: "kernel-fit-flag",
     description:
-      "Every pin-time field is non-null at `status: pending`: session-id, session-transcript-path, branch, head, workspace, timestamp, pre-compaction-message-count.",
+      "Every pin-time field is non-null at `status: pending`: session-id, session-transcript-path, branch, head, workspace, timestamp, pre-compaction-message-count. `hint` is optional, and when set is one whitespace-free token of at most 32 characters — a real format constraint on a pointer token, mechanized here rather than left as prose in `/hstack:flag` (ADR-0014).",
     check(a) {
       const fields = [
         "session-id",
@@ -2520,9 +2514,19 @@ export const RULES = [
         "timestamp",
         "pre-compaction-message-count",
       ];
-      return fields
+      const out = fields
         .filter((f) => !present(a.fm[f]))
         .map((f) => F(`pin-time field \`${f}\` is null`, a.lineOf(f)));
+      const hint = a.fm.hint;
+      if (present(hint)) {
+        const h = String(hint);
+        if (/\s/.test(h)) {
+          out.push(F(`hint \`${h}\` carries whitespace; the pin stores the first token only`, a.lineOf("hint")));
+        } else if (h.length > 32) {
+          out.push(F(`hint is ${h.length} chars; the pin caps it at 32`, a.lineOf("hint")));
+        }
+      }
+      return out;
     },
   },
   {
@@ -2710,7 +2714,7 @@ export const DEFERRED_RULES = [
     id: "judgment-rules",
     type: "*",
     reason:
-      "Quality rules stay with the subagents: whether a challenge-prompt answer actually probes for omissions, whether an adversarial finding is real or quota-filler, whether a severity is calibrated, whether a counter-explanation genuinely weakens its finding, whether a rationale paragraph is honest about a degraded read source. A validator that scored these would be an LLM, and the kernel already has one in the loop.",
+      "Quality rules stay with the subagents: whether a challenge-prompt answer actually probes for omissions, whether an adversarial finding is real or filler, whether a severity is calibrated, whether a counter-explanation genuinely weakens its finding, whether a rationale paragraph is honest about a degraded read source. A validator that scored these would be an LLM, and the kernel already has one in the loop.",
   },
 ];
 

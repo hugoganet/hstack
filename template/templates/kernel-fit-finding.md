@@ -12,7 +12,7 @@ evidence-row-count: 0                  # integer; must equal len(evidence-rows) 
 evidence-rows: []                      # YAML array of {change|adr|td, signal} dicts; one entry per row counted above
 related-findings: []                   # KF ids — prior or adjacent findings on the same kernel surface
 promoted-to: null                      # `adr:<ADR-NNNN-slug>` | `tech-debt:<TD-NNNN-slug>` | null; reciprocal with the target artifact's `promoted-from-kernel-fit`; required when status: promoted
-dismissed-reason: null                 # ≥50 chars of prose; required when status: dismissed (per KF-05)
+dismissed-reason: null                 # required when status: dismissed (KF-05); says what about the finding is wrong, specifically enough to be re-evaluated later
 superseded-by: null                    # KF id when status: superseded
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>

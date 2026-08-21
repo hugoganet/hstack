@@ -177,9 +177,9 @@ Field rules:
 
 Field rules:
 
-- `findings_floor` is `3` by default, `5` when `change-spec.area` is in `{agent, auth, billing}` per AR-06.
-- `findings_count` < `findings_floor` is permitted only when `findings_fewer_than_floor: true` (with a defended justification in the canonical artifact's Findings Floor Justification section). Aggregating across changes: a rising `findings_fewer_than_floor: true` rate means either the floors are wrong or the reviewer is gaming the escape hatch.
-- `category_counts` clustering — e.g., 5 of 5 findings in `code-quality` — is the quota-gaming smell the kernel's "spread findings across categories" guidance is designed to detect. The telemetry layer surfaces it via OE-7.
+- `findings_floor` is `3` by default, `5` when `change-spec.area` is in `{agent, auth, billing}` per AR-06. Since ADR-0014 it is the area's *expected* finding count and gates nothing — it is carried here so `findings_count` has a denominator to be read against.
+- `findings_count` below `findings_floor` is an ordinary outcome, not a violation. The one count the canonical artifact must argue for is zero: AR-01 requires `findings_fewer_than_floor: true` with a defended justification when `findings` is empty. Aggregating across changes: the `findings_count / findings_floor` distribution is the primary read, and a rate of empty reviews that climbs while `severity_counts` stays flat is the signal worth acting on.
+- `category_counts` clustering — e.g., 5 of 5 findings in `code-quality` — is a description of where a change carried its risk, not a smell in itself. It is worth reading against the change's `surfaces`: a `db`-surface change with every finding in `code-quality` is a review that did not look where the risk was. Surfaced via OE-7.
 - `severity_counts.high + critical` paired with `resolution_mix.justified-in-prose > 0` is a high-severity-in-prose smell flagged by QO-2. The Skill's stop condition should have caught it before terminal status; sidecar presence indicates a bypass.
 
 ## Schema — `finalize.json`

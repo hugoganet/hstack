@@ -50,7 +50,7 @@ _Required when `threat-model-delta-required: true`. One paragraph delta against 
 
 ## Challenge Prompts
 
-_All three required. Each answer must be at least one paragraph._
+_All three required. Each answer must be at least one paragraph. The questions below are the canonical wording — adapt one to the change under review when the adaptation probes harder, and record what was actually asked in the heading. Keep the `(a)` / `(b)` / `(c)` prefixes: SR-02 locates the answers by them._
 
 ### (a) What attack vector did the In-Scope diff create that is NOT covered by the hardening checklist? If none, justify.
 

@@ -4,10 +4,10 @@ type: adversarial-review
 status: draft                          # draft | in-progress | findings-open | findings-resolved | superseded
 owner: <git-handle>
 parent-change: <change-spec-id>
-findings-floor: 3                      # 3 default; 5 when change-spec.area in {agent, auth, billing}
+findings-floor: 3                      # AR-06: 3 default; 5 when change-spec.area in {agent, auth, billing}. The area's expected finding count — measured by telemetry, gated by nothing (ADR-0014)
 findings: []                           # array of finding records; see below
-findings-fewer-than-floor: false
-justification-when-fewer: null         # required when findings-fewer-than-floor: true
+findings-fewer-than-floor: false       # true when the review came in under the expectation; must be true when `findings` is empty
+justification-when-fewer: null         # required when findings-fewer-than-floor: true, and non-negotiable when `findings` is empty (AR-01)
 fresh-session-attestation: <session-id; opened <ISO-8601>; no implementer transcript loaded>
 created: <YYYY-MM-DD>
 updated: <YYYY-MM-DD>
@@ -29,7 +29,7 @@ _Fresh-session attestation; what artifacts were loaded; how findings were genera
 
 ## Findings
 
-_One subsection per finding (F-01..F-N). Mandate: at least `findings-floor` findings across categories, or `findings-fewer-than-floor: true` with justification._
+_One subsection per finding (F-01..F-N). The six categories are lenses to sweep, not buckets to fill — file what the sweep found, at the severity it has. Calibration rubric: `hstack/.claude/skills/hstack-adversarial-review/references/finding-categories.md`._
 
 ### F-01
 
@@ -51,4 +51,4 @@ _Append-only record of how each finding was resolved. Written by `owner` in resp
 
 ## Findings Floor Justification
 
-_Populated only when `findings-fewer-than-floor: true`. Explain why fewer than the floor is the honest answer._
+_Populated when `findings-fewer-than-floor: true`, and mandatory when `findings` is empty (AR-01). Reading a change cold and reporting nothing is a claim: enumerate what was looked for in each of the six categories and why each sweep came back clean. "The change is small" is not a defence._

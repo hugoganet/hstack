@@ -106,7 +106,7 @@ _Required when `performance-budgets-required: true`. For each hot path the chang
 
 ## Challenge Prompts
 
-_All three required. Each answer must be at least one paragraph. These exist because the v1 mitigation for "humans miss what's missing" is to force the strategist to name gaps the planner and the implementer will not._
+_All three required. Each answer must be at least one paragraph. These exist because the v1 mitigation for "humans miss what's missing" is to force the strategist to name gaps the planner and the implementer will not. The questions below are the canonical wording — adapt one to the change when the adaptation probes harder, and record what was actually asked in the heading. Keep the `(a)` / `(b)` / `(c)` prefixes: TS-02 locates the answers by them._
 
 ### (a) What behavior in this change would silently pass the test suite but break in production? Name the test that would catch it, or declare that no such test is planned and justify.
 

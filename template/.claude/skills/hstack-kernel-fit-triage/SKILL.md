@@ -8,7 +8,7 @@ tools:
   - Grep
   - Glob
   - Bash
-  - "node hstack/scripts/validate-spec.mjs — validates the finding frontmatter flip and KF-05 (dismissed-reason ≥50 chars when status: dismissed)"
+  - "node hstack/scripts/validate-spec.mjs — validates the finding frontmatter flip and KF-05 (dismissed-reason non-null when status: dismissed)"
 ---
 
 ## Purpose
@@ -22,7 +22,7 @@ This Skill does not promote findings to ADRs. Promotion is a separate Skill (`/h
 Invoke when a finding is at `status: open` and the engineer wants to:
 
 - **Acknowledge** (`--action acknowledge`): record intent to act on the finding without committing to an ADR yet. Useful when the finding is real but the team needs more thinking time, or when the right kernel-change shape is unclear.
-- **Dismiss** (`--action dismiss --reason <text>`): close the finding without pursuing a kernel change. The reason is mandatory (≥50 characters per KF-05) and becomes part of the audit trail.
+- **Dismiss** (`--action dismiss --reason <text>`): close the finding without pursuing a kernel change. The reason is mandatory (KF-05) and becomes part of the audit trail.
 
 For findings already at `acknowledged`, re-invoking with `--action acknowledge` is a no-op; re-invoking with `--action dismiss --reason <text>` is permitted (acknowledged → dismissed is a valid transition when the engineer reconsiders). Findings at terminal status (`dismissed`, `promoted`, `superseded`, `archived`) are immutable from this Skill's perspective — the Skill halts.
 
@@ -30,21 +30,21 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
 - `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-category-a-claim-spans-production` or the short form `KF-0001` (the Skill resolves the latter to the matching file via glob).
 - `--action <acknowledge | dismiss>` (required): the triage action.
-- `--reason <text>` (required when `--action dismiss`; forbidden when `--action acknowledge`): the dismissal rationale. Must be ≥50 characters per KF-05.
+- `--reason <text>` (required when `--action dismiss`; forbidden when `--action acknowledge`): the dismissal rationale. It has to say what about the finding is wrong or not worth acting on, specifically enough that a reader six months from now can tell whether the dismissal still holds. "Not relevant" gives them nothing to check; "the kernel gives a norm here, not a bound" gives them everything, in forty-one characters. Length is not the test and is not checked (ADR-0014).
 
 ## Preconditions
 
 - `hstack/kernel-fit/findings/<finding-id>*.md` exists. If missing, halt.
 - The finding is at `status: open` (or `acknowledged` when transitioning to `dismissed`). If at any other status, halt with the current status named and the explanation that the status is terminal.
 - `--action` is one of `acknowledge | dismiss` (controlled enum).
-- When `--action dismiss`, `--reason` is non-empty and ≥50 characters.
+- When `--action dismiss`, `--reason` is non-empty and re-evaluable by a later reader per the Inputs section. When it is not — the reason restates the finding, or asserts a preference with no referent — say so and ask for the specific claim; do not write the dismissal.
 - When `--action acknowledge`, `--reason` is absent (the Skill rejects redundant reasons to keep the audit signal clean — acknowledge reasons live in the next promote / dismiss invocation if needed).
 
 ## Orchestration steps
 
 1. **Resolve the finding file.** Glob `hstack/kernel-fit/findings/<finding-id>*.md`. If zero matches, halt. If multiple matches (shouldn't happen with the immutable-id rule, but defense in depth), halt and ask the engineer to disambiguate.
 
-2. **Validate inputs against preconditions.** Walk the precondition checks above. On any failure, halt with the named reason. For the `--reason` length check (`dismiss`), surface the actual character count in the halt message so the engineer can size their next attempt.
+2. **Validate inputs against preconditions.** Walk the precondition checks above. On any failure, halt with the named reason. When the failure is the `--reason` (`dismiss`), quote the reason back and name what is missing from it — the claim it makes, or the referent it lacks — so the engineer knows what to write rather than how long to write.
 
 3. **Print the finding in full.** Read the resolved file and print its full body to the conversation. The engineer should re-read before committing to the triage action.
 
@@ -81,7 +81,7 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
 8. **Edit + validate + commit.** On `Y`:
    - `Edit` the file: frontmatter changes + Triage Log append.
-   - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. KF-01 through KF-05 must pass; specifically KF-05 (`dismissed-reason` non-null and ≥50 chars when `status: dismissed`) gates dismissal.
+   - Run `node hstack/scripts/validate-spec.mjs <path>` against the file. KF-01 through KF-05 must pass; specifically KF-05 (`dismissed-reason` non-null when `status: dismissed`) gates dismissal.
    - On validation pass: `git add` the file and commit with message `kernel-fit(<finding-id>): <action>` (e.g. `kernel-fit(KF-0001): acknowledge`).
    - On validation failure: halt; revert via `git checkout -- <finding-file>`. Report the failing rule to the engineer.
 
@@ -109,7 +109,7 @@ Beyond the kernel's general stop conditions:
 
 - The finding does not exist or is at a terminal-from-triage status (`dismissed`, `promoted`, `superseded`, `archived`). Halt with the status named.
 - `--action` is missing or not in the enum. Halt with usage.
-- `--action dismiss` without `--reason`, or with `--reason` <50 characters. Halt with the actual length count.
+- `--action dismiss` without `--reason`, or with a `--reason` that restates the finding instead of answering it. Halt, quote it back, and name what is missing.
 - `--action acknowledge` with `--reason` present. Halt — acknowledge does not take a reason.
 - The engineer declines confirmation at step 7. Abort cleanly.
 - Validator fails at step 8 — halt with the failing rule; revert the unstaged edit.
@@ -117,5 +117,5 @@ Beyond the kernel's general stop conditions:
 ## Failure modes
 
 - **Edit fails (filesystem, validator, git).** The frontmatter flip and the Triage Log append must land together in a single auto-commit. If `Edit` succeeds but `git add` or `git commit` fails, the working tree carries the unstaged change — revert via `git checkout -- <finding-file>` and re-invoke.
-- **Drive-by dismissal attempt.** The ≥50-character check at step 2 is the v1 defense. Short reasons fail before any write occurs.
+- **Drive-by dismissal attempt.** The re-evaluability judgment at step 2 is the v1 defense: the reason is read against the finding the Skill just resolved, and one that gives a later reader nothing to check is quoted back before any write occurs.
 - **Stale finding (post-scan supersession in flight).** If a concurrent `/hstack:kernel-fit-scan` has just superseded the finding the engineer is triaging, the post-edit validator would catch the inconsistent state (superseded finding cannot be re-triaged). Halt and let the engineer re-fetch the working tree.

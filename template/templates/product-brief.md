@@ -44,7 +44,7 @@ _The things that could make this product fail. The forcing-prompt "What would yo
 
 ## Forcing-Prompt Answers
 
-_Evidence that the three required reframes ran. Logged inline as confirmation the probes were not skipped._
+_Evidence that the three required reframes ran. Logged inline as confirmation the probes were not skipped. The headings below are the canonical wording — record what was actually asked when a reframe was fitted to this product._
 
 **Who specifically pays for this?**
 _The named user / buyer plus the rationale ("Director of CS, because retention is their KPI")._

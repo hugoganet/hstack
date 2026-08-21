@@ -43,11 +43,11 @@ Before any work:
 
 2. **Threat-model delta.** When `threat-model-delta-required: true`, the subagent writes section 3 with a non-empty delta against the current threat-model.md. SR-03 enforces this at validation.
 
-3. **Three challenge prompts (mandatory).** Per SR-02 and the subagent's contract, the subagent answers all three challenge prompts verbatim:
+3. **Three challenge prompts (mandatory).** Per SR-02 and the subagent's contract, the subagent answers all three challenge prompts. The canonical wording:
    - "What attack vector did the In-Scope diff create that is NOT covered by the hardening checklist? If none, justify."
    - "Which tenant_isolation guarantee does this change depend on? Cite the line of code that enforces it."
    - "What part of this change would behave incorrectly under a malicious payload that the test suite does not cover?"
-   Each answer is at least one paragraph. The Skill verifies `challenge-prompts-answered: 3` in frontmatter.
+   The prompts must be answered; they need not be transcribed. Where a probe fits the change poorly as written, the subagent adapts it so it bites harder and records the adapted question in the heading — the `(a)` / `(b)` / `(c)` prefixes stay, because that is what SR-02 locates the answers by. Each answer is at least one paragraph. The Skill verifies `challenge-prompts-answered: 3` in frontmatter.
 
 4. **Scoring discipline.** Per the subagent's contract, scoring biases toward CONCERNS when evidence is thin. The Skill does not override this bias. Tenant-isolation citations reference real lines of code; the subagent greps to verify.
 

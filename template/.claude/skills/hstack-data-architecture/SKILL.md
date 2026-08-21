@@ -63,7 +63,7 @@ tools:
 ## Stop conditions
 
 - Product-brief at non-terminal status.
-- Section 1 Tenancy answer is vague after one re-ask.
+- Section 1's tenant is not yet one concrete noun with a rule for who is inside it, after one re-ask.
 - A drift challenge surfaces an unresolved contradiction.
 - Extract mode invoked but no schema source reachable.
 - The `assumes-database: postgres` value contradicts an in-flight stack decision.

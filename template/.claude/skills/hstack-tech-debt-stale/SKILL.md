@@ -40,13 +40,13 @@ Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:te
 
 1. **Print the TD in full.** Read `hstack/tech-debt/<td-id>.md` and print Title, Why we took the shortcut, What it costs us, Fix sketch, Pre-conditions, Acceptance to the conversation. The engineer should re-read before committing to a stale-no-longer-reproducible closure; the verification step depends on understanding what the original claim actually was.
 
-2. **Ask the verification question.** "What evidence shows this TD's claim no longer reproduces? Be specific — a grep result that returns nothing, a git log showing the dependent code was removed, a dependency upgrade that fixes the issue upstream, etc. (one sentence, ≤ 300 characters)". Capture the answer.
+2. **Ask the verification question.** "What evidence shows this TD's claim no longer reproduces?" The answer has to be checkable by someone who was not in the room — a command that returns nothing, a commit that removed the dependent code, a dependency version that carries the upstream fix, a system that no longer exists. Capture it as written; no length bound.
 
-3. **Semantic check.** If the answer reads like a deferral or a preference rather than an absence ("we don't care anymore", "not worth it", "moved on", "low priority", "not blocking us"), halt with: "That reads like a wontfix rationale, not stale-no-longer-reproducible. Stale means the original problem has verifiably gone away — code removed, dependency upgraded, system retired. If the problem is still observably present and the team is choosing not to fix it, use /hstack:tech-debt-wontfix instead." The Skill does not write anything in this case.
+3. **Semantic check.** Stale means the problem no longer exists and someone else could verify that. The answer has to be a fact about the code, the dependency tree, or the deployed system — not a position on the problem. A sentence that says how the team now feels about the compromise is a wontfix rationale however it is phrased, and a sentence that names a removed call path is a stale verification however casually it is written. When it reads as a preference, halt with: "That reads like a wontfix rationale, not stale-no-longer-reproducible. Stale means the original problem has verifiably gone away — code removed, dependency upgraded, system retired. If the problem is still observably present and the team is choosing not to fix it, use /hstack:tech-debt-wontfix instead." The Skill does not write anything in this case.
 
 4. **Confirm.** Print the captured verification method and ask "Mark TD-NNNN as stale-no-longer-reproducible with this evidence? (Y/n)". Default Yes. Include a one-line summary of what will be written to disk so the engineer sees the proposed-diff before committing (per the kernel's AI writes / humans confirm contract for mechanical operations).
 
-5. **Verify the answer length.** If the answer exceeds 300 characters, ask for a tighter version — stale verification methods are short, specific, and load-bearing. If the engineer cannot tighten below 300 chars without losing evidence, the verification probably isn't structural enough to qualify as stale; consider whether wontfix is the right path.
+5. **Verify the answer is a fact, not a story.** Read it back against one test: could a third party run, read, or look up what it names and reach the same conclusion? If it names something checkable, it qualifies — one clause or four. If it is an account of why the problem stopped mattering, the problem is still there and this is a wontfix; surface that recommendation rather than writing the stale closure.
 
 6. **Write the stale transition (direct write).** Per the kernel's Mechanical operations section, this Skill performs the writes itself via the `Edit` tool — no `spec-author` invocation. Edit `hstack/tech-debt/<td-id>.md`:
    - Defensive log-header check per the kernel: if `## Resolution Log` is absent, append it before writing the entry.
@@ -76,8 +76,8 @@ Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:te
 Beyond the kernel's general stop conditions:
 
 - The TD does not exist or is at a non-`open` status. Halt with the status named.
-- The verification answer reads as a deferral or preference (per step 3). The Skill refuses to write and surfaces the wontfix recommendation.
-- The answer exceeds 300 characters and the engineer cannot tighten it without losing evidence. Halt and surface the wontfix recommendation — overly long stale verifications usually indicate the claim isn't actually absent.
+- The verification answer is a preference about the problem rather than a fact about its absence (per step 3). The Skill refuses to write and surfaces the wontfix recommendation.
+- The answer names nothing a third party could check. Halt and surface the wontfix recommendation — a verification that cannot be re-run by someone else is a preference about the problem, not evidence of its absence.
 - The engineer declines confirmation at step 4.
 
 ## Failure modes
