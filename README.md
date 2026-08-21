@@ -108,6 +108,19 @@ Run `npx hstack@latest update` whenever you want to pull the latest framework ve
 
 Run `npx hstack doctor` to audit health without making changes — useful for CI checks, audits before opening a PR against the consumer repo, or onboarding a new contributor.
 
+#### Adding or removing a Skill or subagent
+
+`hstack update` handles this for a consumer pulling a release. A session working *in the framework source* carries the obligation manually, and lands the wiring change in the same PR as the Skill or subagent change (the kernel states the obligation under § Consuming-repo wiring; the commands are here):
+
+| Change | Consumer-side action |
+|---|---|
+| New Skill at `.claude/skills/hstack-<name>/` | Create the symlink: `ln -s ../../hstack/.claude/skills/hstack-<name> <consumer-root>/.claude/skills/hstack-<name>` |
+| Skill removed | Remove the matching symlink. Orphan symlinks are silent failures. |
+| Skill renamed | Treat as removal + addition, in both source and consumer. |
+| New subagent at `.claude/agents/<name>.md` | None. `.claude/agents/` is a dir-level symlink under the recommended pattern, so the file appears automatically. |
+| Subagent removed | None, same reason. |
+| Copy-based consumer (copied `.claude/` instead of symlinking) | Mirror every add / remove / rename by hand. The drift cost is why symlinks are recommended. |
+
 #### Telemetry
 
 `hstack/scripts/telemetry/` ships with the framework and is installed by `hstack init` automatically. The `/hstack:telemetry` Skill shells out to `python3 hstack/scripts/telemetry/report.py --window 30`, generating a markdown report at `hstack/telemetry/reports/<YYYY-MM-DD>.md`. The reports directory is git-tracked; per-change `.telemetry/` sidecar dirs are git-ignored (`hstack init` adds the `**/.telemetry/` line for you).
@@ -236,10 +249,18 @@ The full v2 roadmap lives in the architecture document.
 
 ## Reference
 
+Authoritative, in the repo:
+
 - [`template/KERNEL.md`](./template/KERNEL.md) — the kernel. Authority over every Skill, subagent, and template.
-- [Architecture document](https://www.notion.so/360d6791656c813d955af822cb8814d1) — long-form companion to the kernel.
-- [Template schemas and frontmatter contracts](https://www.notion.so/361d6791656c8178bbbbc812fa6426e0) — per-template fields, sections, lifecycle, validation rules.
+- [`template/templates/`](./template/templates/) — the canonical structure of every artifact type: fields, sections, lifecycle.
+- `node template/scripts/validate-spec.mjs --rules` — the canonical list of mechanized rules, and of the rules deliberately left to a human or to CI, with the reason for each.
+
+Non-authoritative historical companions, written before the framework shipped its own enforcement. Where they disagree with the three above, they are wrong:
+
+- [Architecture document](https://www.notion.so/360d6791656c813d955af822cb8814d1) — long-form companion to the kernel, pre-v1.
 - [Adversarial review of the architecture](https://www.notion.so/361d6791656c81f78eb3c97ba4aecbb4) — the 21-finding pressure test that shaped the v1 / v2 split.
+
+The former "template schemas and frontmatter contracts" page is no longer listed: it has diverged from the repo and is superseded by the templates directory and the validator registry (ADR-0013).
 
 ## Status
 

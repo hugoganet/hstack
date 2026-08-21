@@ -28,7 +28,7 @@ Invoke once the change-spec is at `status: ready-for-implementation` (which mean
 
 ## Preconditions
 
-Before any work — the Skill re-checks every gate even when the change-spec carries `status: ready-for-implementation`, because frontmatter can drift:
+Before any work — the Skill re-checks every gate even when the change-spec carries `status: ready-for-implementation`, because frontmatter can drift. Every check below reads **frontmatter only**, except the two that name a body section (the plan's phase ids and Files Touched); the Skill does not load artifact bodies, because the `implementer` subagent loads what it needs from its own session-start list (kernel § Reading artifacts):
 
 - Change-spec at `hstack/specs/changes/<change-id>/spec.md`. `status` must be `ready-for-implementation` or `in-progress`. `Invariants` ≥ 3 bullets, `in-scope` non-empty, every `in-scope` glob resolves.
 - Plan at `hstack/specs/changes/<change-id>/plan.md` at `status: ready` or `in-progress`. `<task-id>` must match a phase id in the plan body. `Files Touched` for the phase must be a strict subset of `in-scope`.
