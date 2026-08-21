@@ -30,7 +30,7 @@ For findings already at `acknowledged`, re-invoking with `--action acknowledge` 
 
 - `<finding-id>` (required, positional): the finding id, e.g. `KF-0001-category-a-claim-spans-production` or the short form `KF-0001` (the Skill resolves the latter to the matching file via glob).
 - `--action <acknowledge | dismiss>` (required): the triage action.
-- `--reason <text>` (required when `--action dismiss`; forbidden when `--action acknowledge`): the dismissal rationale. It has to say what about the finding is wrong or not worth acting on, specifically enough that a reader six months from now can tell whether the dismissal still holds. "Not relevant" and "working as intended" say nothing a re-reader can check; "the kernel gives a norm here, not a bound" says everything, in forty-one characters. Length is not the test and is not checked (ADR-0014).
+- `--reason <text>` (required when `--action dismiss`; forbidden when `--action acknowledge`): the dismissal rationale. It has to say what about the finding is wrong or not worth acting on, specifically enough that a reader six months from now can tell whether the dismissal still holds. "Not relevant" gives them nothing to check; "the kernel gives a norm here, not a bound" gives them everything, in forty-one characters. Length is not the test and is not checked (ADR-0014).
 
 ## Preconditions
 
@@ -117,5 +117,5 @@ Beyond the kernel's general stop conditions:
 ## Failure modes
 
 - **Edit fails (filesystem, validator, git).** The frontmatter flip and the Triage Log append must land together in a single auto-commit. If `Edit` succeeds but `git add` or `git commit` fails, the working tree carries the unstaged change — revert via `git checkout -- <finding-file>` and re-invoke.
-- **Drive-by dismissal attempt.** The re-evaluability judgment at step 2 is the v1 defense: the reason is read against the finding the Skill just resolved, and one that says nothing a later reader could check is quoted back before any write occurs. Step 3 then prints the finding in full, so a reason that survived step 2 is still confirmed with the artifact on screen.
+- **Drive-by dismissal attempt.** The re-evaluability judgment at step 2 is the v1 defense: the reason is read against the finding the Skill just resolved, and one that gives a later reader nothing to check is quoted back before any write occurs.
 - **Stale finding (post-scan supersession in flight).** If a concurrent `/hstack:kernel-fit-scan` has just superseded the finding the engineer is triaging, the post-edit validator would catch the inconsistent state (superseded finding cannot be re-triaged). Halt and let the engineer re-fetch the working tree.
