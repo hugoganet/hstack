@@ -17,16 +17,13 @@ schema-version: 1
 
 _The load-bearing question. The data-architect refuses to advance past this section until the tenant definition is concrete and ties to a persona in the brief._
 
-**Pattern** — one of:
+**A tenant is a ...**
 
-- **A. Tenant = the customer organization** — single workspace per paying customer; users inside share visibility.
-- **B. Tenant = a sub-team within the customer organization** — multi-workspace per customer.
-- **C. Tenant = the individual user** — workspace-per-user.
-- **D. Custom** — document the pattern explicitly and explain why none of A/B/C fit.
+_One concrete noun from this product's own vocabulary, plus the rule for who is inside one and who is not. Common shapes, offered as examples rather than as a menu: the customer organization (one workspace per paying customer, users inside share visibility); a sub-team within that organization (multi-workspace per customer); the individual user (workspace-per-user). Products whose tenant is a project, a device, a contract, a site, a case or a season are ordinary and none of those three fit them — name yours._
 
 **Rationale**
 
-_One sentence tying the chosen pattern to the persona in `product-brief.md`. Example: "Pattern A because Maya (Director of CS) shares visibility with her 6 reps; sub-team isolation isn't requested by any v1 persona."_
+_One sentence tying the tenant to a persona in `product-brief.md`. Example: "The tenant is the customer organization, because Maya (Director of CS) shares visibility with her 6 reps and no v1 persona asks for sub-team isolation."_
 
 **Tenant identifier**
 

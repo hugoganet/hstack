@@ -51,11 +51,9 @@ The agent never writes migration files. Migrations are sketched in Section 5 (Mi
 
 The artifact has a fixed five-section structure. The atom walks them in order in fresh-start mode; with `--section <name>` it fast-jumps to one section but **always re-runs the end-of-atom coherence check across all five before commit**.
 
-1. **Tenancy Model.** The load-bearing question: what is a tenant? Three common patterns walked explicitly:
-   - **A. Tenant = the customer organization** — single workspace per paying customer; users inside it share visibility.
-   - **B. Tenant = a sub-team within the customer organization** — multi-workspace per customer.
-   - **C. Tenant = the individual user** — workspace-per-user.
-   The agent insists on one concrete answer plus a one-sentence rationale that ties to the persona in the brief. "We'll figure it out" is rejected.
+1. **Tenancy Model.** The load-bearing question: what is a tenant? The section lands when the answer is **one concrete noun from this product's own vocabulary**, plus a one-sentence rationale that ties it to a persona in the brief. "We'll figure it out" is rejected; so is a noun the brief never uses.
+   Common shapes, as **examples** to offer when the engineer is unsure or when their first answer sounds like a default rather than a decision: tenant = the customer organization (one workspace per paying customer, users inside it share visibility); tenant = a sub-team within that organization (multi-workspace per customer); tenant = the individual user (workspace-per-user).
+   These three cover most B2B SaaS and are not the space. A tenant that is a **project**, a **device**, a **contract**, a **site**, a **case** or a **season** is ordinary, and for those products the three shapes above are three wrong answers. Offer them when they help the engineer locate their own; never walk them as a checklist over an answer that is already concrete.
 2. **Entity Graph.** The set of entities and their relationships. Each entity must trace to either a persona-named action in the brief or to the tenancy model from Section 1. Orphan entities (no trace) halt with the drift challenge prompt.
 3. **RLS Posture.** Per-table policy sketch. Every entity from Section 2 is either:
    - **Tenant-scoped** — RLS policy required; sketch the predicate (`workspace_id = current_setting('app.workspace_id')::uuid` or equivalent for the chosen tenancy model).
@@ -66,8 +64,8 @@ The artifact has a fixed five-section structure. The atom walks them in order in
 
 ## Behavior rules
 
-- **Tenancy first, always.** The atom refuses to advance past Section 1 until the tenant definition is concrete and ties to a persona in the brief. The agent walks Patterns A/B/C explicitly even if the engineer claims to know — the explicit walk surfaces edge cases ("our enterprise customers want sub-teams" → Pattern B, not A) the engineer may not have considered.
-- **Drift challenge prompts are mandatory per section.** Each section ends with a drift challenge before it can be confirmed:
+- **Tenancy first, always.** The atom refuses to advance past Section 1 until the tenant definition is concrete and ties to a persona in the brief. Concrete means: a single noun, a rule for who is inside one and who is not, and a persona whose workday the boundary matches. When the engineer already has that, take it — probe the edges rather than re-deriving the answer. When they do not, the common shapes above are the tool for locating it. The failure this rule exists to prevent is a tenancy that was inherited from a familiar product rather than chosen for this one; the probe for it is "name a case where two of your users must not see each other's data, and tell me what separates them", not a taxonomy recital.
+- **Drift challenge prompts are mandatory per section.** Each section ends with a drift challenge before it can be confirmed, and the answer stays in the artifact as evidence the probe ran. The sentences below are the canonical form; adapt them to the section's actual content when the adaptation probes harder. What may not change is the question each one asks.
   - Section 2 challenge: "Does any entity here have no trace to a persona or feature in the brief? Name it."
   - Section 3 challenge: "Does any tenant-scoped entity have an RLS policy that the chosen tenancy model wouldn't enforce? Name it."
   - Section 4 challenge: "Does any embedding-bearing entity have a retrieval RPC that bypasses tenant scoping? Name it."
@@ -86,7 +84,7 @@ The artifact has a fixed five-section structure. The atom walks them in order in
 The agent halts and asks the human when:
 
 - `product-brief.md` is missing or at `status: draft`.
-- Section 1 tenancy answer is "we'll figure it out" or equivalent vagueness, after one re-ask.
+- Section 1's tenancy answer is not yet one concrete noun with a rule for who is inside it, after one re-ask.
 - An entity in Section 2 has no trace to a persona or feature in the brief, and the engineer has not yet decided to either remove it or revise the brief.
 - A drift challenge surfaces a contradiction with an upstream artifact (brief, vision, roadmap) — halt with `HSTACK-HALT: reason=upstream-drift` and offer (a) revise this section, (b) re-enter the upstream atom to revise it, (c) log as ADR.
 - Extract mode was invoked but the live schema is unreachable and no migration files exist in the repo.
@@ -101,13 +99,13 @@ A `data-architecture.md` at terminal state (`status: current`) contains:
   - `assumes-database: postgres` (or the chosen alternative, with documented rationale)
   - `derived-from: [product-brief]`
   - `downstream: [app-architecture, threat-model, hardening-checklist, module-spec/*]`
-- All five sections, each with its drift challenge answered inline as evidence the probe ran.
+- All five sections, each with its drift challenge answered inline as evidence the probe ran — in whatever wording the section's content called for.
 - A passing validator run.
 
 ## Confirmation discipline
 
 The interview is confirmation-gated at the **section level**. Each section produces a proposed draft (in elicit mode, drafted from the engineer's answers; in extract mode, drafted from code-evidence) and a confirm-or-revise gate before commit. Within a section, individual fields may be re-asked if vague, but the disk write happens at section confirmation.
 
-The kernel's AI-writes / humans-confirm contract applies: silence is not confirmation. The drift challenge prompts are *content* of the interview, not extra confirmation gates — answering a challenge IS the confirmation that the section survived scrutiny.
+The kernel's AI-writes / humans-confirm contract applies: silence is not confirmation. The drift challenge prompts are *content* of the interview, not extra confirmation gates — answering a challenge IS the confirmation that the section survived scrutiny. That is why the probes are mandatory and their wording is not: what the artifact records is the answer, and a probe that has been fitted to the section under discussion gets a better one.
 
 The agent's distinctive contribution to the contract is the **bidirectional drift recovery** mechanism: a downstream phase finding an upstream gap reroutes here, the named section is refreshed with the same confirmation discipline, and the coherence check re-runs across all five sections. This preserves the kernel's "upstream must be terminal before downstream advances" invariant while allowing the discovery flow to be iterative.

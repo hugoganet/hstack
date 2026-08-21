@@ -54,21 +54,21 @@ Writing module-spec stubs is an exception to the kernel rule that `spec-author` 
 The artifact has a fixed five-section structure. Section-targeted entry (`--section <name>`) fast-jumps but always re-runs the end-of-atom coherence check across all five before commit.
 
 1. **Module Map.** The set of modules and what each owns. Each module must trace to either a persona-named action in the brief or a logical clustering of entities from the data-architecture. Orphan modules (no trace) halt with the drift challenge. The Module Map drives the module-spec stub scaffolding at terminal state.
-2. **Agent Orchestration Model.** How LLM calls compose, what triggers what, where prompts live, what the tool boundaries are. For an AI-native SaaS, this is the meaty AI-specific section. The agent insists on a directed graph: which modules call the LLM, what each call returns, how downstream modules consume the output. Implicit "the LLM does it" answers are rejected — the call sites must be named.
+2. **Agent Orchestration Model.** How LLM calls compose, what triggers what, where prompts live, what the tool boundaries are. For an AI-native SaaS, this is the meaty AI-specific section. The section lands when the graph is traceable: every LLM call site is named, what it returns is stated, and the module that consumes the output is identified. "The LLM does it" is not an answer because it names no site to debug, not because it is short — a single call site, named, is a complete graph.
 3. **Deterministic-vs-LLM Split.** Per user-facing flow, a table:
    - **Flow name** (from a persona's workday vignette).
    - **Step**.
    - **Mechanism**: `deterministic` (code, queries, templates) or `llm` (prompt, model name, structured-output schema).
    - **Rationale** (one sentence, must tie to a property like determinism, cost, latency, or capability).
-   The agent insists on per-step declaration. Flows that say "the AI handles it end-to-end" are rejected — that answer hides too many decisions to debug later.
+   Every step's mechanism is a decision someone is making; the table exists so that it gets made on purpose rather than by default. "The AI handles it end-to-end" is refused because it leaves the boundary undeclared, not because a flow may not be LLM-heavy: a flow that genuinely is one model call, written as one row with its schema and a rationale that names the property it buys, is a complete and acceptable answer. The rule is against the undeclared boundary, not against short tables.
 4. **State-Ownership Map.** Where conversation state lives, where workspace state lives, where ephemeral / browser-session state lives. Each state class names its owning module from Section 1 and its persistence layer from `data-architecture.md`. State without an owning module triggers the drift challenge.
 5. **Surface Boundaries.** What the project's `surfaces` enum contains (`ui`, `api`, `agent`, `db`, `auth`, `infra` is the canonical floor; projects may add or omit). The agent declares which surfaces exist in v1 and which are deferred. This section seeds the `surfaces` field on every future change-spec and the `surfaces` allowlist in `hstack/config.yaml`.
 
 ## Behavior rules
 
 - **Stack-agnostic.** The artifact does not name frameworks, ORMs, hosting providers, or specific runtimes. The agent rewrites engineer-supplied framework names into role-based terms ("the rendering layer," "the data client") in the artifact body. Frontmatter does not declare framework either. Stack lives in Phase 4's ADRs.
-- **Per-flow Deterministic-vs-LLM declaration is mandatory.** The agent walks Section 3 row by row; no implicit "AI handles it" allowed. Each row's rationale must tie to a measurable property (determinism, cost, latency, capability) — vague rationales are re-asked.
-- **Drift challenge prompts are mandatory per section.** Each section ends with a drift challenge before it can be confirmed:
+- **Per-flow Deterministic-vs-LLM declaration is mandatory.** The agent walks Section 3 row by row and no step's mechanism is left implicit. Each row's rationale ties to a property that could in principle be checked — determinism, cost, latency, capability — because a rationale nobody could ever disagree with is a rationale nobody thought about. Re-ask when it is not there.
+- **Drift challenge prompts are mandatory per section.** Each section ends with a drift challenge before it can be confirmed, and the answer stays in the artifact as evidence the probe ran. The sentences below are the canonical form; adapt them to the section's actual content when the adaptation probes harder. What may not change is the question each one asks.
   - Section 1: "Does any module here own state a persona never interacts with, OR does any persona's journey traverse modules in a way the boundaries don't support?"
   - Section 2: "Does any LLM call site bypass the tool boundaries declared, or have an unnamed retry / fallback path?"
   - Section 3: "Does any flow have a step where the mechanism is undeclared, or a rationale that doesn't tie to a measurable property?"
@@ -86,7 +86,7 @@ The agent halts and asks the human when:
 
 - `data-architecture.md` is missing or at `status: draft`.
 - A module in Section 1 has no trace to a persona or to data-architecture entities.
-- A flow in Section 3 has a step with no declared mechanism, or with a rationale that doesn't tie to a measurable property.
+- A flow in Section 3 has a step with no declared mechanism, or with a rationale that names no property anyone could disagree with.
 - A drift challenge surfaces a contradiction with `data-architecture.md` or `product-brief.md` — halt with `HSTACK-HALT: reason=upstream-drift`.
 - A bidirectional drift recovery is needed (a state-ownership gap in data-architecture) and the engineer has not chosen a recovery path.
 - Extract mode was invoked but the repo's source tree is unreachable or empty.
@@ -99,7 +99,7 @@ An `app-architecture.md` at terminal state (`status: current`) contains:
 - Universal frontmatter plus:
   - `derived-from: [product-brief, data-architecture]`
   - `downstream: [threat-model, hardening-checklist, tech-stack, module-spec/*]`
-- All five sections, each with its drift challenge answered inline.
+- All five sections, each with its drift challenge answered inline — in whatever wording the section's content called for.
 - A passing validator run.
 
 At terminal state the atom auto-commits two things in one git commit:
@@ -112,6 +112,6 @@ At terminal state the atom auto-commits two things in one git commit:
 
 The interview is confirmation-gated at the **section level**, with one finer-grained gate inside Section 3 (per-flow row confirmation, because per-step declarations are too consequential to batch). Each section produces a proposed draft and a confirm-or-revise gate before commit.
 
-The kernel's AI-writes / humans-confirm contract applies. Silence is not confirmation. The drift challenge prompts are *content* of the interview, not extra gates — answering a challenge IS the confirmation that the section survived scrutiny.
+The kernel's AI-writes / humans-confirm contract applies. Silence is not confirmation. The drift challenge prompts are *content* of the interview, not extra gates — answering a challenge IS the confirmation that the section survived scrutiny. That is why the probes are mandatory and their wording is not: the artifact records the answer, and a probe fitted to the section under discussion gets a better one.
 
 The agent's distinctive contribution to the contract is the **bidirectional drift recovery** mechanism inherited from `data-architect`: a state-ownership gap discovered in this atom can reroute into `data-architecture`'s Section 2 (entities) for an upstream refresh. Both atoms re-run their end-of-atom coherence checks; the downstream resumes after the upstream commit lands. This preserves "upstream must be terminal before downstream advances" while keeping the discovery flow iterative.
