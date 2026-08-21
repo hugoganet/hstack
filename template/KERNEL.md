@@ -101,7 +101,7 @@ Every artifact under `hstack/specs/`, `hstack/context/`, `hstack/adr/`, `hstack/
 ```yaml
 ---
 id: <kebab-case slug, immutable>
-type: <controlled enum — see template schemas>
+type: <controlled enum per artifact type>
 status: <controlled enum per type>
 owner: <engineer responsible>
 created: <ISO 8601 date>
@@ -109,19 +109,13 @@ updated: <ISO 8601 date>
 ---
 ```
 
-Per-type fields extend this floor. The full per-type schema is authoritative in the template schemas doc: https://www.notion.so/361d6791656c8178bbbbc812fa6426e0. The kernel does not duplicate per-template detail.
+Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601; controlled enums are case-sensitive; arrays are YAML arrays, never comma-separated strings. Enforced as FM-01.
 
-Naming rules: `id` is kebab-case and immutable once written; dates are ISO 8601; controlled enums are case-sensitive; arrays are YAML arrays, never comma-separated strings.
+**Per-type fields extend this floor, and the repo is their authority.** Structure lives in `hstack/templates/<type>.md` — the file the subagent actually fills. Mechanized rules live in the validator's registry: `node hstack/scripts/validate-spec.mjs --rules` prints both what is enforced and what is deliberately deferred, with the reason. The kernel does not duplicate per-template detail, and no document outside the repo is authoritative for it.
 
-**Change-spec carries an optional `revisits-change` array.** When a new change-spec is filed to fix a defect, regression, or missed adversarial-review finding from a prior shipped change, the engineer populates `revisits-change: [<predecessor-change-id>]` so post-merge defect correlation is computable (`/hstack:telemetry` § QO-6 when promoted from watch-list to dashboard). Default empty. The field is informational, not gating — no Skill refuses to advance because the array is empty or non-empty.
+**Change-spec carries an optional `revisits-change` array.** When a new change-spec fixes a defect, regression, or missed adversarial-review finding from a prior shipped change, `revisits-change: [<predecessor-id>]` makes post-merge defect correlation computable. Informational, never gating.
 
-**Change-spec carries `internal-tooling` (Category A), `enables` (Category B), and `area: bootstrap` (Category C) as the three no-story carve-outs.** A change-spec with no driving user story must declare one of three categories before status advances past `draft` (SP-09):
-
-- **Category A — `internal-tooling: true`.** Engineering-only code that never ships on a user path: CI tooling, dev scripts, repo automation, internal dashboards. No `enables` linkage exists because no downstream user-facing change is teed up.
-- **Category B — `enables: [<downstream-change-spec-id>, ...]`.** Production code that ships, but user value is realized by a named downstream change-spec that consumes this one's output. Typical case: schema or plumbing landed ahead of the UI that surfaces it. The reciprocal field `enabled-by: []` on the downstream spec is written atomically with `enables`.
-- **Category C — `area: bootstrap`.** The one-time greenfield scaffold change-spec. The code ships on user paths, but the explicit `enables` list would be degenerate (every future change-spec would be a target) and `internal-tooling: true` would be dishonest. The `area: bootstrap` value satisfies SP-09 as the third carve-out. Bootstrap is produced by `/hstack:scaffold` (Phase 6 of `/hstack:greenfield-init`) and runs at most once per project lifetime; the canonical template is `hstack/templates/bootstrap.md`.
-
-The three flags are mutually exclusive (SP-13): a change is Category A, Category B, or Category C — never two. If none applies, `user-stories` must be non-empty. The audit query *"what's the user value of this change?"* follows the `enables` chain (Category B) until it hits a spec with `user-stories` non-empty, terminates at Category A with "none, it's internal", or terminates at Category C with "it bootstraps the project; all subsequent changes inherit from it." Forward references are permitted at authoring time — if `enables` names a not-yet-scaffolded id, `/hstack:change-new` reconciles the reciprocal `enabled-by` when the downstream spec is later scaffolded. Reciprocity (`change-spec.enables ↔ change-spec.enabled-by`) is enforced by SP-14 and lands in a single atomic commit, matching the kernel's other reciprocal-pair rules.
+**A change-spec with no driving user story declares exactly one of three carve-outs before it advances past `draft` (SP-09):** Category A `internal-tooling: true` (engineering-only code that never ships on a user path), Category B `enables: [<downstream-id>, ...]` (production code whose user value is realized by a named downstream spec), or Category C `area: bootstrap` (the one-time greenfield scaffold, where an `enables` list would be degenerate and `internal-tooling` would be dishonest). They are mutually exclusive (SP-13). The rule exists to keep one audit query answerable — *what's the user value of this change?* — which follows the `enables` chain until it reaches a spec with `user-stories` non-empty, or terminates at A ("none, it's internal") or C ("it bootstraps the project"). `spec-author` runs the interview that picks the category. Category B's reciprocity (`enables` ↔ `enabled-by`, SP-14) lands atomically, and forward references are legal at authoring time — `/hstack:change-new` reconciles the reciprocal when the downstream spec is later scaffolded.
 
 ---
 
@@ -139,7 +133,7 @@ Two rules:
 - **Auto-commit at status transition.** Every time a subagent or Skill moves an artifact's status to a new value, the change is git-committed to the active working branch. This produces the audit trail and provides the resumability checkpoint.
 - **Upstream must be terminal before downstream advances.** A change-spec reaches `ready-for-implementation` only when test-plan, plan, security-review, data-review (when applicable), and ui-brief / figma-handoff (when applicable) are at correct terminal states. The test-plan is itself upstream of the plan — the `planner` refuses to start until `test-plan.md` is at `passed` or `concerns-acknowledged`. The transition gate is computed from artifact statuses, not asserted by an agent.
 
-Per-type lifecycles live in the template schemas doc.
+Per-type lifecycles live in `hstack/templates/<type>.md`; the status-gating rules the validator enforces are in its registry (`--rules`).
 
 ---
 
@@ -316,9 +310,9 @@ A subagent that cannot reach a required context document halts and asks the huma
 
 ## Templates
 
-Templates live at `hstack/templates/`. Each template file is the canonical source for that artifact type. Subagents fill templates; they do not invent structure ad hoc.
+Templates live at `hstack/templates/`. **Each template file is the canonical source for its artifact type** — required fields, section structure, length norms, status transitions, dependencies. Subagents fill templates; they do not invent structure ad hoc. What is mechanically checked against them is the validator's registry (`node hstack/scripts/validate-spec.mjs --rules`), which also names what is deliberately not checked and why.
 
-Per-template detail — required fields, section structure, length norms, validation rules, status transitions, dependencies — lives in the template schemas doc: https://www.notion.so/361d6791656c8178bbbbc812fa6426e0. Read it before any template instance is authored.
+These two are the whole authority. A schema described anywhere else — an external doc, a wiki page, a companion write-up — is a description of hstack, not a source for it, and drifts from the templates the moment one of them changes.
 
 ---
 
@@ -395,6 +389,9 @@ v1 honesty: the analyst's output is an LLM-strategized judgment, not measured tr
 
 ## References
 
-- Architecture document (long-form companion): https://www.notion.so/360d6791656c813d955af822cb8814d1
-- Template schemas and frontmatter contracts: https://www.notion.so/361d6791656c8178bbbbc812fa6426e0
-- Adversarial review of the architecture: https://www.notion.so/361d6791656c81f78eb3c97ba4aecbb4
+**Non-authoritative.** These are historical companions, written before the framework shipped its own enforcement. Where any of them disagrees with this kernel, the repo's templates, or the validator registry, they are wrong. None is a schema source.
+
+- Architecture document (long-form companion, pre-v1): https://www.notion.so/360d6791656c813d955af822cb8814d1
+- Adversarial review of the architecture (the 21-finding pressure test that shaped the v1 / v2 split): https://www.notion.so/361d6791656c81f78eb3c97ba4aecbb4
+
+The former "template schemas and frontmatter contracts" page is deliberately not listed: it has diverged from the repo (its SP-09 predates the Categories, it still carries `mvp-scope`, and it is missing roughly nine artifact types the repo ships templates for), and the validator's registry already refuses to implement ids that exist only there. `hstack/templates/` and `validate-spec.mjs --rules` replace it.

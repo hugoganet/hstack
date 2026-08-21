@@ -249,10 +249,18 @@ The full v2 roadmap lives in the architecture document.
 
 ## Reference
 
+Authoritative, in the repo:
+
 - [`template/KERNEL.md`](./template/KERNEL.md) — the kernel. Authority over every Skill, subagent, and template.
-- [Architecture document](https://www.notion.so/360d6791656c813d955af822cb8814d1) — long-form companion to the kernel.
-- [Template schemas and frontmatter contracts](https://www.notion.so/361d6791656c8178bbbbc812fa6426e0) — per-template fields, sections, lifecycle, validation rules.
+- [`template/templates/`](./template/templates/) — the canonical structure of every artifact type: fields, sections, lifecycle.
+- `node template/scripts/validate-spec.mjs --rules` — the canonical list of mechanized rules, and of the rules deliberately left to a human or to CI, with the reason for each.
+
+Non-authoritative historical companions, written before the framework shipped its own enforcement. Where they disagree with the three above, they are wrong:
+
+- [Architecture document](https://www.notion.so/360d6791656c813d955af822cb8814d1) — long-form companion to the kernel, pre-v1.
 - [Adversarial review of the architecture](https://www.notion.so/361d6791656c81f78eb3c97ba4aecbb4) — the 21-finding pressure test that shaped the v1 / v2 split.
+
+The former "template schemas and frontmatter contracts" page is no longer listed: it has diverged from the repo and is superseded by the templates directory and the validator registry (ADR-0013).
 
 ## Status
 

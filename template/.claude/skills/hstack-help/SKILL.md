@@ -28,7 +28,7 @@ Safe to run repeatedly. Output is computed from current disk state.
 - No flag (default): full three-section status report.
 - `--change <id>`: detailed view of one change-spec, including the phase DAG.
 - `--commands`: print only the Skills cheat sheet (no current-state computation).
-- `--explain <concept>`: look up a concept from the kernel, the template schemas, or the glossary. Examples: `--explain invariant`, `--explain tenant-isolation`, `--explain trivial-tag`.
+- `--explain <concept>`: look up a concept from the kernel, `hstack/templates/`, the validator registry, or the glossary. Examples: `--explain invariant`, `--explain tenant-isolation`, `--explain trivial-tag`.
 - `--validate`: run `node hstack/scripts/validate-spec.mjs` against every artifact under `hstack/` and report violations.
 
 ## Preconditions
@@ -119,7 +119,7 @@ Just the Skills cheat sheet. No state computation. Useful when typing in muscle 
 
 ### `--explain <concept>` mode
 
-Grep `hstack/KERNEL.md`, `hstack/context/glossary.md`, and (if available) the cached template schemas for the concept. Print the most relevant paragraph plus a pointer to the source file. If the concept is not found in any source, print: "Not in the kernel, glossary, or template schemas. Try the architecture doc at the URL in `hstack/README.md`, or ask in natural language and I'll pull from kernel context."
+Grep `hstack/KERNEL.md`, `hstack/context/glossary.md`, and `hstack/templates/*.md` for the concept, and run `node hstack/scripts/validate-spec.mjs --rules` when the concept looks like a rule id (`SP-*`, `TD-*`, `AR-*`, …). Print the most relevant paragraph plus a pointer to the source file. If the concept is not found in any source, print: "Not in the kernel, the glossary, the templates, or the validator registry. Ask in natural language and I'll pull from kernel context."
 
 ### `--validate` mode
 
