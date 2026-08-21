@@ -31,7 +31,7 @@ Optional:
 - `--area <module>`: override the area for the scaffolded change-spec. Default: the TD's `related-modules[0]` if non-empty; otherwise the Skill asks.
 - `--slug <slug>`: override the slug for the resolution change-spec. Default: `resolve-<td-slug-suffix>` (e.g., `resolve-overage-banner-tailwind-class`).
 
-The `--partial` flag is explicitly rejected — v1 does not support partial resolution.
+The `--partial` flag is explicitly rejected. Partial resolution is not supported in v1: a change-spec either fully resolves a tech-debt item (listed in `resolves-tech-debt`, satisfying every Acceptance bullet) or it does not. A change that addresses only some of the Acceptance bullets stays off the `resolves-tech-debt` list and the TD remains at `in-progress` for a follow-up change. This is the kernel's "one change-spec, one bounded contract" discipline. An engineer tempted to split a TD into smaller pieces authors multiple TDs via `/hstack:tech-debt-new` instead.
 
 ## Preconditions
 
@@ -83,6 +83,8 @@ Mechanical halts cannot be overridden by engineer confirmation; the upstream art
 9. **Auto-commit (single atomic commit).** `git add` both the TD and the new change-spec, commit with message `chore(tech-debt-resolve): scaffold <change-id> resolving <td-id>`. The reciprocal pair (TD `in-progress` ↔ change-spec `resolves-tech-debt: [<td-id>]`) lands in this single commit, preserving the kernel's atomicity rule.
 
 10. **Direct engineer to next step.** Print: "Resolution change scaffolded at `hstack/specs/changes/<change-id>/`. Continue with `/hstack:test-plan <change-id>` when ready. The TD is now at `in-progress` and will be flipped to `resolved` by `/hstack:finalize` after the resolving change is merged."
+
+    From here the change runs the normal per-change workflow unchanged — test-plan → security-review → data-review (when `db` in `surfaces`) → plan → implement → verify → adversarial-review → ship → finalize. Two points in that sequence are tech-debt-specific and are enforced by their own Skills: the `adversarial-reviewer` produces the mandatory Acceptance-satisfied confirmation (AR-07) because `resolves-tech-debt` is non-empty, and `/hstack:ship` checks GT-11 — every referenced TD at `in-progress`, and that confirmation present in the adversarial-review.
 
 ## Outputs
 

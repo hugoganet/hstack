@@ -26,7 +26,7 @@ Invoke when a tech-debt item at `status: open` has a claim that no longer reprod
 - The bug was fixed incidentally as part of an unrelated change.
 - The system, module, or call path the TD described no longer exists.
 
-Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:tech-debt-wontfix`. Do NOT invoke for TDs that are still observably true but the team is choosing not to fix — also `/hstack:tech-debt-wontfix`. The semantic distinction is load-bearing: stale describes an absence, wontfix describes a choice.
+Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:tech-debt-wontfix`. Do NOT invoke for TDs that are still observably true but the team is choosing not to fix — also `/hstack:tech-debt-wontfix`. The semantic distinction is load-bearing: stale describes an absence, wontfix describes a choice. Misusing `wontfix` for a claim that has aged out corrupts the audit signal that separates deliberate deferral from organic decay — the two statuses answer different retrospective questions, and a corpus that conflates them can answer neither.
 
 ## Inputs
 
@@ -53,7 +53,7 @@ Do NOT invoke for deferrals ("we won't get to this") — those go to `/hstack:te
    - Edit frontmatter: `stale-verified-at: <today>`, `stale-verification-method: <answer>`, `status: open → stale-no-longer-reproducible`, `updated: <today>`.
    - Append to the Resolution Log section: `status: open → stale-no-longer-reproducible on <today> by <owner>. Verification method: <answer>.`
 
-   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-07 (stale-no-longer-reproducible requires both `stale-verified-at` and `stale-verification-method` non-null) must pass once the validator ships; until then, the proposed-diff preview in step 4 is the v1 substitute per the kernel's AI writes / humans confirm clause. On validation pass (or v1 proposed-diff acknowledgement), `git add` the file and commit with message `tech-debt(<td-id>): stale-no-longer-reproducible`. The three frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
+   Run `node hstack/scripts/validate-spec.mjs <path>` against the file. TD-07 (stale-no-longer-reproducible requires both `stale-verified-at` and `stale-verification-method` non-null) must pass. On validation pass, `git add` the file and commit with message `tech-debt(<td-id>): stale-no-longer-reproducible`. The three frontmatter writes plus the log append land in this single auto-commit, preserving atomicity. On validation failure, halt; unstaged changes can be reverted via `git checkout -- <td-file>`.
 
 7. **Confirm completion.** Print: "TD-NNNN is now `stale-no-longer-reproducible`. Per TD-03, no further field rewrites are permitted on this artifact. If the original claim ever reappears, author a new tech-debt via `/hstack:tech-debt-new` rather than re-opening this one."
 

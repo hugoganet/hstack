@@ -76,45 +76,21 @@ Once a test file exists in the working tree (committed or staged), **no hstack s
 Tech-debt items are first-class artifacts with their own lifecycle. Three terminal exit paths exist:
 
 - `open → in-progress → resolved` — the team fixed the underlying problem via a shipped change-spec.
-- `open → wontfix` — the team decided not to fix; the original claim is still observably true but the cost-benefit no longer warrants resolution.
-- `open → stale-no-longer-reproducible` — the original claim has aged out before anyone resolved it. The surrounding code was rewritten, the dependency was upgraded, the bug was fixed incidentally as part of unrelated work, or the system the TD described no longer exists. The team verifies the absence and closes the TD without it ever entering `in-progress`.
+- `open → wontfix` — the problem is still observably true; the team has decided to live with it permanently. A deferral is not a wontfix and stays at `open`.
+- `open → stale-no-longer-reproducible` — the problem verifiably no longer exists (code rewritten, dependency upgraded, bug fixed incidentally, system retired) and nobody ever resolved it. Wontfix is a choice; stale is an absence. Using one for the other corrupts the audit signal that separates deliberate deferral from organic decay.
 
-Resolution is **not manual** — the workflow drives every transition through dedicated Skills, with reciprocal frontmatter linkage between the tech-debt and the change-spec that fixes it (when applicable).
+Resolution is **not manual.** Four Skills own the status machine and each states its own flow: `/hstack:tech-debt-resolve` (`open → in-progress` plus the resolution change-spec scaffold), `/hstack:tech-debt-wontfix`, `/hstack:tech-debt-stale`, and `/hstack:finalize` (`in-progress → resolved`, post-merge). Editing `status`, `resolved-by`, `wontfix-reason`, `wontfix-accepted-alternative`, `stale-verified-at`, `stale-verification-method` or `resolution-attempted-at` by hand is forbidden, and so is invoking `spec-author` to do it (see Mechanical operations).
 
-**Reciprocity.** Tech-debt resolution is symmetric with tech-debt creation:
+**Reciprocity.** Tech-debt resolution is symmetric with tech-debt creation, and each pair is atomic:
 
-- Creation: `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`. Enforced by TD-01. The TD body (including `introduced-by`) is authored by `spec-author` via `/hstack:tech-debt-new`; the reciprocal `creates-tech-debt` write on the originating change-spec is performed by the Skill directly per the Mechanical operations section.
-- Resolution: `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`. Enforced by TD-04. Both halves are written by Skills directly: `/hstack:tech-debt-resolve` sets `resolves-tech-debt: [TD-NNNN]` on the new change-spec when scaffolding (status flip on the TD to `in-progress`); `/hstack:finalize` writes `resolved-by` on the TD and flips its status to `resolved`.
+- Creation: `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt` (TD-01).
+- Resolution: `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt` (TD-04).
 
-Both halves of each pair land in the same auto-commit; the validator refuses one-sided writes.
+Both halves of each pair land in the same auto-commit; the validator refuses one-sided writes. A tech-debt never stands at `resolved` without a change-spec at `shipped` naming it back — the single carve-out is the transient window inside one `/hstack:finalize` run (see Mechanical operations § Atomicity for reciprocal pairs). When `resolves-tech-debt` is non-empty, the adversarial-review's Acceptance-satisfied confirmation (AR-07) is mandatory and `/hstack:ship` refuses without it (GT-11).
 
-**Resolution flow.**
+**Partial resolution is not supported in v1.** A change-spec either fully satisfies a tech-debt's Acceptance section or stays off `resolves-tech-debt` — the kernel's "one change-spec, one bounded contract" discipline. A debt too large for one change is authored as several tech-debt items, never resolved in halves.
 
-1. **Pick the item.** Run `/hstack:tech-debt-resolve TD-NNNN`.
-2. **Pre-conditions check.** The Skill prints the TD's full body and walks each "Pre-conditions for fixing" bullet for engineer confirmation. Any unmet pre-condition halts the Skill with the recommended remediation (wait for ADR, resolve dependent TD, etc.). Pre-conditions are prose in v1; the Skill cannot mechanically verify them, so engineer confirmation is mandatory and is logged into the resulting change-spec.
-3. **Status flip + scaffold.** The Skill flips the TD `open → in-progress` directly, sets `resolution-attempted-at` to today, appends a Resolution Log entry, and scaffolds a resolution change folder with `resolves-tech-debt: [TD-NNNN]` pre-populated. The change-spec's "Resolves Tech-Debt" section quotes the TD's Acceptance section verbatim; the engineer's Target Behavior must satisfy that quote (superset or exact). Both writes (TD frontmatter and new change-spec frontmatter) land in a single auto-commit so the reciprocal pair is atomic.
-4. **Run the normal workflow.** test-plan → security-review → data-review (when `db` in surfaces) → plan → implement → verify → adversarial-review. The adversarial-reviewer reads each referenced TD's Acceptance section and produces a mandatory Acceptance-satisfied confirmation (AR-07) when `resolves-tech-debt` is non-empty.
-5. **Ship.** `/hstack:ship` checks GT-11: every referenced TD must be at `in-progress` and the adversarial-review must contain the Acceptance-satisfied confirmation. Ship stays read-only.
-6. **Finalize after merge.** `/hstack:finalize <change-id>` is the post-merge cleanup Skill. It verifies the change's branch has been merged into the configured default branch (git log check), then writes directly (per the Mechanical operations section, no `spec-author` invocation):
-   - For each entry in `resolves-tech-debt`, in order: write `resolved-by: <change-spec-id>`, append a Resolution Log entry, flip status `in-progress → resolved`. Validate and auto-commit each TD as it lands.
-   - Only after every TD resolution has succeeded: advance the change-spec `ready-to-ship → shipped`. This ordering ensures a mid-finalize failure leaves the change-spec at `ready-to-ship` (recoverable by re-running finalize), never at `shipped` referencing an unresolved TD.
-   - Per TD-03, no further field rewrites are permitted on the tech-debt after this point.
-
-**The wontfix path.** When a tech-debt item is being closed without a fix (the team has decided the cost of fixing exceeds the cost of living with it), use `/hstack:tech-debt-wontfix TD-NNNN`. The Skill runs a two-question interview: "Why won't this be fixed?" and "What are we accepting as the alternative?" Both answers are required and become non-null `wontfix-reason` and `wontfix-accepted-alternative` frontmatter fields (TD-06). The Skill writes both fields and flips status `open → wontfix` directly in a single auto-commit. Wontfix is terminal and immutable per TD-03.
-
-**The stale-no-longer-reproducible path.** When a tech-debt item's original claim has aged out — the surrounding code was rewritten, the dependency was upgraded, the bug was fixed incidentally, the system the TD described no longer exists — use `/hstack:tech-debt-stale TD-NNNN`. This is distinct from `wontfix`: `wontfix` says "the problem is still real but we choose to live with it"; stale-no-longer-reproducible says "the problem no longer exists, verifiably." Misusing `wontfix` for a stale claim corrupts the audit signal that distinguishes deliberate-deferral from organic-decay.
-
-The Skill runs a one-question structured-elicitation loop: "What evidence shows this TD's claim no longer reproduces?" The engineer's answer becomes the non-null `stale-verification-method` field (TD-07); the current date becomes `stale-verified-at`. The Skill writes both fields and flips status `open → stale-no-longer-reproducible` directly in a single auto-commit. The new status is terminal and immutable per TD-03.
-
-**Partial resolution is not supported in v1.** A change-spec either fully resolves a tech-debt item (listed in `resolves-tech-debt`, satisfies the Acceptance bullets) or it doesn't. If a change addresses only some of the TD's Acceptance bullets, it stays off the `resolves-tech-debt` list and the TD remains at `in-progress` for a follow-up change. This preserves the kernel's "one change-spec, one bounded contract" discipline. Engineers tempted to split a TD into smaller pieces should instead author multiple TDs via `/hstack:tech-debt-new`.
-
-**Forbidden no matter what.**
-
-- Manually editing tech-debt `status`, `resolved-by`, `wontfix-reason`, `wontfix-accepted-alternative`, `stale-verified-at`, `stale-verification-method`, or `resolution-attempted-at` in frontmatter outside of the resolution Skills. The status machine is owned by the four Skills (`tech-debt-resolve`, `tech-debt-wontfix`, `tech-debt-stale`, `finalize`) which perform the writes directly per the Mechanical operations section.
-- Invoking `spec-author` for any of these mechanical writes. The cost is ~25k tokens per call for what is a handful of frontmatter character changes; the kernel's Mechanical operations section forbids it.
-- Marking a tech-debt `resolved` without a corresponding change-spec at `shipped` whose `resolves-tech-debt` references it. The reciprocal write is the only legal path. *Exception*: during a single `/hstack:finalize` invocation, the TDs are flipped to `resolved` first and the change-spec advances to `shipped` last; this is the documented finalize-in-progress carve-out (see Mechanical operations § Atomicity for reciprocal pairs). The standing-state rule applies once finalize completes; the transient state during a single invocation is intentional and recoverable by re-running finalize.
-- Skipping the adversarial-review Acceptance-satisfied confirmation when `resolves-tech-debt` is non-empty. AR-07 makes this a mandatory finding lens.
-- Editing fields on a `resolved`, `wontfix`, or `stale-no-longer-reproducible` tech-debt. TD-03 forbids this; the validator compares against git history.
+A `resolved`, `wontfix`, or `stale-no-longer-reproducible` tech-debt is terminal and immutable (TD-03). A reversal is a new tech-debt, not a re-open.
 
 ---
 
