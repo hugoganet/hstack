@@ -32,6 +32,8 @@ Run any time. Common cadence:
 
 The Skill is read-only and idempotent — re-running produces a fresh report at the same path (overwrites the same-day file).
 
+The report is a retrospective lens, never an in-flight signal: no Skill that writes artifacts takes it as input. Old reports stay in git so trend lines can be checked against them; deleting reports to reshape a trend defeats the point. Any v2 "agent-ledger" rebrand of this tool waits on at least three months of real runs showing the data layer is worth promoting.
+
 ## Inputs
 
 - `--window <N>` (optional): limit git/transcript history to the last N days. Default 30. `--window 0` means all-history.
@@ -69,10 +71,3 @@ Re-running on the same day overwrites the same-day report file. Different window
 - `hstack/scripts/telemetry/report.py` is missing.
 - Python 3 is not available.
 - The git repository is corrupt or `.git/` is missing.
-
-## Anti-patterns
-
-- Never claim the telemetry report is authoritative. It is derivative of frontmatter, git, and transcripts — re-runnable from source. The kernel's "no parallel tracker" rule applies.
-- Never use the report as an input to a Skill that writes artifacts. It is a retrospective lens, not an in-flight signal.
-- Never delete reports to manipulate trend lines. Old reports are git-tracked and can be referenced for retrospective comparison.
-- Never propose a v2 "agent-ledger" rebrand of this tool without first running it for at least 3 months and finding the data layer worth promoting.

@@ -58,7 +58,7 @@ Do NOT invoke when:
 
 3. **Confirm before routing.** Print the proposed slug, the target (adr or tech-debt), and the seed preface. Ask "Route to /hstack:<target>-new with this seed? (Y/n)". Default Yes. On `n`, abort without writing.
 
-4. **Route to the authoring Skill.**
+4. **Route to the authoring Skill.** Always through `/hstack:adr-new` or `/hstack:tech-debt-new`, never by invoking `spec-author` directly — routing is what keeps the authoring Skills' challenge prompts and validation rules in the path.
 
    For `--target adr` (default):
    - Invoke `/hstack:adr-new --from-kernel-fit <finding-id> --slug <slug>` via the Task tool or Skill orchestration mechanism. `spec-author` walks the six Nygard sections; the seeded Context is the engineer's starting material to review and revise.
@@ -71,14 +71,14 @@ Do NOT invoke when:
 
 5. **Capture the new artifact id.** Parse the downstream Skill's terminal commit message for `ADR-NNNN-<slug>` or `TD-NNNN-<slug>`. On parse failure (downstream Skill halted mid-interview), the promote Skill halts too — re-invocation will resume from the same step once the downstream Skill completes.
 
-6. **Write the reciprocal back-reference on the finding.** Per ADR-0001 (mechanical writes by the Skill orchestrator), the promote Skill performs the `Edit` itself:
+6. **Write the reciprocal back-reference on the finding.** Per ADR-0001 (mechanical writes by the Skill orchestrator), the promote Skill performs the `Edit` itself. These four fields plus the Triage Log append are the only writes permitted here; the finding's body — Evidence, Kernel surface, Proposed direction, Counter-explanations, Confidence rationale — is the analyst's and is immutable from this Skill:
    - `promoted-to: adr:ADR-NNNN-<slug>` (or `tech-debt:TD-NNNN-<slug>`)
    - `status: <prev> → promoted`
    - `owner: <git-handle>` (if not already set by triage)
    - `updated: <today>`
    - Append to `## Triage Log`: `- \`status: <prev> → promoted\` on <today> by <owner>. Promoted to: <promoted-to>. Triggered by \`/hstack:kernel-fit-promote <id> --slug <slug>\`.`
 
-   Defensive Triage Log check: if `## Triage Log` is not present (legacy finding), append the section header first.
+   Defensive log-header check per the kernel: if `## Triage Log` is absent, append it before writing the entry.
 
 7. **Print the proposed-diff preview** for the back-reference edit (per the kernel's mechanical-operations confirmation gate). Ask "Apply back-reference and flip status to promoted? (Y/n)". Default Yes.
 
@@ -123,13 +123,3 @@ Beyond the kernel's general stop conditions:
 - **Authoring Skill writes the wrong `promoted-from-kernel-fit` id.** Defense: this Skill's validation at step 8 cross-checks. If the ADR's array does not contain the finding id, the back-reference write is refused and the engineer reconciles by editing the ADR's frontmatter (this is itself a mechanical write per ADR-0001; manual `git commit --amend` is the recovery path, but the engineer should prefer re-running promote after correcting the ADR).
 - **Drive-by promote.** The Skill's preflight does not detect promote attempts on `low`-confidence findings — the engineer is trusted to make this judgment. If a pattern of `low`-confidence promotes emerges, that itself becomes a future kernel-fit detection pattern (KF-Pn: "engineers promote findings the analyst rated low").
 - **Engineer wants to promote two findings to one ADR.** Not supported in v1. Run promote twice with the same `--slug` — the second invocation will halt because the slug collides on `adr-new`'s precondition check. The engineer's recovery is to dismiss one of the findings with a rationale ("subsumed by KF-other-id promoting under slug X") and promote only the canonical one.
-
-## Anti-patterns
-
-- Never auto-promote without engineer invocation. The contract is non-negotiable per ADR-0004.
-- Never promote a finding at `low` confidence without a real reason. The analyst encoded a signal by setting confidence; ignoring it is a smell.
-- Never edit the finding's body (Evidence, Kernel surface, Proposed direction, Counter-explanations, Confidence rationale) during promote. Those are the analyst's domain and are immutable from this Skill's perspective. The Triage Log append and the four frontmatter changes (status, promoted-to, owner, updated) are the only writes permitted.
-- Never write the ADR or TD body. That is `spec-author`'s job, routed via the authoring Skill. Even pre-filling the Decision section based on the finding's Proposed direction is forbidden — the engineer's Decision must engage with the kernel-change question fresh.
-- Never promote a `superseded` finding. The audit trail would route the ADR to a stale body.
-- Never invoke `spec-author` directly from this Skill. Route through the appropriate authoring Skill (`hstack-adr-new` or `hstack-tech-debt-new`) so the existing challenge-prompts and validation rules apply.
-- Never bypass the validator at step 8. KF-04 reciprocity is the load-bearing check that makes the kernel-fit-to-ADR audit chain reconstructible.

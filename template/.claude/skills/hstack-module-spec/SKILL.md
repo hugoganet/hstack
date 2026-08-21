@@ -15,7 +15,7 @@ tools:
 
 ## Purpose
 
-`hstack-module-spec` produces a baseline `hstack/specs/<module>/spec.md` for one named module by orchestrating the `spec-author` subagent against a packed module slice. It is the one Skill where `spec-author` is permitted to grep the code in service of authorship — the module-spec is the system's anchor between its `area` controlled enum and the actual codebase, and a module-spec disconnected from real paths is worthless.
+`hstack-module-spec` produces a baseline `hstack/specs/<module>/spec.md` for one named module by orchestrating the `spec-author` subagent against a packed module slice. It is the one Skill where `spec-author` is permitted to grep the code in service of authorship — reading it, never modifying it. The module-spec is the system's anchor between its `area` controlled enum and the actual codebase, and a module-spec disconnected from real paths is worthless.
 
 ## When to invoke
 
@@ -49,7 +49,7 @@ Before any work:
 
 ## Outputs
 
-- `hstack/specs/<module>/spec.md` at `status: current`, with frontmatter including the module's `paths` array mirrored from `hstack/config.yaml`.
+- `hstack/specs/<module>/spec.md` at `status: current`, with frontmatter including the module's `paths` array mirrored from `hstack/config.yaml`. The Skill mirrors those globs; it never edits, substitutes, or invents them — `paths` are config's to change.
 
 ## Auto-commit triggers
 
@@ -76,11 +76,3 @@ Beyond the kernel's general stop conditions:
 - **RepoMix unavailable.** Degraded mode — flag in the conversation, fall back to direct grep, continue.
 - **Existing module-spec frontmatter does not match config's paths.** Halt; the engineer reconciles before the refresh can proceed.
 - **Validator failure on a partial write.** `spec-author` halts at the field; the Skill surfaces the validator's message and waits.
-
-## Anti-patterns
-
-- Never invent paths. The module's `paths` come from `hstack/config.yaml`; the Skill never edits them and never substitutes.
-- Never skip the Invariants challenge. Three-or-more bullets is a hard validator rule, not a heuristic.
-- Never run this Skill against a module that does not appear in the config. The right move is to add the module to config first.
-- Never overwrite an existing `current` module-spec without explicit refresh-or-re-author confirmation from the engineer.
-- Never write code. `spec-author` is the only subagent invoked, and it reads code without modifying it.

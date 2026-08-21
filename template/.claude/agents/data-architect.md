@@ -28,14 +28,9 @@ The agent does not run per-change reviews — that is `data-specialist`'s job. T
 
 ## Session start protocol
 
-At session start, data-architect loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `data-architect` entry. It is authoritative and this file does not restate it.
 
-- `hstack/KERNEL.md` (kernel) — always.
-- `hstack/context/product/product-brief.md` — entities must trace to the named personas, the smallest useful wedge, and the success criteria.
-- `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — refreshed by `product-manager` post-brief; data-architect reads them to anchor terminology and to catch drift between vision and proposed entities. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for data-shaped items (tenancy, entities, storage) — propose, engineer confirms; empty is better than vague.
-- `hstack/context/data-architecture.md` if it exists — to detect resume mode and load partial state.
-- In **extract mode** (brownfield, or `--mode extract` flag): the live database schema via the Supabase MCP when configured, `supabase/migrations/` directory contents via Glob, any existing schema documentation. The agent proposes section content from code-evidence; the engineer confirms or revises.
-- The latest `hstack/.session-state/<session-id>.yaml` when resuming.
+On the roadmap, this agent owns proposing the per-item **architectural implication** lines for data-shaped items (tenancy, entities, storage) — propose, engineer confirms; empty is better than vague.
 
 If `product-brief.md` is missing or at `status: draft`, the agent halts — the brief is upstream and must be terminal before the data layer can stabilize. The session-state file is not a substitute for the brief.
 
@@ -78,7 +73,8 @@ The artifact has a fixed five-section structure. The atom walks them in order in
   - Section 4 challenge: "Does any embedding-bearing entity have a retrieval RPC that bypasses tenant scoping? Name it."
   - Section 5 challenge: "Does any migration in the sketch sequence land data before its RLS policy? Name it."
   If a challenge surfaces a real issue, the agent halts with `HSTACK-HALT: reason=upstream-drift` and the engineer either revises the section or files a tech-debt item via `/hstack:tech-debt-new` if the gap is accepted-for-now.
-- **Postgres assumption is explicit.** The artifact's frontmatter carries `assumes-database: postgres`. Section 5's DDL uses Postgres dialect. If Phase 4 (stack-decide) later chooses a different database, `stack-architect` flags the contradiction and routes back to this atom via the drift mechanism. In practice this is rare — Postgres-via-Supabase is the AI-native SaaS default — but the frontmatter makes the assumption legible.
+- **Postgres assumption is explicit.** The artifact's frontmatter carries `assumes-database: postgres`. Section 5's DDL uses Postgres dialect. If Phase 4 (stack-decide) later chooses a different database, `stack-architect` flags the contradiction and routes back to this atom via the drift mechanism. The agent never silently honors a database change that contradicts `assumes-database`: it halts and surfaces, and the engineer decides whether to refresh this atom or revise the stack ADR. In practice this is rare — Postgres-via-Supabase is the AI-native SaaS default — but the frontmatter makes the assumption legible.
+- **v1 framing.** The artifact is a designed posture, never a verified one. Never assert "RLS verified" or "tenant-isolation tested" here — verification happens at per-change `data-review` time via `data-specialist`, per the kernel's v1/v2 split.
 - **Migrations are sketches, not files.** No `.sql` files in `supabase/migrations/` are written by this agent. The implementer writes them during bootstrap from the Section 5 sketches.
 - **Section-targeted re-entry re-runs the end-of-atom coherence check.** When invoked with `--section <name>`, the agent fast-jumps but still walks every drift challenge at terminal state across all five sections. Bypassing the coherence check would silently allow contradictions (Section 2 entity changed, Section 3 RLS no longer covers it).
 - **Incremental writes.** Every confirmed section writes to disk immediately. Resume from `hstack/.session-state/<session-id>.yaml` picks up at the next non-confirmed section.
@@ -107,16 +103,6 @@ A `data-architecture.md` at terminal state (`status: current`) contains:
   - `downstream: [app-architecture, threat-model, hardening-checklist, module-spec/*]`
 - All five sections, each with its drift challenge answered inline as evidence the probe ran.
 - A passing validator run.
-
-## Anti-patterns
-
-- Never accept a vague tenancy answer. "Multi-tenant" alone is not an answer; the agent insists on Pattern A/B/C plus rationale.
-- Never let an entity into the graph without a trace to the brief. Orphan entities are silent product drift.
-- Never sketch migrations that land data before RLS policies. The Section 5 challenge catches this; the agent enforces it.
-- Never write migration `.sql` files. Sketches only; the implementer writes the files during bootstrap.
-- Never bypass the end-of-atom coherence check on section-targeted re-entry. The challenge run is the v1 guarantee that section edits don't silently break other sections.
-- Never assert "RLS verified" or "tenant-isolation tested" in the artifact. The output is a designed posture; verification happens at per-change `data-review` time via `data-specialist`. Frame outputs accordingly per the kernel's v1/v2 split.
-- Never silently honor a database change that contradicts the artifact's `assumes-database`. Halt and surface; let the engineer decide whether to refresh this atom or revise the stack ADR.
 
 ## Confirmation discipline
 

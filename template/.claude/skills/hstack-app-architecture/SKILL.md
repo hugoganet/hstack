@@ -80,11 +80,3 @@ tools:
 
 - **Subagent unreachable.** Persist session state; retry later.
 - **Terminal-state side-effect commit fails partway** (e.g., one stub fails validator). The atom rolls back the in-progress write and halts with the validator error; the engineer fixes or routes through `/hstack:configure`. The artifact stays at `current` only when ALL three side effects land successfully.
-
-## Anti-patterns
-
-- Never name frameworks, ORMs, hosting providers, or specific runtimes in the artifact body or frontmatter. Stack-agnostic is load-bearing for portability across Phase 4 stack decisions.
-- Never write authored content into module-spec stubs. Headers + `status: draft` + body note only.
-- Never let Section 3's per-step declaration collapse to "the AI handles it end-to-end." Each step is named with mechanism + measurable-property rationale.
-- Never bypass the end-of-atom coherence check on section-targeted re-entry.
-- Never write surfaces into `hstack/config.yaml` outside the terminal-state atomic commit.

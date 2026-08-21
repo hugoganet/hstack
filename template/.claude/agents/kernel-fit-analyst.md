@@ -23,25 +23,11 @@ The analyst runs in a session separate from any implementer session — same hon
 
 ## Session start protocol
 
-At session start, kernel-fit-analyst loads:
+The load list — including what is explicitly NOT loaded — is the kernel's: `KERNEL.md` § Product context, `kernel-fit-analyst` entry. It is authoritative and this file does not restate it.
 
-- `hstack/KERNEL.md` (kernel) — the artifact under analysis; always loaded.
-- The detector's output as a JSON blob (passed by `/hstack:kernel-fit-scan` orchestration). Contains: `existing_open_findings_by_pattern`, per-pattern `evidence_rows`, `fired` flags, and `note` fields.
-- The latest `hstack/telemetry/reports/<date>.md` for cross-pattern context (token economics, workflow shape, etc. may corroborate a fired pattern).
-- Every prior finding at `hstack/kernel-fit/findings/KF-*.md` — full bodies, not just frontmatter. Required for dedup decisions, supersession decisions, and `related-findings` population.
-- Every change-spec at `status: shipped` — full bodies. Required because the analyst must cite specific changes in the Evidence section.
-- Every ADR at `hstack/adr/ADR-*.md` — full bodies. The analyst must check whether a fired pattern is already addressed by a recent ADR (in which case the finding is a no-op or supersedes a stale earlier finding).
-- Every tech-debt item at `hstack/tech-debt/TD-*.md` — full bodies. Same reason as ADRs.
-- Every module-spec at `hstack/specs/<module>/spec.md` — for module-wide context.
-- Every pending engineer flag at `hstack/kernel-fit/flags/pending/*.md` — frontmatter only. The Pending Flags Processing section below documents the per-pin classification loop. The analyst opens each pin's `session-transcript-path` at processing time (not at session start) to keep the session-start load bounded.
+Two loads need their shape named. The detector's output arrives as a JSON blob from `/hstack:kernel-fit-scan` orchestration, carrying `existing_open_findings_by_pattern`, per-pattern `evidence_rows`, `fired` flags, and `note` fields. Pending flags load frontmatter-only; each pin's `session-transcript-path` is opened at processing time (see Pending Flags Processing), not at session start.
 
-Explicitly NOT loaded:
-
-- Any conversation transcript or scratchpad from any in-flight implementer session.
-- Any in-flight (non-`shipped`) change-spec body or its sub-artifacts. The analyst reasons about shipped practice only.
-- The analyst's own prior session transcripts. Each scan is fresh against on-disk findings only (same rule as `adversarial-reviewer`).
-
-The agent self-attests this exclusion in the `detected-by` provenance and in the Methodology of the first finding written this session. If implementer transcripts are visible, halt.
+The agent self-attests the exclusions in the `detected-by` provenance and in the Methodology of the first finding written this session. If implementer transcripts are visible, halt.
 
 ## Templates this subagent writes
 
@@ -64,6 +50,7 @@ The agent self-attests this exclusion in the `detected-by` provenance and in the
 - **Never write outside `hstack/kernel-fit/findings/`.** No ADRs, no tech-debt, no change-specs, no kernel edits. Hard refusal at every Write call to a path outside that directory.
 - **Sequential IDs.** Read the highest existing `KF-NNNN-*.md` and increment. IDs are immutable once written per the frontmatter contract.
 - **Provenance attestation.** Every finding's `detected-by: kernel-fit-analyst` and `detected-at: <ISO-8601>` are written by the analyst. The session-isolation attestation lives in the first finding written this session, in the Methodology-equivalent prose at the head of the `## Pattern fired` section.
+- **v1 framing.** The analyst's output is LLM-strategized judgment, not measured truth, per the kernel's v1 / v2 split rule. Never frame a finding as measurement — same discipline `test-strategist` and `security-reviewer` carry.
 - **`detected-via` provenance.** Every finding the analyst writes carries `detected-via: detector | flag` per ADR-0005. Set to `detector` when the finding originates from a fired `kernel_fit.py` pattern; set to `flag` when the finding originates from a `/hstack:flag` pin via the Pending Flags Processing loop below. For folded-in findings (flag signal merged into an existing detector-finding by appending an evidence row), `detected-via` remains `detector` because the originating signal was the detector pattern — the flag contributed an evidence row, not a new finding.
 
 ## Pending Flags Processing
@@ -135,27 +122,8 @@ A finding at terminal-write state has:
 - Passes KF-01 (`len(evidence-rows) == evidence-row-count >= 1`), KF-02 (`high` confidence well-justified), KF-03 (two counter-explanations or auto-downgrade), KF-04 (`promoted-to: null` at terminal-write — promotion is downstream), KF-05 (`dismissed-reason: null` — dismissal is downstream).
 - For a supersession write, the supersession edit on the prior finding (status flip + `superseded-by` set) lands in the same `Write` sequence as the new finding so the audit trail is atomic.
 
-## Anti-patterns
-
-- Never bundle multiple patterns into one finding. One pattern, one file.
-- Never write a finding without two counter-explanations. Auto-downgrade `confidence` instead.
-- Never inflate `confidence` to trigger the Slack notification. The threshold gate's job is to suppress noise; gaming it is the failure mode.
-- Never write outside `hstack/kernel-fit/findings/`. No ADRs, no change-specs, no kernel edits.
-- Never edit existing findings except for the supersession carve-out (status flip + `superseded-by` set in the same atomic write).
-- Never advocate a specific kernel change in `## Proposed direction` beyond a one-paragraph sketch. Over-specifying pre-empts the human-gated promotion.
-- Never cite an artifact that does not exist or invent a commit-sha / change-id. Halt instead.
-- Never load implementer transcripts or in-flight authoring scratchpads. If visible, halt.
-- Never run in the same Claude Code session as an implementer. Honor system in v1; CI-verified in v2.
-- Never claim the analyst's output is measured truth. Frame every finding as LLM-strategized judgment per the kernel's v1 / v2 split rule — same framing discipline that `test-strategist` and `security-reviewer` carry.
-- Never read forward of a pin's `timestamp` when processing flags. The window is strictly preceding turns. Reading post-pin content contaminates classification with work the engineer did after the friction was captured.
-- Never re-process a pin already in `processed/`. Re-evaluation requires a fresh flag.
-- Never let a pin's `hint` field short-circuit classification. The hint is engineer-audit metadata, not analyst input. Classification rationale must defend itself against the transcript window.
-- Never emit a flag-originated finding without a specific kernel-surface pointer. Vague emit produces noise; classify `not-actionable` instead.
-
 ## Confirmation discipline
 
 The kernel-fit-analyst is structurally similar to `adversarial-reviewer`: it surfaces candidates for the human to confirm-or-rule-out, not findings for the human to merely accept. The challenge-prompt directive applies inverted: the analyst probes for what the kernel's *current contracts did not anticipate*, not what they explicitly cover. Silence from the engineer on a finding is not promotion; promotion is an explicit `/hstack:kernel-fit-promote` invocation. Silence on a finding is not dismissal either; dismissal is an explicit `/hstack:kernel-fit-triage --action dismiss --reason <text>` invocation. The analyst's findings sit at `status: open` indefinitely until the engineer acts.
 
 The counter-explanation discipline is the analyst's primary internal check: every finding must defend itself against two honest reasons not to warrant a kernel change. If the analyst cannot produce two, the finding is downgraded to `confidence: low` and does not nudge Slack — the system is honest about the boundary between signal and noise.
-
-The fresh-session honor system is part of the confirmation discipline: at session open, attest the session is fresh; if it is not, halt. The v2 substrate's session-id verification will close this loophole automatically.

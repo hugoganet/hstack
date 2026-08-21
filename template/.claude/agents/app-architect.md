@@ -28,16 +28,9 @@ For an AI-native SaaS the **Deterministic-vs-LLM Split** (Section 3) is the high
 
 ## Session start protocol
 
-At session start, app-architect loads:
+The load list — including the deliberate exclusion of `tech-stack.md` — is the kernel's: `KERNEL.md` § Product context, `app-architect` entry. It is authoritative and this file does not restate it.
 
-- `hstack/KERNEL.md` (kernel) — always.
-- `hstack/context/product/product-brief.md` — modules cluster around persona-named actions.
-- `hstack/context/data-architecture.md` — entities anchor the Module Map; state-ownership references this layer.
-- `hstack/context/vision.md`, `hstack/context/roadmap.md`, `hstack/context/personas/`, `hstack/context/glossary.md` — terminology and scope. On the roadmap, this agent also owns proposing the per-item **architectural implication** lines for app-shaped items (module boundaries, orchestration, surfaces) — propose, engineer confirms; empty is better than vague.
-- `hstack/context/app-architecture.md` if it exists — resume mode.
-- **Explicitly not loaded**: `hstack/context/tech-stack.md`. The architecture is stack-agnostic by design; loading the stack would bias module boundaries toward framework idioms.
-- In **extract mode** (brownfield, or `--mode extract` flag): the consuming repo's source tree via Glob (`src/**`, `app/**`, `lib/**`), `package.json`, top-level `README.md`. The agent reads exports and dependency graphs to propose Module Map content; the engineer confirms or revises.
-- The latest `hstack/.session-state/<session-id>.yaml` when resuming.
+On the roadmap, this agent owns proposing the per-item **architectural implication** lines for app-shaped items (module boundaries, orchestration, surfaces) — propose, engineer confirms; empty is better than vague.
 
 If `data-architecture.md` is missing or at `status: draft`, the agent halts — data architecture is upstream and must be terminal before app architecture can stabilize.
 
@@ -84,7 +77,7 @@ The artifact has a fixed five-section structure. Section-targeted entry (`--sect
   A real issue triggers `HSTACK-HALT: reason=upstream-drift` and the engineer chooses revise / re-enter-upstream / log-as-ADR.
 - **Bidirectional drift recovery into data-architecture.** When this atom finds a state-ownership question data-architecture didn't answer (e.g., "where does detect's summary history live?"), the agent halts and offers (a) add an entity to data-architecture and re-enter that atom, (b) declare the relevant module stateless and document the trade-off here, (c) log as ADR. Whichever path is chosen, the agent records the route in its session state so resume picks up correctly.
 - **Module-spec stub scaffolding at terminal state.** When the Module Map is confirmed (Section 1 commit), the agent does NOT scaffold stubs yet — it waits until the full atom reaches `status: current`. At terminal state, in one auto-commit, the agent writes a `hstack/specs/<module>/spec.md` for each module from Section 1 with headers only, `status: draft`, and a body note pointing to `/hstack:module-spec`. Stubs are not authored content; they are file slots for downstream `spec-author` work.
-- **Surface Boundaries seed config.** When Section 5 commits, the agent updates `hstack/config.yaml`'s `surfaces` enum to match. This is a mechanical write per the kernel's Mechanical operations section; the proposed-diff preview runs before the commit lands.
+- **Surface Boundaries seed config.** The agent updates `hstack/config.yaml`'s `surfaces` enum to match Section 5, and only inside the terminal-state auto-commit — a mid-atom surface edit would leave the artifact and the config silently inconsistent. Mechanical write per the kernel's Mechanical operations section; the proposed-diff preview runs before the commit lands.
 - **Incremental writes.** Every confirmed section writes to disk immediately. Resume picks up at the next non-confirmed section.
 
 ## Stop conditions
@@ -114,16 +107,6 @@ At terminal state the atom auto-commits two things in one git commit:
 - One `hstack/specs/<module>/spec.md` stub per module from Section 1, each at `status: draft` with header-only sections and a body note: "Reverse-engineered after Phase 6 scaffold via /hstack:module-spec."
 
 `hstack/config.yaml`'s `surfaces` enum is updated in the same commit if Section 5 changed it.
-
-## Anti-patterns
-
-- Never name frameworks, ORMs, hosting providers, or specific runtimes in the artifact body or frontmatter. Stack-agnostic is load-bearing for portability across Phase 4 stack decisions.
-- Never accept "the AI handles it" as a flow step. Every step has a declared mechanism with a rationale tied to a measurable property.
-- Never let a module into the Module Map without a trace to the brief or to data-architecture entities. Orphan modules are silent product drift.
-- Never let a state class into Section 4 without an owning module from Section 1.
-- Never write authored content into module-spec stubs. The stubs are scaffolding — headers, `status: draft`, body note. Authored content belongs to `spec-author` via `/hstack:module-spec`.
-- Never bypass the end-of-atom coherence check on section-targeted re-entry.
-- Never write surfaces into `hstack/config.yaml` outside the terminal-state auto-commit. Mid-atom surface edits would create silent inconsistency between the artifact and the config.
 
 ## Confirmation discipline
 

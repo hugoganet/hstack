@@ -82,43 +82,17 @@ The Skill does not auto-commit any artifact status transitions. `pr-body.md` is 
 
 ## Session boundary
 
-`ship` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `pr-body.md and the scorecard` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`ship` is a natural session cut: the auto-commit above left `pr-body.md` and the scorecard on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: ship complete — cut recommended before the merge, then finalize.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:finalize <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:finalize <change-id>`.
 
 ## Idempotency contract
 
-- Re-running on the same change: re-reads every artifact and recomputes the scorecard. `pr-body.md` is rewritten if any artifact has changed since the prior run; otherwise a no-op.
+- Re-running on the same change: re-reads every artifact and recomputes the scorecard. `pr-body.md` is rewritten if any artifact has changed since the prior run; otherwise a no-op. When the existing `pr-body.md` carries engineer edits beyond the generated template, surface a diff and ask before rewriting — never silently overwrite hand-written PR prose.
 - Re-running after fixing a failing gate: the scorecard reports the new state.
 
 ## Stop conditions
@@ -134,13 +108,3 @@ Beyond the kernel's general stop conditions:
 - **Trivial PRs.** When the change-spec carries `trivial: true`, several gates are skipped per the kernel. The Skill still computes the diff-within-scope and pattern-lint gates (GT-02 and GT-03 remain mandatory even for trivial PRs).
 - **Parent-change (multi-module) records.** When the change-spec is a coordination record (`children` non-empty), the Skill computes scorecards for every child and produces a parent-level summary. The parent reaches ready-to-ship only when every child does.
 - **Pattern-lint failure.** Surface the failing rule and the offending lines. The fix is via a new `hstack-implement` invocation against an appropriate phase (or a scope amendment if the lint surfaced new in-scope needs).
-
-## Anti-patterns
-
-- Never write status transitions on any artifact from this Skill. Ship is read-only across the artifact set.
-- Never call `gh pr create` or perform the merge. The engineer opens the PR.
-- Never silently pass a gate. Every FAIL names the artifact and field.
-- Never collapse the twelve gates into a single PASS / FAIL. The scorecard is per-gate.
-- Never flip a tech-debt status from this Skill. That is `/hstack:finalize`'s job and only runs post-merge. Ship surfaces the directive; it does not perform the write.
-- Never extend `change-spec.in-scope` to make GT-02 pass — the scope amendment goes through `spec-author`, not this Skill.
-- Never overwrite `pr-body.md` content the engineer has hand-edited without confirmation. If the file exists with edits beyond the template, surface a diff and ask before rewriting.

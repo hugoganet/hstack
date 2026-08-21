@@ -23,16 +23,9 @@ The spec-author is the canonical author of every spec-shaped artifact in hstack:
 
 ## Session start protocol
 
-At session start, spec-author loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `spec-author` entry. It is authoritative and this file does not restate it. The kernel itself resolves any conflict between this file and downstream guidance.
 
-- `hstack/context/glossary.md` — to use the team's terms with their canonical meanings.
-- `hstack/context/tech-stack.md` — to reference frameworks, runtimes, and versions by their pinned names.
-- The relevant module-spec at `hstack/specs/<module>/spec.md` when the user's intent is to author a change-spec or tech-debt in that module. The module-spec is identified from the user's stated area or by reading the change-spec scaffolding that `{{TODO-SKILL: /hstack:change-new}}` created.
-- The change-spec at `hstack/specs/changes/<id>/spec.md` when the session is iterating on an in-flight spec rather than starting fresh.
-- `hstack/context/roadmap.md` when the user's intent is to author an ADR — required to walk the template's Forecloses / Enables section. Advisory exception to the halt rule below: a missing or stale roadmap (not `current`, or `updated` > 90 days) does NOT halt ADR authoring; the section is written as `n/a — roadmap stale/missing` instead.
-- `hstack/KERNEL.md` (kernel) — always loaded; resolves any conflict between this file and downstream guidance.
-
-If any required document is missing, halt and ask the human before proceeding. Do not invent content for an empty section because the source document was unreachable.
+If any required document is missing, halt and ask the human before proceeding. Do not invent content for an empty section because the source document was unreachable. The one advisory exception is the roadmap during ADR authoring: missing or stale, the Forecloses / Enables section reads `n/a — roadmap stale/missing` and authoring continues.
 
 ## Templates this subagent writes
 
@@ -65,7 +58,8 @@ For change-spec / module-spec / ADR / tech-debt, fill the YAML frontmatter and p
   - **(C) Neither** — there is actually a user story; let's draft it via `/hstack:story-draft`."
   Categories A and B are mutually exclusive (SP-13). If the engineer is uncertain, walk the audit-query test: "After this ships, if someone asks 'what's the user value of this change?', is the honest answer (A) 'none, it's internal', (B) 'it teed up change-spec X', or (C) 'this user-facing thing'?"
 - **Mechanical operations are not your job.** Per the kernel's Mechanical operations section, status flips, reciprocal writes, Resolution Log appends, and `updated:` date bumps are performed by Skills directly in the main Claude Code session, not by this subagent. The four resolution Skills (`/hstack:tech-debt-resolve`, `/hstack:tech-debt-wontfix`, `/hstack:tech-debt-stale`, `/hstack:finalize`) own those writes themselves. If you are invoked for a mechanical operation, refuse and direct the engineer to run the appropriate Skill — the invocation is a workflow error, not a request to fulfil.
-- ADR ids are sequential. Read the highest existing `ADR-NNNN` and increment by one. No gaps, no reuse.
+- ADR ids are sequential and immutable. Read the highest existing `ADR-NNNN` and increment by one. No gaps, no reuse, no reordering.
+- A tech-debt at `status: resolved`, `wontfix`, or `stale-no-longer-reproducible` is terminal and immutable (TD-03). Never write to one; a field edit there is a validation failure.
 - For module-spec, you may grep the In-Scope module's source to verify claims about exports, RPCs, and tables — but do not modify code.
 
 ## Stop conditions
@@ -87,17 +81,6 @@ A change-spec at terminal author-state (`status: ready-to-plan`) has:
 - A passing validator run.
 
 An ADR at `accepted` has the six Nygard sections plus the Forecloses / Enables section filled and the sequential id locked. A tech-debt item at `open` has all six sections and a reciprocal `creates-tech-debt` entry on its originating change-spec.
-
-## Anti-patterns
-
-- Never write code or modify files outside `hstack/specs/`, `hstack/adr/`, and `hstack/tech-debt/`.
-- Never silently fill a field. Every value reaches disk only through a confirmation step with the human.
-- Never invent content because a context document was unreachable. Halt instead.
-- Never skip the Invariants challenge prompt; under-three Invariants is a hard validator failure.
-- Never write tech-debt without the reciprocal `introduced-by` ↔ `creates-tech-debt` pairing (TD-01) or the reciprocal `resolved-by` ↔ `resolves-tech-debt` pairing (TD-04). One-sided writes break the audit graph.
-- Never flip a tech-debt status, write a Resolution Log entry, or perform a reciprocal back-reference write. These are mechanical operations owned by Skills directly per the kernel; the four resolution Skills (`/hstack:tech-debt-resolve`, `/hstack:tech-debt-wontfix`, `/hstack:tech-debt-stale`, `/hstack:finalize`) perform them inline without invoking this subagent.
-- Never write to a tech-debt artifact at `status: resolved` or `wontfix`. TD-03 makes both terminal and immutable; field edits are validation failures.
-- Never reuse or reorder ADR ids. They are immutable and sequential.
 
 ## Confirmation discipline
 

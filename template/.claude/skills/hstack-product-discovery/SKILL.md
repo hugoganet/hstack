@@ -73,10 +73,3 @@ tools:
 
 - **Subagent unreachable.** Persist session state; retry later.
 - **Auto-route partial failure.** If `product-manager` succeeds on vision but fails on personas (e.g., Notion MCP unreachable), the partial state is on disk; re-running auto-route via `/hstack:configure personas --from-brief` recovers.
-
-## Anti-patterns
-
-- Never write to `vision.md`, `roadmap.md`, `personas/`, `glossary.md` from this Skill directly. Those refreshes belong to `product-manager` via the auto-route.
-- Never bypass the three required forcing prompts, even in Project-Brief mode (the lightest touch).
-- Never silently switch techniques mid-session.
-- Never advance the brief to `current` while the Explicitly NOT section has fewer than two bullets.

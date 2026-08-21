@@ -43,7 +43,7 @@ Before any work:
 
 ## Orchestration steps
 
-0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
 
 1. **Invoke `test-strategist`.** Use the Task tool with `subagent_type: test-strategist` and context = [kernel, `hstack/templates/test-plan.md`, change-spec, module-spec, tech-stack, ci-cd, data-architecture when applicable]. The subagent walks the eight sections — Surfaces and Risk Profile, Test Pyramid, Edge Cases, Tenant Isolation Tests, Test Data and Fixture Strategy, Performance and Regression Budgets, Challenge Prompts, Open Concerns.
 
@@ -117,43 +117,17 @@ At the terminal-status auto-commit above (`test-plan(<change-id>): passed` or `c
 
 Reason this sidecar matters: it makes the test-strategist's rubber-stamp signal cheap. A `passed` test-plan with `tenant_isolation_tests_count: 0` despite `tenant_isolation_required: true`, or `challenge_prompts_answered: 3` paired with zero invariants-mapped diff against declared, are the cases the telemetry layer's WS-2 and QO-1 metrics exist to surface. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land.
 
-`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
+The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
 ## Session boundary
 
-`test-plan` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `test-plan.md` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`test-plan` is a natural session cut: the auto-commit above left `test-plan.md` on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: test-plan complete — cut recommended before change-plan.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:change-plan <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:change-plan <change-id>`.
 
 ## Idempotency contract
 
@@ -183,15 +157,3 @@ Beyond the kernel's general stop conditions:
 - **Validator fails TS-03 (empty tenant-isolation-tests on a db/api/agent surface).** Halt; the subagent re-walks every new tenant-scoped surface and names a negative test.
 - **Validator fails TS-06 (an invariant is unmapped).** Halt; the subagent either adds a test for the unmapped invariant, surfaces it in the (b) challenge prompt with a defended rationale, or escalates to amend the invariant via `spec-author`.
 - **v1 framing slips in a rationale.** The Skill detects "verified by test execution" or "measured coverage" language and halts; the subagent re-words.
-
-## Anti-patterns
-
-- Never plan a behavior coverage strategy that depends primarily on e2e. The pyramid bias is load-bearing.
-- Never write a performance budget without a paired asserting test. Budgets without tests are wishes.
-- Never mark a coverage layer `addressed` without concrete test file paths.
-- Never claim coverage-measured or mutation-tested evidence in v1. The honesty clause is load-bearing.
-- Never skip or paraphrase a challenge prompt. The three are verbatim and mandatory.
-- Never produce a test-plan whose `tenant-isolation-tests` array is empty when surfaces includes db/api/agent.
-- Never fabricate test file paths, factory module names, or surface identifiers.
-- Never write `concerns-acknowledged-by` without the owner's confirmed acknowledgement.
-- Never file tech-debt from this Skill; surface the recommendation for the engineer to invoke `hstack-tech-debt-new`.

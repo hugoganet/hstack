@@ -26,7 +26,7 @@ Invoke when a tech-debt item at `status: open` will not be fixed and the team ha
 
 ## Preconditions
 
-- Verify `hstack/tech-debt/<td-id>.md` exists and is at `status: open`. If at `in-progress`, halt — work is already underway. Concrete recovery: locate the resolution change-spec via the TD's Resolution Log (most recent entry names the resolving change-spec id) and either complete that change normally or abandon it by direct frontmatter edit (`git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert the TD to `open`, then archive the resolution change folder manually). Do not invoke `spec-author` for the rollback — the kernel forbids it for status flips. If at any terminal status, halt with the status named.
+- Verify `hstack/tech-debt/<td-id>.md` exists and is at `status: open`. If at `in-progress`, halt — work is already underway. Concrete recovery: locate the resolution change-spec via the TD's Resolution Log (most recent entry names the resolving change-spec id) and either complete that change normally or abandon it by direct frontmatter edit (`git checkout HEAD -- hstack/tech-debt/<td-id>.md` to revert the TD to `open`, then archive the resolution change folder manually). If at any terminal status, halt with the status named.
 
 ## Orchestration steps
 
@@ -41,7 +41,7 @@ Invoke when a tech-debt item at `status: open` will not be fixed and the team ha
 5. **Confirm.** Print both answers and ask "Mark TD-NNNN as wontfix with this rationale? (Y/n)". Default Yes.
 
 6. **Write the wontfix transition (direct write).** Per the kernel's Mechanical operations section, this Skill performs the writes itself via the `Edit` tool — no `spec-author` invocation. Edit `hstack/tech-debt/<td-id>.md`:
-   - **Defensive Resolution Log check.** If `## Resolution Log` is not present in the file (legacy TDs authored before the template included this section), append `\n## Resolution Log\n` to the end of the file first.
+   - Defensive log-header check per the kernel: if `## Resolution Log` is absent, append it before writing the entry.
    - Edit frontmatter: `wontfix-reason: <answer-a>`, `wontfix-accepted-alternative: <answer-b>`, `status: open → wontfix`, `updated: <today>`.
    - Append to the Resolution Log section: `status: open → wontfix on <today> by <owner>. Reason: <answer-a>. Accepted alternative: <answer-b>.`
 
@@ -76,10 +76,3 @@ Beyond the kernel's general stop conditions:
 
 - **Direct write fails (filesystem, validator, or git).** Halt; the TD's status flip and the two frontmatter writes must land in a single auto-commit. Partial writes are not possible if the Skill aborts on validator failure before staging.
 - **Deferral disguised as wontfix.** The prose-level check in step 3 is the v1 defense. v2 substrate could add LLM-graded rationale assessment, but v1 trusts the engineer's willingness to be honest with themselves.
-
-## Anti-patterns
-
-- Never accept a wontfix-reason that reads as a deferral. The check is mandatory and is the only friction protecting against backlog amnesia.
-- Never write `status: wontfix` without both rationale fields non-null. TD-06 enforces this at validation.
-- Never re-open a wontfix TD. Per TD-03, wontfix is terminal — author a new TD instead.
-- Never invoke `spec-author` for the wontfix transition. Per the kernel's Mechanical operations section (ADR-0001), this Skill performs the writes directly. The three writes (status, wontfix-reason, wontfix-accepted-alternative) plus the Resolution Log append land atomically in a single Skill-driven commit.

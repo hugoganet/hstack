@@ -46,7 +46,7 @@ tools:
 
 ## Outputs
 
-- `hstack/context/data-architecture.md` at `status: current` with `assumes-database: postgres` in frontmatter (or alternative with rationale).
+- `hstack/context/data-architecture.md` at `status: current` with `assumes-database: postgres` in frontmatter (or alternative with rationale). Section 5 holds migration *sketches* only — no `.sql` file is written from this Skill; the implementer writes them during bootstrap or per-change.
 - `hstack/.session-state/<session-id>.yaml` (transient).
 
 ## Auto-commit triggers
@@ -72,10 +72,3 @@ tools:
 
 - **Subagent unreachable.** Persist session state; retry later.
 - **Supabase MCP unreachable in extract mode.** If migrations or other schema source exist, the subagent falls back to those. Otherwise halt with `HSTACK-HALT: reason=mcp-unreachable` per the kernel's load-bearing-MCP rule.
-
-## Anti-patterns
-
-- Never write migration `.sql` files from this Skill. Sketches only; the implementer writes the files during bootstrap or per-change.
-- Never bypass the Section 1 Tenancy gate.
-- Never let the end-of-atom coherence check be skipped on section-targeted re-entry.
-- Never silently honor a database change that contradicts `assumes-database`. Halt and surface; route through stack-architect or refresh this artifact deliberately.

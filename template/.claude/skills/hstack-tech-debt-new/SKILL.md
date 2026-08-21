@@ -60,7 +60,7 @@ Before any work:
 
 7. **Validate and atomic-commit both files.** Run `node hstack/scripts/validate-spec.mjs <path>` against the new TD and (when `--origin` is set) the modified change-spec. TD-01 (reciprocity), TD-02 (severity:critical requires target-resolve-by — v1 surfaces only), TD-03 (no field rewrites once resolved; v1 informational) all checked. On validation pass, `git add` both files and commit with message `tech-debt(TD-NNNN): open` (with `(introduced-by: <change-spec-id>)` appended when applicable). The reciprocal pair (TD `introduced-by` ↔ change-spec `creates-tech-debt`) lands in this single atomic commit. On validation failure, halt; both files remain unstaged for the engineer to inspect or discard.
 
-8. **Status note.** The new artifact lands at `status: open`. Advancing to `in-progress` or `resolved` is a separate later operation, not this Skill's domain.
+8. **Status note.** The new artifact lands at `status: open`. Advancing to `in-progress` or `resolved` is a separate later operation, not this Skill's domain. Nor does this Skill ever overwrite an existing tech-debt item: a body revision on an item being actively worked goes through a direct `spec-author` invocation.
 
 ## Outputs
 
@@ -93,11 +93,3 @@ Beyond the kernel's general stop conditions:
 - **Reciprocal write to the change-spec fails (e.g., the change-spec's frontmatter is broken).** Halt before commit; the TD authoring half also rolls back unstaged. The engineer fixes the change-spec frontmatter manually (broken YAML is hand-fixed and validated; if the change-spec body needs prose authoring corrections, `spec-author` can resume the change-spec since change-spec body editing is interview-driven, but `spec-author` cannot touch the `creates-tech-debt` reciprocal field per kernel — the Skill performs that append on the re-run). Then re-run `/hstack:tech-debt-new` — the Skill is idempotent on the TD half (spec-author resumes the existing partial file) and idempotent on the reciprocal append (a no-op if the TD id is already in the array).
 - **The change-spec is at `shipped` or `archived` status.** TD-03 forbids rewrites on resolved items, but the change-spec at `shipped` may still accept `creates-tech-debt` array appends — surface and confirm with the engineer before writing.
 - **Validator fails TD-01.** Halt before commit; the partial state on disk is unstaged. The engineer reconciles by running the Skill again — the reciprocal half is idempotent and the TD half resumes from the existing file.
-
-## Anti-patterns
-
-- Never invent a tech-debt id. Sequential per the implicit rule.
-- Never write a tech-debt item without the Why-we-took-the-shortcut section. Debt without context is paperwork.
-- Never write `origin: <change-spec-id>` without the reciprocal `creates-tech-debt` write on that change-spec.
-- Never advance status past `open` from this Skill. Status transitions happen on the fix side, not the capture side.
-- Never overwrite an existing tech-debt item from this Skill. Updates happen via direct `spec-author` invocation when the item is being actively worked on.

@@ -58,7 +58,7 @@ The Skill does not invoke any subagent. Scaffolding is mechanical and the engine
 ## Outputs
 
 - New directory `hstack/specs/changes/<id>/`.
-- New file `hstack/specs/changes/<id>/spec.md` at `status: draft`, with frontmatter populated to the floor and prose sections empty.
+- New file `hstack/specs/changes/<id>/spec.md` at `status: draft`, with frontmatter populated to the floor and prose sections empty. Every subsequent status transition is owned by the authoring subagents, never by this Skill.
 
 ## Auto-commit triggers
 
@@ -82,11 +82,3 @@ Beyond the kernel's general stop conditions:
 
 - **Validator fails on the seeded spec.** The template itself is broken — halt and surface as a hstack installation issue.
 - **`git config user.name` returns empty and `hstack/config.yaml` has no default owner.** Halt and ask the engineer for their owner handle.
-
-## Anti-patterns
-
-- Never write prose content into the seeded `spec.md` beyond the template's existing prompts. The Skill scaffolds; `spec-author` authors.
-- Never derive the id from anything other than the current month, the area, and the slug. Hand-rolled ids break the kebab-case + chronological-prefix convention that other Skills depend on.
-- Never scaffold under an area whose module-spec is absent. The precondition is hard.
-- Never modify an existing change folder. Reruns are no-ops or refusals, never overwrites.
-- Never advance `status` past `draft` from this Skill. Subsequent transitions are owned by the authoring subagents.

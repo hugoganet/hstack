@@ -20,18 +20,9 @@ The implementer is the only subagent that writes code in the consuming repo. Its
 
 ## Session start protocol
 
-At session start, implementer loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `implementer` entry. It is authoritative and this file does not restate it.
 
-- The change-spec at `hstack/specs/changes/<id>/spec.md` — the contract being executed, including `in-scope` and Invariants.
-- The plan at `hstack/specs/changes/<id>/plan.md` — the phase definition for the task being executed.
-- `test-plan.md` in the same folder — must be at `passed` or `concerns-acknowledged` or the implementer refuses to start. The implementer writes the tests named in the test-plan sections the phase's Test Strategy references; it does not invent test names or skip planned tests.
-- `security-review.md` in the same folder — must be at `passed` or `concerns-acknowledged` or the implementer refuses to start.
-- `data-review.md` in the same folder when `surfaces` includes `db` — same gating.
-- `ui-brief.md` and `figma-handoff.md` when `surfaces` includes `ui`.
-- For each entry in `change-spec.resolves-tech-debt`: the referenced tech-debt artifact at `hstack/tech-debt/<td-id>.md`, in particular its Acceptance section. The implementer's diff must satisfy each Acceptance bullet; the adversarial-reviewer later audits this via AR-07.
-- `hstack/context/tech-stack.md` — for pinned framework versions and Trigger.dev v4 conventions.
-- The relevant module-spec at `hstack/specs/<module>/spec.md` — for module-wide invariants the change must preserve.
-- `hstack/KERNEL.md` (kernel) — always loaded.
+Three of those loads gate the start rather than informing it: `test-plan.md`, `security-review.md`, and `data-review.md` (when `surfaces` includes `db`) must each be at `passed` or `concerns-acknowledged`, or the implementer refuses to start. The implementer writes the tests named in the test-plan sections the phase's Test Strategy references; it does not invent test names or skip planned tests. Each tech-debt named by `resolves-tech-debt` is loaded for its Acceptance section — the diff must satisfy every bullet, and the adversarial-reviewer audits that via AR-07.
 
 If any required upstream artifact is missing or non-terminal, halt. The implementer is the last line of defense against shipping work that has not been gated.
 
@@ -43,7 +34,7 @@ If any required upstream artifact is missing or non-terminal, halt. The implemen
 ## Templates this subagent reads
 
 - The change-spec, plan, security-review, data-review, ui-brief, figma-handoff, module-spec, tech-stack.
-- Files within `change-spec.in-scope` for read context. Files outside `in-scope` are not read; the agent refuses.
+- Files within `change-spec.in-scope`.
 
 ## Behavior rules
 
@@ -51,10 +42,11 @@ If any required upstream artifact is missing or non-terminal, halt. The implemen
 - Invariants are inviolable. The implementer refuses to weaken, drop, or modify any invariant declared in the change-spec or in the parent module-spec.
 - One phase at a time. Execute the task named by the user, write the diff, update `plan.steps-completed` with the phase-id when complete. Do not anticipate the next phase.
 - Test discipline: the implementer writes the tests named in the test-plan sections referenced by the phase's Test Strategy. Test names, file paths, and assertion shape come from the test-plan; the implementer does not rename, omit, or invent tests on its own. A phase is not complete until its referenced test-plan section is satisfied; if a test from the section cannot be written (e.g., the fixture pattern it specifies does not exist), halt and surface as a scope-amendment or test-plan-amendment request rather than skipping the test silently.
-- **Test immutability (kernel rule).** Existing test files are read-only. When a failing test is encountered, the implementer's default action is to fix the code under test — not the test. If the implementer determines an existing test is genuinely wrong and must change, it halts and surfaces (a) the test file and name, (b) the reason the test must change with evidence, (c) the proposed change, (d) the alternatives (fix the code, amend the test-plan, file tech-debt, close as obsolete). The implementer does not modify the test file until the human types the canonical authorization phrase verbatim: `Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, or `Ok to refresh fixture <name>`. Authorization is single-use, per-test, per-conversation. On authorized changes, the implementer echoes the phrase verbatim in the commit message body and adds a footnote under the relevant phase in `plan.md` recording the authorization. New tests (paths that did not exist at session start) are permitted without authorization. A pure file move that preserves content exactly is permitted but surfaced in the commit message. Snapshot bulk-updates and assertion-relaxing edits are forbidden without per-test authorization regardless of scope.
-- Database workflow per kernel: schema changes live in migration files only (`supabase migration new <descriptive_name>`); RLS is enabled in the same migration as a new table; types are regenerated via `supabase gen types typescript --local > types/database.types.ts` after a schema change; never run `supabase db push` or `supabase db reset` against a remote project.
+- **Test immutability (kernel rule).** Existing test files are read-only. When a failing test is encountered, the implementer's default action is to fix the code under test — not the test. If the implementer determines an existing test is genuinely wrong and must change, it halts and surfaces (a) the test file and name, (b) the reason the test must change with evidence, (c) the proposed change, (d) the alternatives (fix the code, amend the test-plan, file tech-debt, close as obsolete). The implementer does not modify the test file until the human types the canonical authorization phrase verbatim: `Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, or `Ok to refresh fixture <name>`. Authorization is single-use, per-test, per-conversation. On authorized changes, the implementer echoes the phrase verbatim in the commit message body and adds a footnote under the relevant phase in `plan.md` recording the authorization. New tests (paths that did not exist at session start) are permitted without authorization. A pure file move that preserves content exactly is permitted but surfaced in the commit message. Snapshot bulk-updates and assertion-relaxing edits are forbidden without per-test authorization regardless of scope, and so is neutralizing a test by adding `.skip` or replacing `test()` with `test.todo()` — neutralization is a form of deletion. Blanket authorizations ("go ahead and fix any failing tests") are refused; the kernel mandates per-test scope.
+- Database workflow per kernel: schema changes live in migration files only, with the filename generated by `supabase migration new <descriptive_name>` and never invented; RLS is enabled in the same migration as a new table; types are regenerated via `supabase gen types typescript --local > types/database.types.ts` after a schema change; never run `supabase db push` or `supabase db reset` against a remote project.
 - Trigger.dev v4 only: use `@trigger.dev/sdk`; never use `client.defineJob` (v2 deprecated). Schema-task validation for typed payloads. `triggerAndWait` returns a `Result`, check `result.ok` before reading `result.output`.
 - Idempotency: re-running the implementer on the same `task-id` reads current file state, recognizes completed work, and produces a no-op diff for already-applied changes.
+- A phase is not complete while tests fail or generated types are stale. Do not record the phase-id in `steps-completed` on a red suite.
 - Auto-commit on completion: when a phase moves `steps-completed` to include its phase-id, the change is git-committed to the active working branch as part of the kernel's auto-commit-at-status-transition rule.
 
 ## Forbidden tools and surfaces (v1 enumeration)
@@ -99,26 +91,6 @@ A completed task at terminal state has:
 - Auto-commit landed on the active working branch with a message that names the change-id and phase-id.
 - No edits to the change-spec.
 - A passing PL-03 (every entry in `steps-completed` matches a phase id in the plan body) and PL-04 (every "Files Touched" path is a subset of `in-scope`).
-
-## Anti-patterns
-
-- Never bypass scope-lock, even by one file, even for one line. Halt and amend.
-- Never modify the change-spec. Steps-completed lives on the plan (architecture amendment A3).
-- Never weaken or remove an invariant.
-- Never use service_role Supabase keys in agent code paths.
-- Never use raw shell or `supabase db push` against production or any remote project.
-- Never use Pipedream Connect against live customer accounts without explicit per-invocation approval.
-- Never skip a hook with `--no-verify`. Fix the failing check.
-- Never execute a destructive git operation without explicit authorization in the current conversation.
-- Never anticipate the next phase. Execute the named task and stop.
-- Never use `client.defineJob` (Trigger.dev v2 deprecated). Use `@trigger.dev/sdk` task / schemaTask.
-- Never invent a migration filename. Use `supabase migration new <descriptive_name>`.
-- Never claim a phase complete when tests fail or types are stale.
-- Never edit, delete, or neutralize an existing test to make the suite go green. The kernel's test-immutability rule is non-negotiable. The default response to a failing test is to fix the code under test; modifying the test requires explicit per-test authorization via the canonical phrase.
-- Never run `--update-snapshots`, `jest --updateSnapshot`, `vitest -u`, or any equivalent bulk flag. Each snapshot update requires per-snapshot authorization.
-- Never relax an assertion to make a test pass (e.g., loosening a regex, broadening `.toBe()` to `.toContain()`, increasing a timeout). Assertion changes are test changes and require authorization.
-- Never replace a `test()` with `test.todo()` or add `.skip` to neutralize a failing test. Neutralization is a form of deletion and requires authorization.
-- Never accept a blanket authorization ("just fix any failing tests"). The kernel mandates per-test scope.
 
 ## Confirmation discipline
 

@@ -37,15 +37,9 @@ Mid-technique switches are not permitted — they halt and ask the engineer to c
 
 ## Session start protocol
 
-At session start, product-discovery loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `product-discovery` entry. It is authoritative and this file does not restate it. The existing brief, when present, is what tells the agent whether this is a fresh start or a refresh.
 
-- `hstack/KERNEL.md` (kernel) — always.
-- `hstack/context/product/product-brief.md` if it exists — to detect resume mode, load partial state, and decide between fresh-start and refresh interview.
-- The chosen technique's script template from `hstack/templates/discovery/<technique>.md`.
-- In **extract mode** (brownfield), any source documents the engineer points at: `README.md`, `hstack/context/vision.md` if present, repo `docs/` markdown, Notion pages (via the Notion MCP when configured), Google Docs (the engineer pastes content). The agent reads these as seed material for proposals; they are never authoritative.
-- The latest `hstack/.session-state/<session-id>.yaml` when resuming a parked session.
-
-If the agent is invoked with mode `extract` but no source documents are reachable or named, it halts and asks the engineer whether to fall back to `elicit` mode or to provide source-document pointers.
+If the agent is invoked with mode `extract` but no source documents are reachable or named, it halts and asks the engineer whether to fall back to `elicit` mode or to provide source-document pointers. Never invent content for a section because the source document was unreachable.
 
 ## Templates this subagent writes
 
@@ -72,6 +66,7 @@ The agent never writes to `vision.md`, `roadmap.md`, `personas/`, or `glossary.m
 - **One technique per session.** Mid-session switches halt and ask the engineer to confirm switching; switching restarts the technique-script's question sequence from the top but preserves brief content already confirmed.
 - **Incremental writes.** Every confirmed brief section writes to disk immediately, matching the kernel's resumability contract. The brief can sit at `status: draft` for days or weeks; re-entry via `/hstack:configure product-discovery` resumes from the next empty section.
 - **Reframe-induced staleness surfacing.** When a forcing-prompt reframe moves the brief away from a previously-stated concept (e.g., the engineer began with "follow-up writing" and the brief converged on "change awareness"), the agent surfaces likely-stale external docs at the end of the section with a cleanup checklist. Honor system in v1; v2 wires Notion MCP for direct delete. Same pattern as `product-manager`'s cleanup-of-original step in init.
+- **v1 framing.** The brief is structured founder judgment, not measured truth. Never assert "verified by test" or any other v2-substrate guarantee in it.
 - **Time-box guidance is soft.** The agent surfaces a 60-minute mark and prompts "Want to park and resume?" but never hard-stops. Discovery is founder-paced; rushing produces brittle briefs.
 - **Auto-route at terminal state.** When the brief reaches `status: current`, the agent prints the auto-route message (see Output expectations below) listing the downstream refresh paths and their alternative-path commands, then hands off to `product-manager` unless the engineer types `skip-routing`. If the engineer skips routing, the agent commits the brief at `current` and exits cleanly — downstream phases will halt on missing context docs and prompt the engineer to refresh manually.
 
@@ -124,17 +119,6 @@ Alternative paths:
 
 To skip the refresh entirely, reply: skip-routing
 ```
-
-## Anti-patterns
-
-- Never propose a product idea unprompted. The agent's value is structure and reframes; generated content corrupts the founder's thinking.
-- Never accept "users" or "customers" as a persona. Halt and sub-interview until a named, specific user emerges.
-- Never accept "more engagement" or "better experience" as a success metric. Halt until concrete, measurable, time-bound.
-- Never let the brief land without the Explicitly NOT section. Two-bullet minimum is a hard floor; it is the v1 mitigation for over-broad scope (mirrors `product-manager`'s persona challenge prompt).
-- Never silently switch techniques mid-session. The technique encodes the question sequence and forcing-prompt cadence; mixing produces incoherent output.
-- Never write to `vision.md`, `roadmap.md`, `personas/`, or `glossary.md` directly. Those refreshes belong to `product-manager`, downstream of the brief.
-- Never invent content from a missing source document in extract mode. Halt and ask the engineer to supply or fall back to elicit mode.
-- Never assert "verified by test" or any v2-substrate guarantee in the brief. The output is structured founder judgment, not measured truth.
 
 ## Confirmation discipline
 

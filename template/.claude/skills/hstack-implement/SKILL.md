@@ -15,7 +15,7 @@ tools:
 
 ## Purpose
 
-`hstack-implement` is the only Skill that causes code to be written. It orchestrates the `implementer` subagent against one named task from the plan, scope-locked to the change-spec's `in-scope` allowlist. It is the workflow's last line of gating before code lands on disk: it re-checks every upstream gate, enumerates the kernel's forbidden tools, and refuses to invoke the implementer when preconditions are not met.
+`hstack-implement` is the only Skill that causes code to be written. It orchestrates the `implementer` subagent against one named task from the plan. It is the workflow's last line of gating before code lands on disk: it re-checks every upstream gate, enumerates the kernel's forbidden tools, and refuses to invoke the implementer when preconditions are not met.
 
 ## When to invoke
 
@@ -46,26 +46,25 @@ Enumerate the kernel's forbidden tool surfaces explicitly before invoking the su
 - Raw shell (`psql`, `bash`, `sh`) executed against production or remote Supabase. Local Supabase only.
 - `supabase db push` / `supabase db reset` against any remote project. Local stack only.
 - Pipedream Connect against live customer accounts without per-invocation explicit human approval.
-- Any tool that mutates state outside the `in-scope` list.
 - MCPs not in the consuming repo's configured allow set.
 - `--no-verify` or other hook-bypassing git flags.
 - `--update-snapshots`, `jest --updateSnapshot`, `vitest -u`, or any equivalent bulk snapshot-update flag.
 - Destructive git operations (`git push --force`, `git reset --hard`, `git checkout .`) without explicit per-invocation authorization.
-- Modifications to existing test files without per-test authorization via the test-immutability protocol (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`).
+- Modifications to existing test files without per-test authorization via the test-immutability protocol (step 8).
 
 If the named phase appears to require any of the above, halt before invoking — surface the violation, ask the engineer to either reshape the phase or authorize per-invocation.
 
 ## Orchestration steps
 
-0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
 
 1. **Re-verify gates.** Run the precondition checks above. Any failure halts the Skill with a precise message naming the failing artifact and field.
 
 2. **Invoke `implementer`.** Use the Task tool with `subagent_type: implementer` and context = [kernel, change-spec, plan, test-plan, security-review, data-review when present, ui-brief and figma-handoff when present, module-spec, tech-stack]. The subagent loads only the In-Scope file list for code reading; everything outside the canonical session-start context plus In-Scope is refused per the kernel.
 
-3. **Phase execution.** The subagent executes one phase per invocation. It writes the code diff scoped to the phase's Files Touched, updates `plan.steps-completed` to include `<task-id>` when the phase completes, and writes the tests named in the test-plan sections the phase's Test Strategy references. Test names, file paths, and assertion shape come from the test-plan; the implementer does not rename or omit tests.
+3. **Phase execution.** The subagent executes one phase per invocation — the named task, then stop, never anticipating the next phase. It writes the code diff scoped to the phase's Files Touched, updates `plan.steps-completed` to include `<task-id>` when the phase completes, and writes the tests named in the test-plan sections the phase's Test Strategy references. Test names, file paths, and assertion shape come from the test-plan; the implementer does not rename or omit tests.
 
-4. **Database workflow enforcement.** For phases touching schema: the subagent creates migration files via `supabase migration new <descriptive_name>`; enables RLS in the same migration as a new table; regenerates types via `supabase gen types typescript --local > types/database.types.ts`. Never `supabase db push` / `supabase db reset` against a remote project.
+4. **Database workflow enforcement.** For phases touching schema: the subagent creates migration files via `supabase migration new <descriptive_name>` and never invents a filename; enables RLS in the same migration as a new table; regenerates types via `supabase gen types typescript --local > types/database.types.ts`. Never `supabase db push` / `supabase db reset` against a remote project.
 
 5. **Trigger.dev v4 only.** For phases touching trigger code, the subagent uses `@trigger.dev/sdk` task / schemaTask; never `client.defineJob` (v2 deprecated). `triggerAndWait` returns a `Result`; `result.ok` is checked before reading `result.output`.
 
@@ -73,13 +72,13 @@ If the named phase appears to require any of the above, halt before invoking —
 
 7. **Hook failures.** If a pre-commit hook fails on the auto-commit, the subagent investigates and fixes the underlying issue; does not bypass via `--no-verify`. If the fix would require out-of-scope edits, halt with a scope-amendment request.
 
-8. **Test-immutability protocol.** When the subagent determines an existing test file must be modified, deleted, or have a snapshot updated, it halts before touching the file and runs the kernel's authorization protocol: surface the test name, the reason, the proposed change, and the alternatives; wait for the canonical phrase verbatim (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`); echo the phrase in the commit message body and add a footnote under the relevant phase in `plan.md`. The Skill enforces this defense-in-depth — if a subagent's diff shows a modified pre-existing test file without a matching authorization in the conversation, the Skill blocks the commit.
+8. **Test-immutability protocol.** When the subagent determines an existing test file must be modified, deleted, or have a snapshot updated, it halts before touching the file and runs the kernel's authorization protocol: surface the test name, the reason, the proposed change, and the alternatives; wait for the canonical phrase verbatim (`Ok to change test <name>`, `Ok to delete test <name>`, `Ok to update snapshot <name>`, `Ok to refresh fixture <name>`); echo the phrase in the commit message body and add a footnote under the relevant phase in `plan.md`. Authorization is per-test and per-conversation; a blanket "fix the tests" is refused, and bulk snapshot-update flags are forbidden regardless of scope. The Skill enforces this defense-in-depth — if a subagent's diff shows a modified pre-existing test file without a matching authorization in the conversation, the Skill blocks the commit.
 
-8. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the plan — PL-03 (every `steps-completed` entry matches a plan phase id), PL-04 (every Files Touched path is a subset of `in-scope`), PL-05 (plan status gating).
+9. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` against the plan — PL-03 (every `steps-completed` entry matches a plan phase id), PL-04 (every Files Touched path is a subset of `in-scope`), PL-05 (plan status gating).
 
 ## Outputs
 
-- Code diffs in the consuming repo, scoped to `change-spec.in-scope` and matching the phase's Files Touched.
+- Code diffs in the consuming repo, matching the phase's Files Touched.
 - Test files written or updated per the phase's Test Strategy.
 - `plan.md` updated with `<task-id>` appended to `steps-completed`; `blocked-on: null` (or set to a phase id when interactive blocker stops progress).
 - One git commit on the active working branch naming `<change-id>` and `<task-id>`.
@@ -116,43 +115,17 @@ At the phase-completion auto-commit above, write `hstack/specs/changes/<change-i
 
 `.telemetry/` is git-ignored in the consuming repo. The sidecar write must not introduce any new LLM turn or confirmation gate — it is a deterministic write bundled with the existing commit. If the sidecar write fails, log and continue; the canonical commit must still land.
 
-`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
+The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
 ## Session boundary
 
-`implement` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `plan.md (steps-completed) and the committed code` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`implement` is a natural session cut: the auto-commit above left `plan.md` (`steps-completed`) and the committed code on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: implement complete — cut recommended before the next phase, or verify once every phase is done.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:implement <next-phase-id> <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:implement <next-phase-id> <change-id>`.
 
 ## Idempotency contract
 
@@ -180,21 +153,3 @@ Beyond the kernel's general stop conditions:
 - **Type regen fails after a migration.** The phase is incomplete; `steps-completed` is not advanced; halt and surface.
 - **Tests written but failing.** Halt at `steps-completed` not advanced; the engineer either re-invokes after fixing or amends the plan via the planner.
 - **Validator fails PL-04.** A Files Touched path crept outside `in-scope` — halt; this should have been caught upstream.
-
-## Anti-patterns
-
-- Never bypass scope-lock by one file, even one line. Halt and amend.
-- Never modify the change-spec. `steps-completed` lives on the plan.
-- Never weaken or remove an invariant.
-- Never use `service_role` Supabase keys in agent code paths.
-- Never use raw shell or `supabase db push` against production or any remote project.
-- Never use Pipedream Connect against live customer accounts without explicit per-invocation approval.
-- Never skip a hook with `--no-verify`. Fix the failing check.
-- Never execute destructive git operations without explicit authorization in the current conversation.
-- Never anticipate the next phase. Execute the named task and stop.
-- Never use `client.defineJob` (Trigger.dev v2 deprecated).
-- Never invent a migration filename. Use `supabase migration new <descriptive_name>`.
-- Never claim a phase complete when tests fail or types are stale.
-- Never edit, delete, or neutralize an existing test without per-test authorization. The kernel's test-immutability rule is non-negotiable; the default fix for a failing test is to fix the code under test.
-- Never run bulk snapshot-update flags. Each snapshot update needs its own authorization.
-- Never accept a blanket "fix the tests" authorization. Per-test scope is mandatory.

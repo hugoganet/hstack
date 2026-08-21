@@ -42,7 +42,7 @@ Before any work:
 
 ## Orchestration steps
 
-0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values for the telemetry sidecar below — they become `session_id` and `phase_opened_at` (ADR-0009). The script is read-only, takes milliseconds, and never halts. If it fails to run, or reports `"session_id": null`, hold `null` for both and continue: the phase then reports as *unmeasured*, never as zero. Measurement never gates the workflow.
+0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
 
 1. **Open with the fresh-session reminder.** Print the message verbatim; wait for the engineer's confirmation.
 
@@ -65,7 +65,7 @@ Before any work:
 
 9. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — AR-01 through AR-06.
 
-10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. Do NOT invoke `spec-author` and do NOT delegate the write to the `adversarial-reviewer` subagent; per the kernel's Mechanical operations section and ADR-0002, the value to write is fully determined by the adversarial-review postcondition and the change-spec's current status, so the Skill orchestrator writes directly. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`.
+10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`; the cross-artifact advance is the Skill orchestrator's own write, per ADR-0002.
 
 ## Outputs
 
@@ -125,43 +125,17 @@ At the change-spec advance commit (only when adversarial-review status is `findi
 
 When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. This is the most directly Goodhart-resistant of the five v1 sidecars — `category_counts` + `severity_counts` + `resolution_mix` jointly surface findings-quota-gaming patterns no single field could detect.
 
-`session_id` and `phase_opened_at` are the values captured in step 0; `phase_closed_at` is stamped now, in this same write. The three fields bound the phase so `hstack/scripts/telemetry/parsers/transcripts.py:phase_usage` can sum the transcript's assistant-turn usage between them — TE-4 (cost per phase) and TE-5 (cost per change) in the telemetry report. Any of the three `null`, unparseable, or inverted makes this phase *unmeasured*; it is never counted as zero. A failed resolution is logged and the canonical commit still lands. `hstack/templates/telemetry-sidecar.md` is the canonical schema — when a Skill and that document disagree, that document wins.
+The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
 ## Session boundary
 
-`adversarial-review` is a natural session cut. The auto-commit above has already written the
-durable state to disk — `adversarial-review.md` carries everything the next phase loads at session
-start, so the conversation itself holds nothing downstream needs. Long contexts
-degrade model performance well before the window limit, so cutting here costs
-nothing and buys accuracy back.
-
-At terminal state, emit a cut notice followed by a ready-to-paste kickoff prompt.
-The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh
-session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+`adversarial-review` is a natural session cut: the auto-commit above left `adversarial-review.md` at its terminal status on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
 
 ```
 HSTACK-CUT: adversarial-review complete — cut recommended before ship.
-
-Paste into a fresh session:
-────────────────────────────────────────────────
-/hstack:ship <change-id>
-
-Context from the previous session (not in any artifact):
-- <what was decided that no artifact records>
-- open: <question raised and unresolved, with the artifact that is silent on it>
-- ruled out: <approach rejected, and why, with the artifact reference>
-────────────────────────────────────────────────
 ```
 
-Rules for the context block: only facts that no artifact already carries — never
-restate the spec, the plan, or the phase output, which the next Skill loads from
-disk anyway. Three bullets maximum. If nothing qualifies, print the command line
-alone and say so; an empty context block is the correct output for a clean phase,
-not a failure to fill it in.
-
-Never cut mid-phase. A phase in flight has no committed state, and a summary
-produced mid-reasoning loses the chain it was built on. The boundary is the
-commit, not the context pressure.
+and the next command, `/hstack:ship <change-id>`.
 
 ## Idempotency contract
 
@@ -188,15 +162,3 @@ Beyond the kernel's general stop conditions:
 - **Reviewer cannot produce honest findings to meet the floor and the sub-floor justification feels thin.** Re-prompt for each category; if still under floor, the engineer must defend the sub-floor explicitly.
 - **A finding routes to `tech-debt:<id>` but the engineer hasn't created the tech-debt artifact.** The Skill prompts to invoke `hstack-tech-debt-new`; the review does not terminate until the artifact exists.
 - **A commit hash named in `resolution` does not exist on the change's branch.** Halt — the engineer either re-references the correct commit or the resolution is reconsidered.
-
-## Anti-patterns
-
-- Never return "no issues found" without a defended sub-floor justification.
-- Never run in the same Claude Code session as `hstack-implement`. Honor-system in v1; CI-verified in v2.
-- Never cluster all findings in one category without flagging in Methodology.
-- Never use `justified-in-prose` for a high-severity finding.
-- Never propose code changes directly — the reviewer surfaces findings; the owner or implementer (via `hstack-implement`) resolves them.
-- Never invent a tech-debt id. The artifact must exist or be authored before the review terminates.
-- Never accept a `commit:<hash>` that does not exist on the change's branch.
-- Never advance status to `findings-resolved` while any finding has `status: open`.
-- Never load implementer transcripts. If visible, halt.

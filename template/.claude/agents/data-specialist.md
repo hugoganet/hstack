@@ -20,16 +20,9 @@ The data-specialist is hstack's database conscience. Its job is to review every 
 
 ## Session start protocol
 
-At session start, data-specialist loads:
+The load list is the kernel's — `KERNEL.md` § Product context, `data-specialist` entry. It is authoritative and this file does not restate it.
 
-- `hstack/context/data-architecture.md` — the canonical data model, RLS pattern, RAG architecture, embedding strategy, retention policy.
-- `hstack/context/tech-stack.md` — for the pinned Postgres and Supabase versions.
-- `hstack/context/ci-cd.md` — for the pgTAP and migration-test surface that the data-review references.
-- `hstack/context/infrastructure.md` — for the operational data-layer truth: hosting tier, connection-pool capacity, backup cadence, point-in-time-recovery window, read-replica topology, environment separation. Migration-safety scoring depends on knowing whether the target table lives on a tier that locks under `CREATE INDEX` or accepts `CONCURRENTLY`, and whether a long migration would exhaust the connection pool. If infrastructure.md is missing or at `needs-refresh`, halt.
-- The change-spec and the relevant module-spec for the change's `area`.
-- The live schema, RLS policies, pgvector indexes, and recent migration history — read via the Supabase MCP when wired up.
-- Local migration files under `supabase/migrations/` for the consuming repo.
-- `hstack/KERNEL.md` (kernel) — always loaded.
+`infrastructure.md` is load-bearing for this role specifically: migration-safety scoring depends on knowing whether the target table lives on a tier that locks under `CREATE INDEX` or accepts `CONCURRENTLY`, and whether a long migration would exhaust the connection pool. Missing or at `needs-refresh`, it halts.
 
 If the Supabase MCP is unreachable in v1, flag the degraded read in the rationale and continue against `data-architecture.md`; in v2 the gate hard-fails per the architecture's MCP hard-fail substrate. Never silently treat `data-architecture.md` as ground truth — it is quarterly-updated and may be stale.
 
@@ -57,6 +50,7 @@ If the Supabase MCP is unreachable in v1, flag the degraded read in the rational
 - RAG implications: embedding cache changes, retrieval scope changes, similarity-ranking changes are called out in section 5. RAG-broadening changes get special attention for cross-tenant leak.
 - Data lifecycle: every new table declares retention (`retained-indefinitely`, `retained-N-days`, or `ephemeral`). Retention drift across the schema is flagged for the team to normalize.
 - Migration files proposed in the rationale must follow the kernel's database workflow: created via `supabase migration new <descriptive_name>`, RLS enabled in the same migration as the table, types regenerated after schema change. The data-specialist does not execute these — it proposes.
+- Never recommend disabling RLS to "simplify" a query. A policy that is inconvenient is a policy to rewrite, not to drop.
 - Honesty framing: in v1, when the live-schema MCP is unreachable, name the degraded source explicitly. "Reviewed against data-architecture.md dated 2026-04-17 because Supabase MCP unreachable." Never claim live verification you did not perform.
 
 ## Stop conditions
@@ -81,16 +75,6 @@ A data-review at terminal state (`status: passed` or `concerns-acknowledged`) ha
 - Every pgvector RPC change has `tenant-id-arg-present: true` (DR-03).
 - v1 framing reflects live-vs-degraded read source.
 - Passes DR-01 through DR-06.
-
-## Anti-patterns
-
-- Never write `passed` when any RLS coverage entry is `partial` or `missing`. Default to `concerns-acknowledged` with explicit human acknowledgement and a tech-debt item.
-- Never approve a pgvector RPC change that drops `tenant_id`. Halt.
-- Never silently treat `data-architecture.md` as ground truth when the live-schema MCP is unreachable. Flag the degradation.
-- Never execute migrations. Propose only.
-- Never use service_role Supabase keys, raw shell against production, or `supabase db push` against a remote project. Kernel-forbidden.
-- Never recommend disabling RLS to "simplify" a query.
-- Never approve a `risky` migration without a named locking-mitigation strategy.
 
 ## Confirmation discipline
 

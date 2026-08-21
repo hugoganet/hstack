@@ -205,7 +205,7 @@ The kernel rule reading: *"spec-author is the only **subagent** permitted to wri
 
 - **Status flips** — advancing an artifact's `status` field along the lifecycle. The engineer's invocation of the Skill (and any acknowledgement gate the Skill carries) is the confirmation.
 - **Reciprocal writes** — when an artifact's frontmatter contains a back-reference to another artifact (e.g. `tech-debt.introduced-by` ↔ `change-spec.creates-tech-debt`, `tech-debt.resolved-by` ↔ `change-spec.resolves-tech-debt`, `ADR.supersedes` ↔ `ADR.superseded-by`), the second half is determined entirely by the first and the validator enforces both.
-- **Resolution Log appends** — a single bounded prose block appended at a known transition (TD `open → in-progress`, `open → wontfix`, `in-progress → resolved`). The prose template is fixed; no field-level interview.
+- **Resolution Log appends** — a single bounded prose block appended at a known transition (TD `open → in-progress`, `open → wontfix`, `in-progress → resolved`). The prose template is fixed; no field-level interview. **Defensive header check:** legacy artifacts authored before the template carried the log section have no header to append under. Before writing the entry, the Skill checks for the section header (`## Resolution Log` on a tech-debt, `## Triage Log` on a kernel-fit finding) and appends it to the end of the file when it is absent. This applies to every Skill that appends to a log section; the Skills state the check as a step, not the reason for it.
 - **Frontmatter date bumps** — `updated:` to today on every write.
 - **Structured-elicitation loops** — pre-defined finite question sets where the Skill prompts and the engineer answers with a bounded shape (e.g. y/n + one-sentence justification; one-sentence answer ≤ N characters). The output structure is fixed by the Skill, not authored open-endedly. Examples: `/hstack:tech-debt-resolve` Pre-conditions walk (per bullet: y/n + justification, persisted as `(bullet, met, justification)` triples into the resulting change-spec's Open Questions); `/hstack:tech-debt-wontfix` two-question interview (wontfix-reason ≤ 200 chars, wontfix-accepted-alternative ≤ 200 chars); `/hstack:tech-debt-stale` one-question interview (stale-verification-method ≤ 300 chars). The constraint that makes these mechanical rather than authoring: the Skill cannot expand the loop into free-form prose generation, and each prompt is a per-question confirmation gate (the engineer's answer IS the confirmation). Open-ended prose authoring (change-spec Problem, Invariants; module-spec sections; ADR Context/Decision/Consequences; tech-debt Why/Cost/Fix-sketch/Acceptance) is NOT in this category — those remain with `spec-author`.
 
@@ -257,6 +257,34 @@ The boundary is: **if the Skill knows the value to write before invoking, the Sk
 The `implementer` and the `adversarial-reviewer` must run in separate Claude Code sessions. The implementer's working memory, scratchpad, and conversation are not loaded into the adversarial-reviewer's session.
 
 This is honor-system in v1. The v2 substrate adds session-id verification at the CI gate. Until then, the engineer is responsible for opening a fresh session before running `/hstack:adversarial-review`.
+
+---
+
+## Session boundaries
+
+Some Skills end at a natural session cut. The auto-commit at their terminal state has already written the durable state to disk, so the conversation itself holds nothing the next phase needs — it loads what it needs from the artifacts. Long contexts degrade model performance well before the window limit, so cutting at these points costs nothing and buys accuracy back.
+
+**Never cut mid-phase.** A phase in flight has no committed state, and a summary produced mid-reasoning loses the chain it was built on. The boundary is the commit, not the context pressure.
+
+A Skill that carries a session boundary emits, at terminal state, a cut notice followed by a ready-to-paste kickoff prompt. The kickoff prompt is the handoff mechanism: the engineer carries it into a fresh session, so no hook, no cursor and no on-disk state is needed to route it. Format:
+
+```
+HSTACK-CUT: <skill> complete — cut recommended before <next step>.
+
+Paste into a fresh session:
+────────────────────────────────────────────────
+<next command>
+
+Context from the previous session (not in any artifact):
+- <what was decided that no artifact records>
+- open: <question raised and unresolved, with the artifact that is silent on it>
+- ruled out: <approach rejected, and why, with the artifact reference>
+────────────────────────────────────────────────
+```
+
+Rules for the context block: only facts that no artifact already carries — never restate the spec, the plan, or the phase output, which the next Skill loads from disk anyway. Three bullets maximum. If nothing qualifies, print the command line alone and say so; an empty context block is the correct output for a clean phase, not a failure to fill it in.
+
+Each Skill names its own boundary — which durable state its commit left behind, and what the next command is. The format and the rules above are not restated per Skill.
 
 ---
 
@@ -322,24 +350,24 @@ The product context layer lives at `hstack/context/`:
 - `hardening-checklist.md` — scored items per stack layer.
 - `incident-runbook.md` — kill switches, revocation flows, comms templates.
 
-Load-at-session-start rules by subagent:
+**Load-at-session-start rules by subagent.** This list is authoritative and complete. Subagent files do not restate it — they reference this section and carry only the resolution logic and halt behaviour that is specific to them. `hstack/KERNEL.md` is loaded by every subagent, always; the per-subagent lists below do not repeat it.
 
-- `product-discovery`: kernel, the chosen technique script (`hstack/templates/discovery/<technique>.md`), `product-brief.md` if it exists (resume mode), and in extract mode any source documents the engineer points at.
-- `product-manager`: vision, personas, roadmap, glossary. In auto-route from `product-discovery`: also the brief.
-- `data-architect`: kernel, product-brief, vision, roadmap, personas, glossary, data-architecture if it exists. In extract mode: live schema via Supabase MCP and `supabase/migrations/`.
-- `app-architect`: kernel, product-brief, data-architecture, vision, roadmap, personas, glossary, app-architecture if it exists. Explicitly NOT `tech-stack.md` — app-architecture is stack-agnostic by design. In extract mode: consuming-repo source tree.
-- `stack-architect`: kernel, product-brief, data-architecture, app-architecture, roadmap, `hstack/config.yaml`'s default-stack declaration, all existing ADRs, threat-model and hardening-checklist if they exist. In standalone mode (`--layer <name>`): additionally `infrastructure.md`.
-- `spec-author`: glossary, tech-stack, the relevant module-spec. When authoring an ADR: additionally `roadmap.md`, to walk the Forecloses / Enables section (missing or stale roadmap → the section reads `n/a — roadmap stale/missing`, never invented).
-- `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope.
-- `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present), roadmap (for the plan's one-line Roadmap Alignment statement; missing or stale roadmap is surfaced in that line, never a halt).
-- `ui-ux-briefer`: configured design system docs, change-spec, linked stories.
-- `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd, infrastructure.
-- `data-specialist`: data-architecture, tech-stack, ci-cd, infrastructure, current schema (via MCP).
-- `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, tech-stack, infrastructure (when surfaces includes infra).
+- `product-discovery`: the chosen technique script (`hstack/templates/discovery/<technique>.md`), `product-brief.md` if it exists (resume mode), the session-state file when resuming a parked session. In extract mode: any source documents the engineer points at.
+- `product-manager`: vision, personas, roadmap, glossary. In auto-route from `product-discovery`: also the brief. During init: any existing source documents the engineer points at.
+- `data-architect`: product-brief, vision, roadmap, personas, glossary, data-architecture if it exists, the session-state file when resuming. In extract mode: live schema via Supabase MCP and `supabase/migrations/`.
+- `app-architect`: product-brief, data-architecture, vision, roadmap, personas, glossary, app-architecture if it exists, the session-state file when resuming. Explicitly NOT `tech-stack.md` — app-architecture is stack-agnostic by design, and loading the stack would bias module boundaries toward framework idioms. In extract mode: the consuming repo's source tree, `package.json`, top-level `README.md`.
+- `stack-architect`: product-brief, data-architecture, app-architecture, roadmap, `hstack/config.yaml`'s default-stack declaration, all existing ADRs, threat-model and hardening-checklist if they exist. In standalone mode (`--layer <name>`): additionally `infrastructure.md`.
+- `spec-author`: glossary, tech-stack, the relevant module-spec, and the in-flight change-spec when the session is iterating on one rather than starting fresh. When authoring an ADR: additionally `roadmap.md`, to walk the Forecloses / Enables section (missing or stale roadmap → the section reads `n/a — roadmap stale/missing`, never invented).
+- `test-strategist`: change-spec, module-spec, tech-stack, ci-cd, data-architecture (when surfaces includes db), existing test files within in-scope plus adjacent test directories, and adjacent prior test-plans on the same module for layer-split and budget precedent.
+- `planner`: change-spec, test-plan, ui-brief, figma-handoff, data-review (when present), module-spec, tech-stack, roadmap (for the plan's one-line Roadmap Alignment statement; missing or stale roadmap is surfaced in that line, never a halt).
+- `ui-ux-briefer`: the configured design-system resources — one source per resource per `hstack/config.yaml`'s `design-system` block — plus the change-spec, the linked stories, and the personas those stories reference.
+- `security-reviewer`: threat-model, hardening-checklist, tech-stack, ci-cd, infrastructure, the change-spec, and the In-Scope diff.
+- `data-specialist`: data-architecture, tech-stack, ci-cd, infrastructure, the change-spec and the relevant module-spec, the current schema (via MCP), and local migration files under `supabase/migrations/`.
+- `implementer`: change-spec, plan, test-plan, security-review, data-review and ui-brief and figma-handoff when present, each tech-debt named by `change-spec.resolves-tech-debt` (its Acceptance section is what AR-07 later audits the diff against), tech-stack, the relevant module-spec, infrastructure (when surfaces includes infra).
 - `verifier`: change-spec, plan, test-plan, ci-cd.
-- `adversarial-reviewer`: all change artifacts (including test-plan); explicitly no implementer transcripts.
-- `kernel-fit-analyst`: hstack/KERNEL.md (the artifact under analysis), the latest hstack/telemetry/reports/<date>.md, every prior finding at hstack/kernel-fit/findings/, all change-specs at status: shipped (full bodies), all ADRs, all tech-debt, all module-specs; explicitly no implementer transcripts and no scratchpads from in-flight authoring sessions.
-- `researcher`: query context plus relevant product-context docs as the query requires.
+- `adversarial-reviewer`: all change artifacts at terminal status (including test-plan), each tech-debt named by `change-spec.resolves-tech-debt` (Acceptance, Pre-conditions, Resolution Log), the change branch's full diff, threat-model, hardening-checklist, data-architecture, tech-stack, the relevant module-spec; explicitly no implementer transcripts or scratchpads.
+- `kernel-fit-analyst`: `hstack/KERNEL.md` (here, the artifact under analysis), the detector's JSON output passed by `/hstack:kernel-fit-scan`, the latest `hstack/telemetry/reports/<date>.md`, every prior finding at `hstack/kernel-fit/findings/` (full bodies), all change-specs at `status: shipped` (full bodies), all ADRs, all tech-debt, all module-specs, and every pending flag at `hstack/kernel-fit/flags/pending/` (frontmatter only — each pin's transcript is opened at processing time, not at session start, to keep the session-start load bounded); explicitly no implementer transcripts, no scratchpads from in-flight authoring sessions, no in-flight (non-`shipped`) change-spec bodies, and none of the analyst's own prior session transcripts.
+- `researcher`: prior research sessions under `hstack/research/sessions/` on the same topic and prior promoted notes, ADRs and tech-debt that may already answer the query, plus the product-context documents the query requires — `tech-stack.md` for API-lookup and documentation modes; `vision.md` and `roadmap.md` for competitive-scan and AI-native-practice modes; `threat-model.md`, `hardening-checklist.md` and `tech-stack.md` for security-CVE mode.
 
 A subagent that cannot reach a required context document halts and asks the human, rather than proceeding without it.
 
