@@ -8,12 +8,13 @@ tools:
   - Glob
   - Bash
   - "node hstack/scripts/validate-spec.mjs — validates every artifact's frontmatter"
-  - "{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts — computes the nine-gate scorecard from artifact frontmatter}}"
+  - "node hstack/scripts/compute-merge-readiness.mjs — computes the twelve-gate scorecard from frontmatter and git"
+  - "hstack/scripts/run-gates.sh — runs the pattern lints GT-03 reads the exit code of"
 ---
 
 ## Purpose
 
-`hstack-ship` is the final merge-readiness Skill. It reads every artifact's frontmatter for the change, computes the nine-gate scorecard from `hstack-gates.yml`, and generates a PR description body. It does not invoke any subagent and does not write to any artifact — `ship` is read-only across the change-spec, plan, reviews, and verification.
+`hstack-ship` is the final merge-readiness Skill. It runs the twelve-gate merge-readiness scorecard over the change's artifacts and the PR diff, and generates a PR description body. It does not invoke any subagent and does not write to any artifact — `ship` is read-only across the change-spec, plan, reviews, and verification.
 
 ## When to invoke
 
@@ -34,21 +35,28 @@ The Skill does not pre-halt on artifact non-terminal status — that is what the
 
 ## Orchestration steps
 
-1. **Read every change artifact's frontmatter.** `spec.md`, `plan.md`, `test-plan.md`, `security-review.md`, `data-review.md` (when surfaces includes db), `ui-brief.md` and `figma-handoff.md` (when surfaces includes ui), `verification.md`, `adversarial-review.md` — capture each one's `status` and gating fields. Eleven of the twelve gates are computed from frontmatter, the diff, and the CI run alone, so no artifact body is read here (kernel § Reading artifacts). The exceptions are named where they arise: GT-11 needs the presence of the adversarial-review's "Acceptance Satisfied" subsection, and a sub-floor adversarial-review needs its Findings Floor Justification section — read those two sections, not those two files.
+1. **Run the pattern lints.** `hstack/scripts/run-gates.sh --change <change-id> --suite lint` when `hstack/lints/` carries rule files. Keep the exit code — GT-03 is computed from it and from nothing else.
 
-2. **Compute the twelve-gate scorecard.** Run `{{TODO-SCRIPT: hstack/scripts/compute-merge-readiness.ts}}` against the artifact set, or inline the equivalent logic:
-   - GT-01: spec presence — change folder exists with non-draft change-spec, or PR carries `trivial: true`.
-   - GT-02: diff within scope — every file in the PR diff (against the merge target) is a subset of `change-spec.in-scope`.
-   - GT-03: pattern lints — every `hstack/lints/*.yaml` rule passes (the Skill runs `{{TODO-SCRIPT: hstack/scripts/run-gates.sh}}` for this and reads the exit code).
-   - GT-04: adversarial-review at `findings-resolved`.
-   - GT-05: security-review at `passed` or `concerns-acknowledged`.
-   - GT-06: data-review at `passed` or `concerns-acknowledged` (when applicable).
-   - GT-07: ui-brief at `drafted` and figma-handoff at `ready` (when applicable).
-   - GT-08: `user-stories` non-empty UNLESS `internal-tooling: true` (Category A) UNLESS `enables` non-empty (Category B) UNLESS `area: bootstrap` (Category C). The audit-chain assumption: a Category-B spec's user value lives in one of the change-specs named in `enables`; this gate does not transitively verify that downstream spec has `user-stories` non-empty — that's the downstream's GT-08 check, run at its own ship time. Category C terminates the chain by construction.
-   - GT-09: every cross-reference rule (CG-01..CG-04) passes.
-   - GT-10: test-plan at `passed` or `concerns-acknowledged`, and `verification.test-plan-coverage` shows no missing tenant-isolation tests and no out-of-budget performance assertions.
-   - GT-11: When `change-spec.resolves-tech-debt` is non-empty: (a) every referenced tech-debt must exist and be at `status: in-progress` with `resolution-attempted-at` set; (b) the adversarial-review must contain the AR-07 Acceptance-satisfied confirmation enumerating each TD's Acceptance bullets against the diff; (c) no referenced tech-debt may have a non-null `resolved-by` already (that would indicate a double-resolution attempt). When `resolves-tech-debt` is empty, GT-11 is `not-applicable`.
-   - GT-12 (SP-13 mutual exclusion): `internal-tooling: true` AND `enables` non-empty is forbidden. Hard FAIL. Reciprocity (SP-14): for every id in `enables`, the named downstream spec must exist on disk and must list this change-id in its `enabled-by` array. Missing downstream specs are a FAIL (forward references are only legal at authoring time — by ship time, the downstream must be scaffolded so reciprocity holds). The reverse direction (`enabled-by` entries that point at non-existent or non-listing upstream specs) is also FAIL.
+2. **Compute the twelve-gate scorecard.** Run `node hstack/scripts/compute-merge-readiness.mjs <change-id> --json [--gates-exit <code from step 1>]`. The script reads every artifact's frontmatter, the diff against the merge target, and the git branch, and returns one verdict per gate — `pass`, `fail`, `unknown`, `not-applicable` or `deferred`. `fail` and `unknown` block; "not evaluated" is not "passed".
+
+   Do not re-derive any gate in prose. The gates below are the **contract** — what each gate means, one line each — and `compute-merge-readiness.mjs` is the **only** place they are computed. `--gates` prints the same registry from the script itself.
+
+   | Gate | Contract |
+   | --- | --- |
+   | GT-01 | Spec presence: change folder exists with a change-spec past `draft`, or the change carries `trivial: true`. |
+   | GT-02 | Diff within scope: every changed file is a subset of `change-spec.in-scope`, plus hstack's own artifact trail. Mandatory even for `trivial: true`. |
+   | GT-03 | Pattern lints: every `hstack/lints/*.yaml` rule passes, read from `run-gates.sh`'s exit code. |
+   | GT-04 | `adversarial-review.md` at `findings-resolved`. |
+   | GT-05 | `security-review.md` at `passed` or `concerns-acknowledged`. |
+   | GT-06 | `data-review.md` at `passed` or `concerns-acknowledged`, when `surfaces` includes `db`. |
+   | GT-07 | `ui-brief.md` at `drafted` and `figma-handoff.md` at `ready`, when `surfaces` includes `ui`. |
+   | GT-08 | `user-stories` non-empty, unless exactly one carve-out is declared: `internal-tooling: true` (A), non-empty `enables` (B), `area: bootstrap` (C). Category B is an audit chain, not a transitive check — the downstream spec's user value is the downstream's own GT-08. |
+   | GT-09 | Every cross-reference rule CG-01..CG-04 passes. **Deferred**: the range is named but the four rules are stated nowhere, so the script reports `deferred` with that reason rather than inventing them. |
+   | GT-10 | `test-plan.md` at `passed` or `concerns-acknowledged`, and `verification.test-plan-coverage` shows no missing tenant-isolation tests and no out-of-budget performance assertions. |
+   | GT-11 | When `resolves-tech-debt` is non-empty: every referenced tech-debt exists at `status: in-progress` with `resolution-attempted-at` set, none already carries a `resolved-by`, and the adversarial-review carries its AR-07 Acceptance-satisfied confirmation. `not-applicable` when the array is empty. |
+   | GT-12 | SP-13 mutual exclusion (`internal-tooling: true` **and** non-empty `enables` is a hard FAIL) plus SP-14 reciprocity in both directions — a dangling `enables` or a non-reciprocating `enabled-by` is a FAIL, because by ship time the downstream must be scaffolded. |
+
+   Eleven of the twelve are computed from frontmatter, the diff and the branch alone — no artifact body is read (kernel § Reading artifacts). GT-11's AR-07 half is the single exception, and the script reads that one subsection rather than that file.
 
 3. **Frontmatter validation.** Run `node hstack/scripts/validate-spec.mjs` across every artifact. Any FM-* or per-type validation failure blocks ship.
 
@@ -99,12 +107,13 @@ and the next command, `/hstack:finalize <change-id>`.
 
 Beyond the kernel's general stop conditions:
 
-- A required artifact is missing on disk.
-- Any artifact's frontmatter cannot be parsed.
+- The change folder or the change-spec is missing on disk, or any artifact's frontmatter cannot be parsed. Both exit `compute-merge-readiness.mjs` with code 2 and a named cause — surface it verbatim rather than scoring a partial set.
 - GT-02 (diff within scope) fails — this is a hard halt with a clear message naming the out-of-scope files; the engineer either reshapes the change-spec via `spec-author` or splits via the multi-module pattern.
+- GT-02 reports `unknown` because HEAD is the merge target. There is no PR diff to score from the default branch; check out `change/<change-id>` (`/hstack:branch <change-id>`) and re-run.
 
 ## Failure modes
 
 - **Trivial PRs.** When the change-spec carries `trivial: true`, several gates are skipped per the kernel. The Skill still computes the diff-within-scope and pattern-lint gates (GT-02 and GT-03 remain mandatory even for trivial PRs).
-- **Parent-change (multi-module) records.** When the change-spec is a coordination record (`children` non-empty), the Skill computes scorecards for every child and produces a parent-level summary. The parent reaches ready-to-ship only when every child does.
-- **Pattern-lint failure.** Surface the failing rule and the offending lines. The fix is via a new `hstack-implement` invocation against an appropriate phase (or a scope amendment if the lint surfaced new in-scope needs).
+- **Parent-change (multi-module) records.** When the change-spec is a coordination record (`children` non-empty), run the script once per child id and produce a parent-level summary. The parent reaches ready-to-ship only when every child does.
+- **Pattern-lint failure.** Surface the failing rule and the offending lines from the captured output. The fix is via a new `hstack-implement` invocation against an appropriate phase (or a scope amendment if the lint surfaced new in-scope needs).
+- **A gate reports `unknown`.** Something could not be evaluated — git is unavailable, the merge target does not resolve, or the lint runner was not run. `unknown` blocks exactly like `fail`: report what was not evaluated and why, and do not present the change as ready.

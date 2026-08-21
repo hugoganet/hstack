@@ -2692,13 +2692,13 @@ export const DEFERRED_RULES = [
     id: "CG-01..CG-04",
     type: "cross-reference",
     reason:
-      "The repo names the range (`GT-09: every cross-reference rule (CG-01..CG-04) passes`) but no source states what the four rules are. Implementing them means inventing them. Assigning the statements is a kernel change, not a validator change.",
+      "The repo names the range (`GT-09: every cross-reference rule (CG-01..CG-04) passes`) but no source states what the four rules are. Implementing them means inventing them. Assigning the statements is a kernel change, not a validator change — and having survived two enforcement passes undefined, defining them is a kernel-fit candidate rather than a TODO. `compute-merge-readiness.mjs` reports GT-09 as `deferred` with the same reason.",
   },
   {
     id: "GT-01..GT-12",
     type: "merge-gate",
     reason:
-      "Merge-readiness gates read the PR diff and the CI run, not the artifact tree. Out of scope for this change by design — they belong to `run-gates.sh` / `compute-merge-readiness.ts`, the named immediate follow-up. GT-08 restates SP-09 and GT-12 restates SP-13/SP-14, and those halves ARE enforced here.",
+      "Merge-readiness gates read the PR diff and the git branch, not the artifact tree, so they are not validator rules. They live in `hstack/scripts/compute-merge-readiness.mjs` (and, for GT-03, `run-gates.sh`), which has its own registry — `--gates` prints it. GT-08 restates SP-09 and GT-12 restates SP-13/SP-14, and those halves are ALSO enforced here, against the whole tree rather than one change.",
   },
   {
     id: "SP-01..SP-03, SP-07, SP-08, SP-10..SP-12",
@@ -3115,7 +3115,7 @@ const HSTACK_MARKERS = ["KERNEL.md", "CLAUDE.md", "config.yaml"];
 
 const looksLikeHstack = (dir) => HSTACK_MARKERS.some((m) => existsSync(join(dir, m)));
 
-function findHstackRoot(start) {
+export function findHstackRoot(start) {
   let dir = resolve(start);
   for (;;) {
     if (basename(dir) === "hstack" && looksLikeHstack(dir)) {

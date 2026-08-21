@@ -10,7 +10,7 @@ tools:
   - Glob
   - Bash
   - "{{TODO-SKILL: /hstack:verify — invokes verifier after implementation completion}}"
-  - "{{TODO-SCRIPT: hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05}}"
+  - "hstack/scripts/run-gates.sh — runs the consuming repo's test/lint/typecheck suite and captures output, including an observed-test-count per suite for V-05"
   - "node hstack/scripts/validate-spec.mjs — validates verification.md frontmatter and V-01/V-02/V-05"
 ---
 
@@ -29,7 +29,7 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 ## Templates this subagent writes
 
 - `hstack/specs/changes/<id>/verification.md` — the only artifact this agent writes.
-- May write captured stdout/stderr to a pointer file (e.g., `hstack/specs/changes/<id>/test-output.txt`) referenced from `verification.artifacts.test-output`.
+- `hstack/specs/changes/<id>/test-output.txt` — the captured stdout/stderr, written by `run-gates.sh` and referenced from `verification.artifacts.test-output`.
 
 ## Templates this subagent reads
 
@@ -39,14 +39,15 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 
 ## Behavior rules
 
-- Run the canonical test, lint, and typecheck commands declared in `ci-cd.md`. Do not invent additional commands; do not skip any.
-- Capture full stdout and stderr to a pointer file. Reference the pointer from `verification.artifacts.test-output`.
+- Run `hstack/scripts/run-gates.sh --change <change-id> --json`. It reads the canonical commands from `ci-cd.md` § Canonical Commands, runs every one of them and nothing else, writes the combined stdout/stderr to the pointer file, and returns a per-suite verdict with the observed test counts. Do not invent additional commands; do not skip any; do not run the commands by hand — the runner is what makes the counts comparable between runs.
+- Reference the runner's `test-output` path from `verification.artifacts.test-output`.
+- Map each suite's `verdict` straight into `test-results`: `pass` → `pass`, `fail` → `fail`, `not-run` → `not-run`. A suite the repo does not declare stays `pending` only if nothing in the plan or test-plan expects it; otherwise it is a Discrepancy.
 - Per-phase mapping: each phase's Verifier Expectations from the plan become an entry in `phase-coverage` with a PASS / FAIL value. A phase whose expectations are not met is marked FAIL.
 - Test-plan coverage check: every test named in the test-plan's Edge Cases bullets, Tenant Isolation Tests array, and Performance Budgets table must be observed in the run. A test-plan test that did not execute (skipped, not found, or absent) is a Discrepancy with severity equal to its source section: tenant-isolation absences are escalated to adversarial-review; performance-budget absences block `status: passed`; edge-case absences are surfaced as Discrepancies with a recommended action.
 - V-02: any `failed` value in `test-results` blocks `status: passed`. Do not paper over.
 - V-03: any test-plan tenant-isolation test that is absent or skipped blocks `status: passed` and routes the discrepancy to adversarial-review.
 - V-04: any test-plan performance-budget assertion that did not execute or that observed values outside the declared budget blocks `status: passed`.
-- V-05: a suite that executed zero tests cannot be recorded as `pass`. Before mapping any suite (`unit`, `integration`, `e2e`) to `pass`, confirm the runner's observed-test-count for that suite is greater than zero. If the count is zero — whether the suite was gated by an unset env var, every test was `.skip`/`.todo`/`xit`, no files matched the runner's collection pattern, or a CLI filter (`--testPathPattern`, `-t`, tag selector) collapsed the set to empty — record the suite's value as `not-run` (per the `test-results` enum) and log a Discrepancy with severity high and recommended action `escalate-to-adversarial-review`. The Discrepancy must name the suite, the runner's reported counts (passed / failed / skipped / total), and the suspected reason (env-gated, all-skipped, empty-collection, filter-collapse). A `not-run` value blocks `status: passed`: "zero failures" is not evidence of correctness when there were zero assertions to fail. Parsing guidance: most JS runners (Jest, Vitest, Mocha) emit a summary line like `Tests: N skipped, 0 passed` or `No tests found`; Playwright emits `0 passed`; pytest emits `collected 0 items` or `N skipped`. The verifier extracts the per-suite executed count from captured stdout and asserts `count > 0` before recording `pass`. Lint and typecheck are exempt from V-05 — both produce a diagnostic count whose floor is naturally zero (clean repo) and is not a signal of a skipped run.
+- V-05: a suite that executed zero tests cannot be recorded as `pass`. `run-gates.sh` measures this — it reports each test suite's observed `passed / failed / skipped / total` and returns `verdict: not-run` when zero tests actually executed (`passed + failed`, not `total` — fifteen collected and fifteen skipped executed nothing). Do not re-derive the counts from the captured output; the runner already read it. On any `not-run`, record the suite as `not-run` in `test-results` and log a Discrepancy at severity high with recommended action `escalate-to-adversarial-review`, naming the suite, the reported counts, and the runner's `reason` (env-gated, all-skipped, empty-collection, filter-collapse, or an unreadable summary). A `not-run` value blocks `status: passed`: "zero failures" is not evidence of correctness when there were zero assertions to fail. Lint and typecheck are exempt — both produce a diagnostic count whose floor is naturally zero on a clean repo, and the runner does not apply V-05 to them.
 - Discrepancies section captures anything the verifier observed that the plan or test-plan did not predict: a test that ran but no artifact promised; a test the plan or test-plan promised that did not exist; flakiness; environment-dependent behavior. Each discrepancy gets a recommended action: file an issue, escalate to adversarial-review, or note as benign with reason.
 - Mechanical role only. Do not score security or data. Do not produce findings. Do not advise on remediation beyond the discrepancy action.
 - Test-immutability enforcement (protocol: `KERNEL.md` § Test immutability). The verifier is read-only on test files — fixing a failing test is the implementer's job in its own session, under authorization. Two duties fall to the verifier: when a discrepancy suggests the test itself is wrong, record it in Discrepancies with recommended action `test-immutability-review`; and when `git diff` against the prior verification run shows an existing test file modified with no authorization echoed in a commit message on the change branch, refuse `status: passed` and log the unauthorized modification in Discrepancies at severity high. This is the verifier's half of the rule's defense in depth.
@@ -56,7 +57,8 @@ If `plan.steps-completed` does not cover every phase id defined in the plan body
 Stop and ask the human when:
 
 - `plan.steps-completed` is incomplete relative to phase ids in the plan body.
-- A canonical test, lint, or typecheck command in `ci-cd.md` is missing or fails to execute (e.g., a dependency is not installed).
+- `ci-cd.md` has no `hstack-gates` block, so there are no canonical commands to run (`run-gates.sh` exits 2). The fix is `/hstack:configure --interview ci-cd`, not an ad-hoc command list invented here.
+- A canonical command fails to execute (e.g., a dependency is not installed) rather than failing its assertions.
 - The test suite cannot complete due to an environment issue the verifier cannot resolve (a missing env var, a service that should be running but is not).
 - A phase's Verifier Expectations cannot be evaluated because the relevant test file is missing.
 - A test-plan tenant-isolation test is absent or skipped. Halt at `status: ran` and escalate via the Discrepancies section.

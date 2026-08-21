@@ -43,11 +43,11 @@ The CLI ships three commands:
 | --- | --- |
 | `npx hstack init` | First-time install. Halts if `<consumer>/hstack/` already exists. |
 | `npx hstack update` | Sync framework files to the package version. Preserves user content (`context/`, `specs/`, `adr/`, `tech-debt/`, `research/`, `config.yaml`, `telemetry/reports/`). Surfaces a diff plan before writing. Migrates a pre-ADR-0010 install (`hstack/CLAUDE.md` → `hstack/KERNEL.md` plus the import line). |
-| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines, missing coord-notification hooks, and a stale pre-ADR-0010 kernel filename. Exits 1 on any finding. |
+| `npx hstack doctor` | Read-only health check. Reports version drift, framework file drift, missing or orphan symlinks, missing wiring lines, missing coord-notification hooks, a stale pre-ADR-0010 kernel filename, and any Skill / subagent description over the ADR-0011 routing-trigger budget. Exits 1 on any finding. |
 
 The kernel is installed at `hstack/KERNEL.md`, not `hstack/CLAUDE.md` (ADR-0010): Claude Code discovers *any* nested file named `CLAUDE.md` and injects it on the first read of a file in its directory, which loaded the whole kernel a second time on top of the `@`-import. The import in the consumer's root `CLAUDE.md` is the single load path — it fires at launch, survives compaction, and is inherited by subagents.
 
-The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/KERNEL.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/scripts/coord/`, `hstack/VERSION`, plus the two probe-matched hook entries in `.claude/settings.json`. **What they never touch**: anything under the user-content paths above, and every engineer-owned key in `settings.json`.
+The framework-vs-user-content boundary is canonical in `src/manifest.ts`. **What `init` and `update` write**: `hstack/KERNEL.md`, `hstack/templates/`, `hstack/.claude/agents/`, `hstack/.claude/skills/`, `hstack/scripts/telemetry/`, `hstack/scripts/coord/`, `hstack/scripts/validate-spec.mjs`, `hstack/scripts/compute-merge-readiness.mjs`, `hstack/scripts/run-gates.sh`, `hstack/VERSION`, plus the two probe-matched hook entries in `.claude/settings.json`. **What they never touch**: anything under the user-content paths above, and every engineer-owned key in `settings.json`.
 
 ### Manual install (legacy)
 
@@ -253,7 +253,8 @@ Authoritative, in the repo:
 
 - [`template/KERNEL.md`](./template/KERNEL.md) — the kernel. Authority over every Skill, subagent, and template.
 - [`template/templates/`](./template/templates/) — the canonical structure of every artifact type: fields, sections, lifecycle.
-- `node template/scripts/validate-spec.mjs --rules` — the canonical list of mechanized rules, and of the rules deliberately left to a human or to CI, with the reason for each.
+- `node template/scripts/validate-spec.mjs --rules` — the canonical list of mechanized artifact rules, and of the rules deliberately left to a human or to CI, with the reason for each.
+- `node template/scripts/compute-merge-readiness.mjs --gates` — the twelve merge gates `/hstack:ship` scores, and the one deferred because no source states what it means.
 
 Non-authoritative historical companions, written before the framework shipped its own enforcement. Where they disagree with the three above, they are wrong:
 
@@ -264,4 +265,6 @@ The former "template schemas and frontmatter contracts" page is no longer listed
 
 ## Status
 
-hstack v0.x.x. ~34 Skills, ~16 subagents, ~32 templates, the kernel. Greenfield workflow added in this release (four discovery-atom subagents — product-discovery, data-architect, app-architect, stack-architect — plus seven new skills: greenfield-init, the four atoms, scaffold). `/hstack:init` was renamed to `/hstack:brownfield-init`; consumers on the rename'd version run `npx hstack update` to reconcile per-skill symlinks. Enforcement scripts (`hstack/scripts/`) and pattern-based lint rules (`hstack/lints/`) are sketched but not yet implemented — the Skills run as conversational interviews without them, and the CI gate runs in advisory mode until the scripts land. First real use of the greenfield path against a fresh project is the next milestone.
+hstack v0.x.x. ~34 Skills, ~16 subagents, ~32 templates, the kernel. Greenfield workflow added earlier (four discovery-atom subagents — product-discovery, data-architect, app-architect, stack-architect — plus seven new skills: greenfield-init, the four atoms, scaffold). `/hstack:init` was renamed to `/hstack:brownfield-init`; consumers on the renamed version run `npx hstack update` to reconcile per-skill symlinks.
+
+The three enforcement scripts have landed: `validate-spec.mjs` (artifact contracts), `compute-merge-readiness.mjs` (the twelve merge gates) and `run-gates.sh` (canonical test / lint / typecheck runs with a per-suite observed-test-count for V-05). Pattern-based lint rules (`hstack/lints/`) are still sketched, so GT-03 reports `not-applicable` in a repo that declares none. First real use of the greenfield path against a fresh project is the next milestone.
