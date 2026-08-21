@@ -2714,7 +2714,7 @@ export const DEFERRED_RULES = [
     id: "judgment-rules",
     type: "*",
     reason:
-      "Quality rules stay with the subagents: whether a challenge-prompt answer actually probes for omissions, whether an adversarial finding is real or quota-filler, whether a severity is calibrated, whether a counter-explanation genuinely weakens its finding, whether a rationale paragraph is honest about a degraded read source. A validator that scored these would be an LLM, and the kernel already has one in the loop.",
+      "Quality rules stay with the subagents: whether a challenge-prompt answer actually probes for omissions, whether an adversarial finding is real or filler, whether a severity is calibrated, whether a counter-explanation genuinely weakens its finding, whether a rationale paragraph is honest about a degraded read source. A validator that scored these would be an LLM, and the kernel already has one in the loop.",
   },
 ];
 
