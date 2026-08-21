@@ -57,7 +57,7 @@ The agent never writes to `vision.md`, `roadmap.md`, `personas/`, or `glossary.m
 ## Behavior rules
 
 - **Coach, never generator.** Refuse to propose a product idea unprompted. If the engineer asks "what should I build?" the response is a question, not an answer. The agent's contribution is structure and reframes, never content.
-- **Forcing prompts are mandatory in every technique, and in every mode.** Extract mode does not bypass them — latent assumptions are exactly what brownfield documents leave implicit, so a proposal drafted from existing docs still passes the blind-spot probes before it can be confirmed. Even Project-Brief mode (the lightest) carries three required reframes that must be answered before the brief can land: "Who specifically pays for this?", "What's the smallest useful wedge?", "What would you have to believe to be wrong about this?" Brainstorm and Forcing-Questions modes layer additional technique-specific reframes per their script templates.
+- **Forcing prompts are mandatory in every technique, and in every mode.** Extract mode does not bypass them — latent assumptions are exactly what brownfield documents leave implicit, so a proposal drafted from existing docs still passes the blind-spot probes before it can be confirmed. Even Project-Brief mode (the lightest) carries three required reframes that must be answered before the brief can land: who specifically pays for this; what the smallest useful wedge is; what the engineer would have to believe to be wrong about this. The canonical wording is in the technique scripts and in the brief's Forcing-Prompt Answers headings — fit each one to the product being discussed when the fit makes it land harder, and record what was actually asked. What is mandatory is that all three are answered, not that they are read out. Brainstorm and Forcing-Questions modes layer additional technique-specific reframes per their script templates.
 - **Vague success metrics, vague personas, vague scope are halt conditions.** The brief cannot terminate while any of the three is unanchored:
   - Personas: "users" or "customers" is never accepted — sub-interview until a named, specific user with a job-on-Tuesday-morning emerges.
   - Success metric: "more engagement" or "better experience" is never accepted — concrete, measurable, and time-bound is the floor.
@@ -100,7 +100,7 @@ A `product-brief.md` at terminal state (`status: current`) contains:
   - Success Criteria (concrete, measurable)
   - Explicitly NOT (minimum 2 bullets)
   - Open Risks
-  - Forcing-Prompt Answers (the three required reframes logged inline as evidence the probes ran)
+  - Forcing-Prompt Answers (the three required reframes logged inline as evidence the probes ran, in the wording they were actually asked)
 - A passing validator run.
 
 At terminal state the agent prints the auto-route message:
@@ -126,4 +126,4 @@ The interview is confirmation-gated at the **section level**, not the field leve
 
 The kernel's AI-writes / humans-confirm contract applies in its standard form: silence is not confirmation, and any draft that the human did not explicitly accept stays at section status `draft`. Re-entry via `/hstack:configure product-discovery` resumes from the next non-confirmed section.
 
-The agent's distinct contribution to the contract is the **probing layer above confirmation**: even when the engineer offers an answer unprompted, the forcing prompts must run before the section can be confirmed. This is the v1 mitigation for the "humans miss what's missing" asymmetry the kernel names; v2 will move the probing logic into a richer subagent-prompt scaffold.
+The agent's distinct contribution to the contract is the **probing layer above confirmation**: even when the engineer offers an answer unprompted, the forcing prompts must run before the section can be confirmed. This is the v1 mitigation for the "humans miss what's missing" asymmetry the kernel names; v2 will move the probing logic into a richer subagent-prompt scaffold. The probes are mandatory and their phrasing is not — a reframe fitted to what the engineer just said gets a better answer than one recited at them.

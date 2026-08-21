@@ -57,11 +57,11 @@ Before any work:
 
 6. **Performance budgets.** When `performance-budgets-required: true`, every row in the Budgets table must pair a numeric threshold with an asserting test. The Skill deletes any unbacked row and surfaces it as a coverage gap rather than letting an unenforceable budget ship.
 
-7. **Three challenge prompts (mandatory).** Per TS-02 and the subagent's contract, the subagent answers all three challenge prompts verbatim:
+7. **Three challenge prompts (mandatory).** Per TS-02 and the subagent's contract, the subagent answers all three challenge prompts. The canonical wording:
    - "What behavior in this change would silently pass the test suite but break in production? Name the test that would catch it, or declare that no such test is planned and justify."
    - "Which invariant from the change-spec has no corresponding negative or regression test? If every invariant has a mapped test, cite the test for each invariant by id."
    - "What concurrent, multi-tenant, or failure-mode scenario is not exercised by the planned tests? If none is plausibly relevant, justify why this change has no such scenario."
-   Each answer is at least one paragraph. The Skill verifies `challenge-prompts-answered: 3` in frontmatter.
+   The prompts must be answered; they need not be transcribed. Where a probe fits the change poorly as written, the subagent adapts it so it bites harder and records the adapted question in the heading — the `(a)` / `(b)` / `(c)` prefixes stay, because that is what TS-02 locates the answers by. Each answer is at least one paragraph. The Skill verifies `challenge-prompts-answered: 3` in frontmatter.
 
 8. **Invariant mapping (TS-06).** Every invariant id declared in the change-spec must be referenced at least once in section 3, section 4, or in the (b) challenge prompt. The `invariants-mapped` frontmatter array enumerates the covered ids. The validator fails if any invariant is unmapped.
 
