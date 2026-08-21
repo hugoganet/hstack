@@ -25,10 +25,17 @@ export const FRAMEWORK_PATHS = [
   ".claude/skills/",
   "scripts/telemetry/",
   "scripts/coord/",
-  // The artifact validator every mechanical write runs after itself. A single
-  // file rather than a directory: it has no module tree, and consumers must be
-  // able to run it with the node they already have (dependency-free ESM).
+  // The three enforcement scripts, listed file-by-file rather than as
+  // `scripts/`: that directory also holds `telemetry/` and `coord/`, which are
+  // module trees, and a consumer must be able to run each of these with the
+  // node (or bash) it already has — no node_modules, no build step.
+  //
+  //   validate-spec.mjs           the artifact contract, after every mechanical write
+  //   compute-merge-readiness.mjs the twelve merge gates, at /hstack:ship
+  //   run-gates.sh                the canonical test/lint/typecheck run, at /hstack:verify
   "scripts/validate-spec.mjs",
+  "scripts/compute-merge-readiness.mjs",
+  "scripts/run-gates.sh",
 ] as const;
 
 /**
