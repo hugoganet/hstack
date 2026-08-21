@@ -1373,16 +1373,15 @@ export const RULES = [
     id: "AR-01",
     type: "adversarial-review",
     description:
-      "`findings` length is at least `findings-floor`, or `findings-fewer-than-floor: true` with a non-null `justification-when-fewer` and a filled Findings Floor Justification section.",
+      "A review that reaches a findings status with an EMPTY `findings` array carries `findings-fewer-than-floor: true`, a non-null `justification-when-fewer`, and a filled Findings Floor Justification section. Reading a change cold and reporting nothing is a claim, and the artifact defends it. The count above zero is not gated (ADR-0014): `findings-floor` is the area's expectation, measured by the telemetry sidecar, and whether a finding is real is the reviewer's judgment, not the validator's arithmetic.",
     check(a, world) {
       const out = parentChangeMatches(a, world);
       const findings = arr(a.fm.findings);
-      const floor = Number(a.fm["findings-floor"] ?? 3);
-      const under = findings.length < floor;
-      if (under && a.fm["findings-fewer-than-floor"] !== true) {
+      const empty = findings.length === 0 && isTerminal(a, ["findings-open", "findings-resolved"]);
+      if (empty && a.fm["findings-fewer-than-floor"] !== true) {
         out.push(
           F(
-            `${findings.length} finding(s) against a floor of ${floor}; set \`findings-fewer-than-floor: true\` with a defended justification or produce the floor`,
+            `status is \`${a.fm.status}\` with no findings; set \`findings-fewer-than-floor: true\` and defend the empty result, or file what you found`,
             a.lineOf("findings"),
           ),
         );
@@ -1493,7 +1492,7 @@ export const RULES = [
     id: "AR-06",
     type: "adversarial-review",
     description:
-      "`findings-floor` is 3 by default and 5 when the parent change-spec's `area` is in {agent, auth, billing}.",
+      "`findings-floor` is 3 by default and 5 when the parent change-spec's `area` is in {agent, auth, billing}. Since ADR-0014 the value gates nothing — it is the area's expected finding count, and this rule keeps the declared number honest so the telemetry sidecar's `findings_floor` / `findings_count` pair aggregates to something.",
     check(a, world) {
       const parent = parentSpec(a, world);
       if (!parent) return [];

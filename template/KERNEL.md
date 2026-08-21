@@ -251,7 +251,7 @@ One module per change-spec. A change that meaningfully touches more than one mod
 
 The parent change-spec is a coordination artifact — no plan, no security-review, no implementer of its own. Each child runs the workflow independently. The parent reaches `shipped` only when every child has shipped.
 
-Never let a single change-spec span modules. The implementer's scope-lock and the adversarial-reviewer's findings quota both stop working when In-Scope spans subsystems.
+Never let a single change-spec span modules. The implementer's scope-lock and the adversarial-reviewer's cold read both stop working when In-Scope spans subsystems.
 
 ---
 

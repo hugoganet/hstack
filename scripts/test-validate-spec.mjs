@@ -456,10 +456,12 @@ fails("V-05", "not-run suite at passed with no Discrepancies entry", (f) => {
     .replace("## Discrepancies\n\nNone.\n", "## Discrepancies\n\n");
 });
 
-fails("AR-01", "below the findings floor with no justification", (f) => {
+// ADR-0014: the count is no longer gated, so dropping F-03 is a passing review.
+// What AR-01 still refuses is the undefended empty result.
+fails("AR-01", "an empty findings array with no defence", (f) => {
   f[`${CHANGE_DIR}/adversarial-review.md`] = f[`${CHANGE_DIR}/adversarial-review.md`].replace(
-    /^  - \{id: F-03.*$/m,
-    "",
+    /^findings: ?\n(?:  - \{id: F-\d\d[^\n]*\n)+/m,
+    "findings: []\n",
   );
 });
 fails("AR-02", "a non-sequential finding id", (f) => {

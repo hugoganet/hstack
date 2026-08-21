@@ -15,7 +15,9 @@ tools:
 
 ## Purpose
 
-`hstack-adversarial-review` produces `adversarial-review.md` by orchestrating the `adversarial-reviewer` subagent in a Claude Code session separate from the one that ran the implementer. The output is structurally biased against "looks good" — the reviewer must produce at least the findings floor across the six categories or defend a smaller count with explicit rationale. In v1, fresh-session separation is honor-system; the Skill's first job is to remind the engineer of that.
+`hstack-adversarial-review` produces `adversarial-review.md` by orchestrating the `adversarial-reviewer` subagent in a Claude Code session separate from the one that ran the implementer. The subagent reads the change cold, and "no problems" is a claim it has to defend rather than a default it may fall into. In v1, fresh-session separation is honor-system; the Skill's first job is to remind the engineer of that.
+
+Per ADR-0014 the review is not scored on its finding count. `findings-floor` stays in frontmatter as the area's expectation and lands in the telemetry sidecar, but nothing gates on it; the one count the artifact must argue for is zero (AR-01).
 
 ## When to invoke
 
@@ -38,7 +40,7 @@ Before any work:
   - data-review at `passed` or `concerns-acknowledged` when applicable
   - ui-brief at `drafted` and figma-handoff at `ready` when applicable
   - verification at `passed`
-- Determine the findings floor: 3 default; 5 when `change-spec.area` is in {agent, auth, billing} per AR-06.
+- Set `findings-floor`: 3 default; 5 when `change-spec.area` is in {agent, auth, billing} per AR-06. It is recorded, not enforced.
 
 ## Orchestration steps
 
@@ -48,9 +50,9 @@ Before any work:
 
 2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, `hstack/templates/adversarial-review.md`, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
 
-3. **Findings generation across six categories.** The subagent produces findings in security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality. Clustering in one category is a smell — when it happens, the subagent flags the clustering in Methodology and explains why the change genuinely lives in one risk dimension. Test-plan adherence is a first-class lens: missing edge-case tests surface as spec-compliance findings; missing tenant-isolation tests surface as data-integrity findings; unmet performance budgets surface as code-quality or data-integrity findings depending on cause; unmapped invariants in `verification.test-plan-coverage` surface as spec-compliance findings. **Test-immutability audit:** the subagent diffs every pre-existing test file against the branch base; any modification, deletion, or snapshot update without a matching `Ok to change/delete/update/refresh ...` authorization echo in a commit message is a mandatory finding under spec-compliance at minimum `severity: high`. Bulk snapshot-update flags visible in the diff or in CI logs escalate to `severity: critical`. These findings are filed even when they push the total over the findings-floor.
+3. **Findings generation across six categories.** The subagent sweeps security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality and reports what the sweep found — the categories are lenses, not buckets, and a change whose risk genuinely lives in one dimension produces findings in one category. `references/finding-categories.md`, alongside this file, is the calibration rubric (what each category means, what a real finding looks like, what filler looks like); the subagent reads it on demand, not on every run. Test-plan adherence is a first-class lens: missing edge-case tests surface as spec-compliance findings; missing tenant-isolation tests surface as data-integrity findings; unmet performance budgets surface as code-quality or data-integrity findings depending on cause; unmapped invariants in `verification.test-plan-coverage` surface as spec-compliance findings. **Test-immutability audit:** the subagent diffs every pre-existing test file against the branch base; any modification, deletion, or snapshot update without a matching `Ok to change/delete/update/refresh ...` authorization echo in a commit message is a mandatory finding under spec-compliance at minimum `severity: high`. Bulk snapshot-update flags visible in the diff or in CI logs escalate to `severity: critical`. This audit is mandatory and is not subject to the subagent's judgment about whether the finding is worth filing.
 
-4. **Findings-floor compliance.** Per AR-01, `findings` length must be ≥ `findings-floor`. If the subagent honestly cannot produce the floor, it sets `findings-fewer-than-floor: true` and writes a defended `justification-when-fewer` enumerating every category considered and why each produced no honest finding. "The change is small" alone is insufficient.
+4. **The empty result is the one the artifact defends.** Per AR-01, a review that reaches `findings-open` or `findings-resolved` with an empty `findings` array must set `findings-fewer-than-floor: true` and write a defended `justification-when-fewer` plus a filled Findings Floor Justification section, enumerating what was looked for and why each sweep came back clean. "The change is small" alone is insufficient. Any count above zero passes AR-01; `findings_count` against `findings_floor` is reported to telemetry and read in aggregate, never as a per-review gate.
 
 5. **Resolution discipline.** Each finding's `resolution` is one of:
    - `commit:<hash>` — must reference an existing commit on the change's branch (AR-04).
@@ -123,7 +125,7 @@ At the change-spec advance commit (only when adversarial-review status is `findi
 }
 ```
 
-When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. This is the most directly Goodhart-resistant of the five v1 sidecars — `category_counts` + `severity_counts` + `resolution_mix` jointly surface findings-quota-gaming patterns no single field could detect.
+When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. Since ADR-0014 removed the quota this sidecar stopped being a fraud detector and became a description: `findings_count` against `findings_floor`, `category_counts`, `severity_counts` and `resolution_mix` describe what reviews are finding, and shifts in the joint distribution are the instrument for judging whether the judgment-based framing reads changes better or worse than the count did.
 
 The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
@@ -152,13 +154,13 @@ Beyond the kernel's general stop conditions:
 - A high-severity security or tenant-isolation finding would route to `justified-in-prose`. Halt.
 - A `commit:<hash>` resolution would reference a commit not on the change's branch.
 - A `tech-debt:<id>` resolution would reference a non-existent tech-debt artifact (the engineer must invoke `hstack-tech-debt-new` first).
-- The findings floor cannot honestly be met and the sub-floor justification cannot be defended.
+- The review found nothing and the empty-result defence cannot be written honestly. Halt and surface; a defence nobody believes is worse than an open review.
 - The diff includes changes outside `change-spec.in-scope` that CI did not catch — surface a scope-drift finding and halt the CI gap as a separate concern.
 - An implementer transcript or scratchpad is visible in the session.
 
 ## Failure modes
 
 - **Engineer claims fresh session but conversation shows prior implementer transcripts.** Halt; ask the engineer to truly start a new session.
-- **Reviewer cannot produce honest findings to meet the floor and the sub-floor justification feels thin.** Re-prompt for each category; if still under floor, the engineer must defend the sub-floor explicitly.
+- **The review comes back empty and the defence feels thin.** Walk the six categories against `references/finding-categories.md` once more; if the sweep is still clean, the empty result is defended explicitly and on the record, not waved through.
 - **A finding routes to `tech-debt:<id>` but the engineer hasn't created the tech-debt artifact.** The Skill prompts to invoke `hstack-tech-debt-new`; the review does not terminate until the artifact exists.
 - **A commit hash named in `resolution` does not exist on the change's branch.** Halt — the engineer either re-references the correct commit or the resolution is reconsidered.
