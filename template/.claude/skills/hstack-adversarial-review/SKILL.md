@@ -1,6 +1,6 @@
 ---
 name: hstack-adversarial-review
-description: Use only in a fresh Claude Code session — separate from the one that ran the implementer — once `verification.md` is at `passed` and the change is at `ready-for-review`. Orchestrates the quota-driven `adversarial-reviewer`.
+description: Use only in a fresh Claude Code session — separate from the one that ran the implementer — once `verification.md` is at `passed` and the change is at `ready-for-review`. Orchestrates the `adversarial-reviewer`, which reads the change cold.
 tools:
   - Read
   - Write
