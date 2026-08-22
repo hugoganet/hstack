@@ -1,24 +1,21 @@
 # hstack
 
-A spec-driven engineering workflow that ships as Claude Code Skills and subagents. Configurable per repo. Adopts into a brownfield AI-native SaaS codebase OR starts a new project from line zero — both paths funnel into the same kernel, the same artifact taxonomy, and the same gates.
+> **The tag `v0.16.0` is the complete version, frozen** — the full workflow, with its phases, artifacts and gates, kept intact for the day a team, a paying user or a compliance requirement asks for it. **`main` is light (v0.17)**, the subtractive pivot recorded in [ADR-0015](./adr/ADR-0015-the-light-pivot.md). We froze a version, not the repository.
 
-hstack sits between an engineer's intent and a merged commit. Scoping, gating, artifact production, multi-tenant safety, audit, reviewability — all flow through it.
+An engineering workflow for humans and AI agents, shipping as Claude Code Skills and subagents. Rules the agent reads once, CI, an agent review on every PR, and living docs holding what it needs to remember between sessions.
+
+hstack sits between an engineer's intent and a merged commit — without charging ceremony on every change.
 
 ## What hstack is
 
-A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. ~34 Skills, ~16 subagents, ~32 canonical templates, and one kernel (`KERNEL.md`) that wins every conflict. AI writes; humans confirm. Artifacts on disk are the state machine — no parallel tracker, no separate dashboard.
-
-Two entry points cover the project lifecycle:
-
-- **`/hstack:greenfield-init`** — for empty repositories. Six phases (product discovery → data architecture → app architecture → stack decisions → threat-model / hardening → scaffold) elicit the design from scratch and produce a bootable repo with discipline baked in from line zero.
-- **`/hstack:brownfield-init`** — for existing repositories. The same discovery atoms run in extract+confirm mode against existing source, populating the context layer without rewriting it.
+A thin, opinionated layer on top of Claude Code that governs how engineers and AI agents collaborate on a codebase. One kernel (`KERNEL.md`, ~1,700 words) that wins every conflict, nine Skills, six subagents, and the templates behind them. Two written artifacts remain: a PR description on every change, and a rare ADR for a one-way door.
 
 ## What hstack is not
 
 - Not a methodology framework like BMAD or Spec Kit. Patterns were borrowed; the framework was not adopted.
-- Not a project tracker. Frontmatter on artifacts is the tracker.
-- Not a deployment system. Deploys happen outside hstack.
-- Not a SOC 2 / GDPR compliance substrate by itself. v1 is good engineering hygiene; the v2 roadmap names the substrate work required before hstack-governed code can defensibly carry a production-grade label.
+- Not a project tracker. Notion holds product work, the repo holds engineering memory, GitHub holds PRs and CI.
+- Not a deployment system, beyond the one step it does carry: `/promote`.
+- Not a SOC 2 / GDPR compliance substrate by itself. v0.16.0 was good engineering hygiene; the light version keeps the hygiene that costs nothing per change, and ADR-0015 names what it gave up.
 
 ## Prerequisites
 
