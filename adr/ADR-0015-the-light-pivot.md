@@ -26,13 +26,13 @@ Accepted on 2026-08-22, ships as v0.17.0 on `main`. It follows the context-engin
 
 Four months of hstack, and the MOSO MVP has not shipped. The framework is not the only reason, but it is a measurable one: a change that is an hour of work carries roughly ten times that in wall-clock — story, scaffold, spec interview, test-plan, plan, security review, data review, phase-by-phase implementation, verification, a fresh-session adversarial review, ship, finalize — each with its own subagent invocation and its own confirmation gate.
 
-This is a different cost from the one the last five ADRs attacked. ADR-0009 instrumented tokens, ADR-0013 cut the kernel from 8,940 to 6,370 words, ADR-0014 replaced micro-prescriptions with judgment. All of them made every session cheaper. None of them made a single change faster, because the cost being paid is not tokens — it is the number of times a human has to answer, confirm, cut a session, and start another.
+This is a different cost from the one the last five ADRs attacked. ADR-0009 instrumented tokens, ADR-0013 cut the kernel from 8,940 to 6,370 words, ADR-0014 replaced micro-prescriptions with judgment. All of them made every session cheaper; none made a single change faster, because what is expensive is not tokens — it is the number of times a human answers, confirms, cuts a session and starts another.
 
 Three facts fix the trade-off:
 
-- **We are pre-users.** First users land in two to three weeks. Before that, the dominant risk is never shipping, not shipping a bug. After that it changes, which is why the reactivation triggers below are named now rather than argued later.
-- **There is no senior reviewer.** Hugo is a first-time technical co-founder and cannot play that role on his own PRs; Luke, the other co-founder, also codes through agents. A large part of hstack existed to compensate for that absence, and the compensation is worth keeping — just not once per phase. It becomes an agent review on *every* PR, plus a fresh-session deep pass on sensitive surfaces.
-- **Ceremony has linear cost; rules do not.** A per-change artifact is paid every change forever. A rule in the kernel, a CI lane, a living doc that the agent updates in the PR that invalidated it — all are paid once, or paid by the machine.
+- **We are pre-users.** First users land in two to three weeks. Until then the dominant risk is never shipping, not shipping a bug. After that it changes, which is why the reactivation triggers are named now rather than argued later.
+- **There is no senior reviewer.** Hugo is a first-time technical co-founder and cannot play that role on his own PRs; Luke, the other co-founder, also codes through agents. Much of hstack was compensating for that absence — worth keeping, but not once per phase. It becomes an agent review on *every* PR, plus a fresh-session deep pass on sensitive surfaces.
+- **Ceremony has linear cost; rules do not.** A per-change artifact is paid on every change forever. A kernel rule, a CI lane, a living doc updated in the PR that invalidated it: paid once, or paid by the machine.
 
 ## Decision
 
@@ -40,11 +40,11 @@ Three facts fix the trade-off:
 
 The kernel goes from 6,370 words to about 1,690 as a subtractive diff: one section kept as written, fifteen condensed, nine removed. Where a rule survives, its v0.16 wording survives with it. Nothing is redesigned and nothing moves — living docs stay at `hstack/context/`, debt at `hstack/tech-debt/`, decisions at `hstack/adr/`.
 
-**What survives.** Nine Skills: `adversarial-review` (no artifact, no status — findings go in the PR), `adr-new`, `commit`, `data-architecture`, `app-architecture`, `story` (a product tool that writes into Notion, never a gate on code), and three new ones the kernel names before they exist — `/wrap`, `/promote`, `/test-audit`. Six subagents: `adversarial-reviewer`, `test-strategist`, `data-architect`, `app-architect`, and — because `adr-new` and `story` invoke them — `spec-author` and `product-manager`, whose fate is decided in the second wave.
+**What survives.** Nine Skills: `adversarial-review` (no artifact, no status — findings go in the PR), `adr-new`, `commit`, `data-architecture`, `app-architecture`, `story` (a product tool writing into Notion, never a gate on code), plus three the kernel names before they exist — `/wrap`, `/promote`, `/test-audit`. Six subagents: `adversarial-reviewer`, `test-strategist`, `data-architect`, `app-architect`, and — because `adr-new` and `story` invoke them — `spec-author` and `product-manager`, whose fate is decided in the second wave.
 
-**What is removed**, by one mechanical criterion — *what artifact or status does this write, and does it still exist?* The per-change workflow family, the tech-debt status lifecycle, kernel-fit, coordination, telemetry, `init` / `scaffold` / `configure`, and the validator with its rule registry.
+**What is removed**, by one mechanical criterion — *what artifact or status does this write, and does it still exist?* The per-change workflow family, the tech-debt status lifecycle, kernel-fit, coordination, telemetry, `init` / `scaffold` / `configure`, and the validator with its registry.
 
-**Two pieces are added**, both on observed evidence rather than anticipation: the **exposure map** (an entry-point column of the Module Map — agents were repeatedly wrong about what a user can actually reach) and **user stories** as a product tool. Both are bounded: the exposure map grades product severity and never security severity, and no rule ever requires a change to reference a story.
+**Two pieces are added**, both on observed evidence: the **exposure map** (an entry-point column of the Module Map — agents were repeatedly wrong about what a user can actually reach) and **user stories** as a product tool. Both are bounded: the map grades product severity and never security severity, and no rule requires a change to reference a story.
 
 **The two-occurrence rule governs hstack itself.** A piece of process comes back when a real problem has occurred twice, and the kernel says who may put it back. The v0.17 work is timeboxed in days, not weeks: an overrun is the symptom of the relapse this ADR exists to end, and the response is to ship the state reached and go back to the product.
 
@@ -61,7 +61,7 @@ The kernel goes from 6,370 words to about 1,690 as a subtractive diff: one secti
 
 - **The traceability hole is permanent.** Changes shipped between this pivot and any reactivation have git history and PR descriptions and nothing else. No later decision recovers them, and if a compliance requirement arrives, this window is simply not auditable.
 - **We removed one of the two mechanical judges.** The validator enforced artifact contracts deterministically; CI is now the only check that is not an LLM judgment. The kernel says so out loud, which is honesty, not mitigation.
-- **The exposure map and `invariants.md` are hand-maintained.** The kernel asserts drift is detectable by diffing real routes against the map — nothing in v0.17 actually detects it, so the first drift will be found by a human or not at all.
+- **The exposure map and `invariants.md` are hand-maintained.** The design assumes drift is detectable by diffing real routes against the map — nothing in v0.17 actually detects it, so the first drift will be found by a human or not at all.
 - **We are dropping the instrument that could have judged this decision.** Telemetry is frozen, so the ×10 that motivates this ADR stays a judgment, and so will "it worked". This is the fourth consecutive bet with no measurement between any two of them, and it is the largest.
 - **The kernel names three Skills that do not exist yet.** For the days between this release and the second wave, part of the contract has no implementation.
 
