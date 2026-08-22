@@ -32,7 +32,7 @@ hstack installs into the consuming repo at the path `hstack/` relative to the re
 npx hstack@latest init
 ```
 
-`hstack init` copies the framework files under `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md` and a `hstack/.session-state/` line to `<consumer>/.gitignore`, and stamps `hstack/VERSION`. Nothing else in the consumer is touched — v0.17 removed the `.claude/settings.json` hook wiring along with the coord machinery it served. Use `--dry-run` to preview the plan, `--yes` to skip the confirmation prompt, `--force` to override the dirty-working-tree check.
+`hstack init` copies the framework files under `template/` into `<consumer>/hstack/`, wires `.claude/agents` (dir-level symlink) and `.claude/skills/hstack-*` (per-skill symlinks), appends the kernel-import line to `<consumer>/CLAUDE.md`, and stamps `hstack/VERSION`. Nothing else in the consumer is touched — v0.17 removed the `.claude/settings.json` hook wiring and the `.gitignore` lines along with the machinery that produced the directories they hid. Use `--dry-run` to preview the plan, `--yes` to skip the confirmation prompt, `--force` to override the dirty-working-tree check.
 
 The CLI ships three commands:
 

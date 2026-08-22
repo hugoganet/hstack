@@ -40,8 +40,6 @@ export const LEGACY_KERNEL_IMPORT_PROBE = "@hstack/CLAUDE.md";
  */
 export const LEGACY_KERNEL_PATH_PROBE = "hstack/CLAUDE.md";
 
-export const GITIGNORE_SESSION_STATE_LINE = "hstack/.session-state/";
-
 /**
  * The coord-notification hooks (ADR-0007) the installer wired into consumers
  * before v0.17 — a coord scan at SessionStart and on every UserPromptSubmit.
@@ -158,19 +156,7 @@ export async function planInit(
     matchOn: KERNEL_IMPORT_PROBE,
   });
 
-  // 5. Append session-state gitignore line. The kernel's Resumability section
-  // declared hstack/.session-state/ git-ignored, but the installer never wired
-  // it until ADR-0006 (the coord ack cursor made the gap load-bearing) — repos
-  // installed before this may have committed session-state files; `hstack
-  // doctor` users should verify.
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_SESSION_STATE_LINE,
-    createIfMissing: true,
-  });
-
-  // 6. Stamp the installed-version marker so update can compare later.
+  // 5. Stamp the installed-version marker so update can compare later.
   actions.push({
     kind: "write-version",
     to: resolve(consumerRoot, "hstack", "VERSION"),
@@ -183,7 +169,7 @@ export async function planInit(
 /**
  * Compute the full plan for `hstack update` against `consumerRoot`.
  * Diffs framework files in template/ vs the consumer's hstack/, plus
- * the .claude/ symlink delta, plus idempotent CLAUDE.md / .gitignore
+ * the .claude/ symlink delta, plus the idempotent CLAUDE.md
  * line checks, plus the VERSION marker stamp.
  */
 export async function planUpdate(
@@ -262,19 +248,12 @@ export async function planUpdate(
     matchOn: KERNEL_IMPORT_PROBE,
   });
 
-  // 5. .gitignore session-state line — idempotent re-check (per ADR-0006).
-  //    The `**/.telemetry/` and `hstack/kernel-fit/flags/` lines this used to
-  //    add are gone with their producers. Lines already in a consumer's
-  //    .gitignore stay: hstack never edits an engineer's file to unsay
-  //    something it once said.
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_SESSION_STATE_LINE,
-    createIfMissing: true,
-  });
-
-  // 5b. Coord-notification hooks — removed, not merged (v0.17).
+  // 5. Coord-notification hooks — removed, not merged (v0.17).
+  //    Nothing is added to a consumer's .gitignore any more: the `**/.telemetry/`,
+  //    `hstack/kernel-fit/flags/` and `hstack/.session-state/` lines the installer
+  //    used to write are gone with the machinery that produced those directories.
+  //    Lines already in a consumer's .gitignore stay — hstack never edits an
+  //    engineer's file to unsay something it once said.
   actions.push({
     kind: "remove-coord-hooks",
     file: resolve(consumerRoot, ".claude", "settings.json"),
