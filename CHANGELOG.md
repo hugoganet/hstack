@@ -15,6 +15,7 @@ The complete version is not deleted. The `v0.16.0` tag holds it, intact, for the
 - **Twenty-six templates**, including every change-spec and module-spec type, the discovery technique scripts, and the telemetry sidecar schema.
 - **Frontmatter machinery, everywhere it survived.** Statuses, owners, `schema-version`, reciprocal fields, `related-change-specs`, promotion links. `templates/tech-debt.md` keeps exactly four fields — `id`, `severity`, `related-modules`, `created` — and `templates/adr.md` keeps none. A tech-debt file existing means the item is open; deleting it in the PR that fixes it means resolved, and git is the audit trail.
 - **`hstack/config.yaml`** as a concept, and the `.claude/settings.json` hook wiring that served the coord notifications. `hstack update` takes all of it back from a consumer installed on an earlier version, rather than leaving orphaned files behind.
+- **The installer's `.gitignore` writes.** `**/.telemetry/`, `hstack/kernel-fit/flags/` and `hstack/.session-state/` all hid directories the framework no longer creates. Lines already in a consumer's `.gitignore` stay: hstack never edits an engineer's file to unsay something it once said. `USER_CONTENT_PATHS` narrows to what the boundary actually protects — `context/`, `adr/`, `tech-debt/`.
 
 ### Added
 
@@ -31,6 +32,7 @@ The complete version is not deleted. The `v0.16.0` tag holds it, intact, for the
 - **`hstack-adversarial-review` posts a PR comment** instead of writing an artifact, and the author resolves the findings. `hstack-story-draft` became `hstack-story`, writes into the Notion feature via MCP, and is explicitly a product tool rather than a gate on a change.
 - **Subagents stop repeating what the templates own.** The section lists and the drift-challenge wording live in the templates; the subagents carry the judgment. `tools:` is declared only where the restriction is the point — `adversarial-reviewer` has neither Write nor Edit.
 - **Skills are named by their real invocation** — `/hstack-wrap`, `/hstack-promote`, `/hstack-test-audit` — in the kernel and throughout. The `/hstack:<name>` form used across v0.16 was never how a symlinked project Skill is invoked.
+- **The repo runs its own fast lane.** A `ci` workflow runs `npm ci && npm test` — which is `tsc` plus the description-budget fixtures — on every pull request. Four PRs shipped this release with nothing but a human running the build locally.
 
 ### Known limitations
 
