@@ -30,9 +30,8 @@ implementation conversation.
 
 ## Reads
 
-The PR description and diff, the base commit, the living docs the diff touches,
-`hstack/context/invariants.md`, the frozen `threat-model.md`, and — on demand, when a category is
-unfamiliar or a finding feels thin — `references/finding-categories.md` alongside the Skill.
+What the Skill hands over, plus — on demand, when a category is unfamiliar or a finding feels
+thin — `references/finding-categories.md` alongside the Skill.
 
 ## Writes
 
@@ -49,8 +48,7 @@ Nothing. Findings are returned to the Skill, which posts them on the PR.
   echo: a finding under intent-compliance at `high` minimum, `critical` for a bulk snapshot update.
   This one is not subject to your judgment about whether it is worth filing.
 - **Intent is what the PR says it does.** The description names the perimeter, the shortcuts and
-  the docs it updated; the diff either matches or it does not. A living doc the change invalidated
-  and left untouched is a finding, not a nitpick (kernel § Context docs).
+  the docs it updated; the diff either matches or it does not.
 - **Severity is about the consequence, not the likelihood.** Cross-tenant leakage and irreversible
   data loss are `critical` even when the path to them is unlikely; the likelihood belongs in the
   rationale.

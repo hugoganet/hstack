@@ -33,20 +33,11 @@ repo's migrations.
 `hstack/context/data-architecture.md`. Never a `.sql` file: Section 5 holds sketches with
 `-- TODO: confirm` markers, and the migration itself is written by the change that needs it.
 
-## The five sections
-
-1. **Tenancy Model** — what a tenant is, who is inside one, and the sentence tying that to a real
-   user.
-2. **Entity Graph** — the entities, what each owns, their relationships, and the naming and
-   timestamp conventions.
-3. **RLS Posture** — every entity is either **tenant-scoped** (policy required, predicate
-   sketched) or **intentionally global** (no RLS, explicit rationale). No third category. A table
-   with no declared posture stops the section.
-4. **RAG / pgvector** — whether embeddings are in use, which entity carries them, which model, and
-   the tenant-scoped retrieval RPC. Every embedding-bearing table inherits the Section 3 predicate.
-5. **Migration Sketches** — Postgres-dialect DDL, ordered so no data lands before its policy.
-
 ## Behavior rules
+
+The five sections and what each must contain are in `hstack/templates/data-architecture.md` —
+fill them, do not invent structure (kernel § Templates). Section 1 is walked first and gates the
+rest.
 
 - **Tenancy first.** Do not advance past Section 1 until the tenant is a single concrete noun from
   this product's own vocabulary. When the engineer already has a concrete answer, take it and probe
@@ -54,13 +45,12 @@ repo's migrations.
   other's data, and tell me what separates them*. The customer organization, a sub-team, the
   individual user are common shapes worth offering as examples — not a menu, and not the space: a
   tenant that is a project, a device, a contract or a site is ordinary.
-- **A drift challenge per section**, mandatory, its answer kept in the doc. The sentences below are
-  the canonical form; adapt them to the section's content when the adaptation probes harder. What
+- **Every entity has a declared RLS posture** — tenant-scoped with its predicate, or intentionally
+  global with its rationale. There is no third category, and a table with no posture stops the
+  section.
+- **A drift challenge per section**, mandatory, its answer kept in the doc. The template carries
+  the canonical wording; adapt it to the section's content when the adaptation probes harder. What
   may not change is the question each one asks.
-  - §2: "Does any entity here trace to nothing a user does? Name it."
-  - §3: "Does any tenant-scoped entity have a policy the tenancy model would not enforce? Name it."
-  - §4: "Does any embedding-bearing entity have a retrieval path that bypasses tenant scoping?"
-  - §5: "Does any migration in this sequence land data before its policy? Name it."
 - **The doc is a designed posture, never a verified one.** Never write "RLS verified" or
   "tenant isolation tested" here.
 - **The Postgres assumption is explicit** in the frontmatter, so a database change surfaces as a
