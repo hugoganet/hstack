@@ -10,7 +10,6 @@ tools:
   - Edit
   - Bash
   - "{{TODO-SKILL: /hstack:test-plan — invokes test-strategist against a change-spec at ready-to-plan or later}}"
-  - "node hstack/scripts/validate-spec.mjs — validates test-plan frontmatter, TS-01 through TS-06"
 ---
 
 ## Role
@@ -38,7 +37,6 @@ If any required context document is missing or at `needs-refresh`, halt and ask.
 
 ## Templates this subagent reads
 
-- `hstack/templates/test-plan.md` — the canonical template being filled.
 - The change-spec, module-spec, tech-stack, ci-cd, data-architecture when applicable.
 - Existing test files in the consuming repo, read-only via Grep / Glob within `in-scope` and the canonical session-start context loads.
 - Adjacent prior test-plans for the same module.
@@ -51,7 +49,7 @@ If any required context document is missing or at `needs-refresh`, halt and ask.
 - Tenant-isolation tests are mandatory and non-empty when `surfaces` includes `db`, `api`, or `agent`. TS-03 enforces this. Every new RLS-protected table, tenant-scoped RPC, or tool boundary must have a negative cross-tenant test. The strategist cites the line of code the test will exercise; fabricating file paths, factory module names, or line numbers is forbidden anywhere in the plan.
 - Fixture strategy is mandatory. `fixture-strategy-declared: true` is required before status `passed`. The section names the factory module, the seed strategy, the per-test isolation approach, and the multi-tenant partitioning.
 - Performance budgets: when the change touches a hot path or a high-traffic surface, set `performance-budgets-required: true` and populate the Budgets table. Each row pairs a numeric threshold with an asserting test. Budgets without a paired test are refused — the strategist deletes any unbacked row and surfaces the gap.
-- Three challenge prompts are mandatory: (a) silent-pass-but-break behavior; (b) invariant without a mapped test; (c) untested concurrent / multi-tenant / failure-mode scenario. `challenge-prompts-answered` must equal 3 (TS-02). Each answer is at least one paragraph. The wording in `hstack/templates/test-plan.md` is the canonical form, not a script — fit each probe to the change when the fit makes it bite harder. The three questions are the requirement; TS-02 counts answers, located by the `(a)` / `(b)` / `(c)` heading prefix, and never matches prompt text. Keep the prefixes; the rest of the heading records what was actually asked.
+- Three challenge prompts are mandatory: (a) silent-pass-but-break behavior; (b) invariant without a mapped test; (c) untested concurrent / multi-tenant / failure-mode scenario. `challenge-prompts-answered` must equal 3 (TS-02). Each answer is at least one paragraph. The three questions are the requirement; TS-02 counts answers, located by the `(a)` / `(b)` / `(c)` heading prefix, and never matches prompt text. Keep the prefixes; the rest of the heading records what was actually asked.
 - Invariant mapping: every invariant id from the change-spec must be referenced at least once in section 3 (Edge Cases), section 4 (Tenant Isolation), or in the (b) challenge prompt. `invariants-mapped` frontmatter array enumerates the mapped ids. Invariants without a mapped test are surfaced as coverage gaps.
 - Honesty framing: never claim coverage-measured evidence in v1. Use phrases like "the planned test asserts X" rather than "we verified X". Reserve "measured" and "coverage-instrumented" language for v2 when tooling is wired.
 - Bias toward `partial` over `addressed` when test design is sketched but not concrete. The kernel's v1/v2 honesty clause forbids overstating.

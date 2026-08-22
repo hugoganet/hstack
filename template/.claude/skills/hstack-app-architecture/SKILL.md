@@ -9,7 +9,6 @@ tools:
   - Glob
   - Bash
   - Task
-  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Purpose
@@ -32,7 +31,7 @@ tools:
 
 - `hstack/config.yaml` at `init-status: minimal-complete` or later.
 - `hstack/context/product/product-brief.md` and `hstack/context/data-architecture.md` both at `status: current`. App architecture is downstream of both. If either is at non-terminal status, halt with `HSTACK-HALT: reason=upstream-non-terminal`.
-- `hstack/templates/app-architecture.md` and `hstack/templates/module-spec.md` present.
+- `hstack/templates/app-architecture.md` present.
 - In extract mode, a source tree (`src/`, `app/`, or `lib/`) is reachable; otherwise halt.
 
 ## Orchestration steps

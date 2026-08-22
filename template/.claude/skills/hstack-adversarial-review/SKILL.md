@@ -9,7 +9,6 @@ tools:
   - Glob
   - Bash
   - Task
-  - "node hstack/scripts/validate-spec.mjs — validates adversarial-review frontmatter and AR-01..AR-06"
   - "{{TODO-OTHER: fresh-session-attestation — in v1, the subagent self-attests the session is fresh; v2 substrate captures and compares Claude Code session ids automatically}}"
 ---
 
@@ -17,7 +16,7 @@ tools:
 
 `hstack-adversarial-review` produces `adversarial-review.md` by orchestrating the `adversarial-reviewer` subagent in a Claude Code session separate from the one that ran the implementer. The subagent reads the change cold, and "no problems" is a claim it has to defend rather than a default it may fall into. In v1, fresh-session separation is honor-system; the Skill's first job is to remind the engineer of that.
 
-Per ADR-0014 the review is not scored on its finding count. `findings-floor` stays in frontmatter as the area's expectation and lands in the telemetry sidecar, but nothing gates on it; the one count the artifact must argue for is zero (AR-01).
+Per ADR-0014 the review is not scored on its finding count. `findings-floor` stays in frontmatter as the area's expectation, but nothing gates on it; the one count the artifact must argue for is zero (AR-01).
 
 ## When to invoke
 
@@ -44,15 +43,13 @@ Before any work:
 
 ## Orchestration steps
 
-0. **Open the phase window (mechanical, no LLM turn, no commit).** The moment the preconditions above pass and *before* any subagent invocation, run `python3 hstack/scripts/telemetry/session_id.py` and keep its `session_id` and `now` values — they become `session_id` and `phase_opened_at` in the sidecar below (ADR-0009). On failure or a null session id, hold `null` for both and continue.
-
 1. **Open with the fresh-session reminder.** Print the message verbatim; wait for the engineer's confirmation.
 
-2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, `hstack/templates/adversarial-review.md`, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
+2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
 
 3. **Findings generation across six categories.** The subagent sweeps security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality and reports what the sweep found — the categories are lenses, not buckets, and a change whose risk genuinely lives in one dimension produces findings in one category. `references/finding-categories.md`, alongside this file, is the calibration rubric (what each category means, what a real finding looks like, what filler looks like); the subagent reads it on demand, not on every run. Test-plan adherence is a first-class lens: missing edge-case tests surface as spec-compliance findings; missing tenant-isolation tests surface as data-integrity findings; unmet performance budgets surface as code-quality or data-integrity findings depending on cause; unmapped invariants in `verification.test-plan-coverage` surface as spec-compliance findings. **Test-immutability audit:** the subagent diffs every pre-existing test file against the branch base; any modification, deletion, or snapshot update without a matching `Ok to change/delete/update/refresh ...` authorization echo in a commit message is a mandatory finding under spec-compliance at minimum `severity: high`. Bulk snapshot-update flags visible in the diff or in CI logs escalate to `severity: critical`. This audit is mandatory and is not subject to the subagent's judgment about whether the finding is worth filing.
 
-4. **The empty result is the one the artifact defends.** Per AR-01, a review that reaches `findings-open` or `findings-resolved` with an empty `findings` array must set `findings-fewer-than-floor: true` and write a defended `justification-when-fewer` plus a filled Findings Floor Justification section, enumerating what was looked for and why each sweep came back clean. "The change is small" alone is insufficient. Any count above zero passes AR-01; `findings_count` against `findings_floor` is reported to telemetry and read in aggregate, never as a per-review gate.
+4. **The empty result is the one the artifact defends.** Per AR-01, a review that reaches `findings-open` or `findings-resolved` with an empty `findings` array must set `findings-fewer-than-floor: true` and write a defended `justification-when-fewer` plus a filled Findings Floor Justification section, enumerating what was looked for and why each sweep came back clean. "The change is small" alone is insufficient. Any count above zero passes AR-01.
 
 5. **Resolution discipline.** Each finding's `resolution` is one of:
    - `commit:<hash>` — must reference an existing commit on the change's branch (AR-04).
@@ -64,10 +61,6 @@ Before any work:
 7. **Findings-open is non-terminal.** The subagent does not advance `status: findings-resolved` until every finding has `status: resolved` and a `resolution` value.
 
 8. **Owner response loop.** For each finding, the engineer (the change owner) responds with a resolution. The Resolution Log section records each response. The Skill walks the engineer through every finding sequentially.
-
-9. **Validate.** Run `node hstack/scripts/validate-spec.mjs <path>` — AR-01 through AR-06.
-
-10. **Change-spec advance (mechanical, only on `findings-resolved`, Skill-orchestrator write per ADR-0002).** When and only when the subagent returned with `adversarial-review.md` at `status: findings-resolved`, read `hstack/specs/changes/<change-id>/spec.md` and inspect its `status` frontmatter. If `status: ready-for-review`, print a proposed-diff preview of the change-spec edit (`status: ready-for-review → ready-to-ship`; `updated: <today>`) and prompt "Proceed with this change-spec advance? (Y/n)". Default Yes. On confirmation, perform the edit via the `Edit` tool, run `node hstack/scripts/validate-spec.mjs <path>` against the change-spec, then `git add` and commit with message `change-spec(<change-id>): ready-to-ship`. This is a separate commit from the adversarial-review transition commits, matching the verify and finalize precedents. If the change-spec is already at `ready-to-ship` or any downstream status (`shipped`, `archived`), this step is a no-op (idempotent on re-runs). When adversarial-review status is `findings-open` or `in-progress`, this step does not run — the change-spec remains at `ready-for-review` until every finding is resolved. The `adversarial-reviewer` subagent retains its critique-only lane and writes only `adversarial-review.md`; the cross-artifact advance is the Skill orchestrator's own write, per ADR-0002.
 
 ## Outputs
 
@@ -84,50 +77,6 @@ Before any work:
 - Edits to the `findings` array.
 - Edits to any finding's `resolution`.
 - **Change-spec status transition `ready-for-review` → `ready-to-ship`** (per ADR-0002, Skill-orchestrator write). When `adversarial-review.md` reaches `findings-resolved`, the Skill orchestrator performs the change-spec advance directly via `Edit` (orchestration step 10), in a separate auto-commit with message `change-spec(<change-id>): ready-to-ship`. The change-spec becomes eligible for `hstack-ship` only after this commit lands. `hstack-ship` itself remains read-only across artifact statuses — it reads the already-written `ready-to-ship` and computes the merge-readiness scorecard. The `adversarial-reviewer` subagent does not write this transition; it stays in its critique-only lane.
-
-## Telemetry sidecar
-
-At the change-spec advance commit (only when adversarial-review status is `findings-resolved`), write `hstack/specs/changes/<change-id>/.telemetry/adversarial-review.json` in the same `git add && git commit` as the change-spec advance. The sidecar is derivative of git + frontmatter (see `hstack/templates/telemetry-sidecar.md`). Schema:
-
-```json
-{
-  "schema_version": 2,
-  "skill": "hstack-adversarial-review",
-  "change_id": "<change-id>",
-  "session_id": "<session id from step 0, or null>",
-  "phase_opened_at": "<ISO-8601 from step 0, or null>",
-  "phase_closed_at": "<ISO-8601, now — same write as this sidecar, or null>",
-  "reviewed_at": "<ISO-8601, when status reached findings-resolved>",
-  "findings_floor": <int, 3 or 5 per AR-06>,
-  "findings_count": <int, length of frontmatter findings array>,
-  "findings_fewer_than_floor": <bool>,
-  "category_counts": {
-    "security": <int>,
-    "scope-drift": <int>,
-    "invariant-breach": <int>,
-    "spec-compliance": <int>,
-    "data-integrity": <int>,
-    "code-quality": <int>
-  },
-  "severity_counts": {
-    "critical": <int>,
-    "high": <int>,
-    "medium": <int>,
-    "low": <int>
-  },
-  "resolution_mix": {
-    "commit": <int>,
-    "tech-debt": <int>,
-    "justified-in-prose": <int>
-  },
-  "fresh_session_attestation": "<verbatim copy of frontmatter field>",
-  "halt_reasons": [<kernel halt-sentinel enum values, if any>]
-}
-```
-
-When the review ends at `findings-open` or `in-progress` (no change-spec advance), the sidecar still lands with the same shape on whichever transition commit terminates the current run; `findings_fewer_than_floor` reflects the current value. `.telemetry/` is git-ignored. If the sidecar write fails, log and continue; the canonical commit must still land. Since ADR-0014 removed the quota this sidecar stopped being a fraud detector and became a description: `findings_count` against `findings_floor`, `category_counts`, `severity_counts` and `resolution_mix` describe what reviews are finding, and shifts in the joint distribution are the instrument for judging whether the judgment-based framing reads changes better or worse than the count did.
-
-The three phase-window fields (`session_id`, `phase_opened_at`, `phase_closed_at`) come from step 0 and from this write. Their rules — best-effort, unmeasured rather than zero, never a halt — are stated once in `hstack/templates/telemetry-sidecar.md` § The phase window, which is the canonical schema and wins over any Skill.
 
 ## Session boundary
 
