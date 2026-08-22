@@ -124,9 +124,13 @@ export async function runInit(opts: InitOptions): Promise<number> {
   console.log("  1. Review the changes: " + pc.cyan("git status"));
   console.log("  2. Commit:             " + pc.cyan("git add . && git commit -m 'chore: install hstack'"));
   console.log(
-    "  3. Open Claude Code in this repo and run " +
-      pc.cyan("/hstack:init") +
-      " to populate hstack/context/.",
+    "  3. Open Claude Code in this repo. The kernel loads itself; write the living docs\n" +
+      "     under hstack/context/ when there is something true to write in them —\n" +
+      "     " +
+      pc.cyan("/hstack-data-architecture") +
+      " and " +
+      pc.cyan("/hstack-app-architecture") +
+      " do the two big ones.",
   );
   return 0;
 }

@@ -2,6 +2,43 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.17.0] - 2026-08-22
+
+The pivot is subtractive (ADR-0015). Four months of hstack v1 produced a workflow whose per-change ceremony made every change roughly ten times slower, and no MVP. The diagnosis is not that the rules were wrong — it is that pre-PMF, the dominant risk is never shipping, not shipping bugs, and a rule that costs something on every single change has to earn it against that. So the question asked of every piece was the same: **does it change what an agent does on an ordinary change, without charging ceremony per change?** What survived was kept *in place*, with its v0.16 wording where the rule survived. What did not was removed, not replaced — this release designs almost nothing new.
+
+The complete version is not deleted. The `v0.16.0` tag holds it, intact, for the day a team, a paying user or a compliance requirement asks for it. We froze a version, not the repository.
+
+### Removed
+
+- **Thirty Skills and twelve subagents.** The per-change phase chain (story → scaffold → spec → UI brief → plan → security review → data review → implement → verify → adversarial review → ship), the two init orchestrators and the discovery atoms around them, the tech-debt status machinery, the kernel-fit loop, research, coord, telemetry, help, flag, configure. The mechanical test for each: *what artifact or status does it write, and does that thing still exist?*
+- **The enforcement scripts** — `validate-spec.mjs` (artifact contracts), `compute-merge-readiness.mjs` (the twelve merge gates) and `run-gates.sh` — with the artifacts and statuses they validated. Twenty-two files under `template/scripts/`, plus the coord and telemetry trees.
+- **Twenty-six templates**, including every change-spec and module-spec type, the discovery technique scripts, and the telemetry sidecar schema.
+- **Frontmatter machinery, everywhere it survived.** Statuses, owners, `schema-version`, reciprocal fields, `related-change-specs`, promotion links. `templates/tech-debt.md` keeps exactly four fields — `id`, `severity`, `related-modules`, `created` — and `templates/adr.md` keeps none. A tech-debt file existing means the item is open; deleting it in the PR that fixes it means resolved, and git is the audit trail.
+- **`hstack/config.yaml`** as a concept, and the `.claude/settings.json` hook wiring that served the coord notifications. `hstack update` takes all of it back from a consumer installed on an earlier version, rather than leaving orphaned files behind.
+- **The installer's `.gitignore` writes.** `**/.telemetry/`, `hstack/kernel-fit/flags/` and `hstack/.session-state/` all hid directories the framework no longer creates. Lines already in a consumer's `.gitignore` stay: hstack never edits an engineer's file to unsay something it once said. `USER_CONTENT_PATHS` narrows to what the boundary actually protects — `context/`, `adr/`, `tech-debt/`.
+
+### Added
+
+- **`/hstack-wrap`** — the end of a change, loaded fresh at the moment it runs, which is the point: end-of-change rules no longer have to survive two hundred turns of conversation. It re-checks the categories in `review-miss.md`, runs `/review` and `/security-review` on the branch diff, audits test immutability against the merge-base, updates the living docs the diff invalidated, names the conscious shortcuts as tech-debt files, and writes the PR description. It never merges.
+- **`/hstack-promote`** — the one deploy step hstack carries. The sequence lives in the Skill; the concrete commands live in the consumer's `infrastructure.md` § Deploy Pipeline, and a missing section halts the promotion rather than guessing a production command. Two questions are asked of the human, the exposure map is checked before promotion, production is watched for five minutes after it, and rollback is re-promoting the previous deployment — safe because migrations are additive by default.
+- **`/hstack-test-audit <module>`** — on demand, never a phase. Business rules mapped against existing tests, the gaps named, the ones the engineer picks closed, and every rule the audit surfaced recorded in `invariants.md` *including the gaps left open*.
+- **The exposure map**, a column of the Module Map in `app-architecture.md`. Its atom is an entry point — page route, API route, server action, job, webhook — at `live`, `routable` (the URL responds, nothing links to it, it is fully exposed) or `off`. It exists because agents were repeatedly wrong about what a user can actually reach. It grades product severity, never security severity.
+
+### Changed
+
+- **The kernel is `template/KERNEL.md` at ~1,700 words**, down from ~9,500. Twenty-five sections became one kept, fifteen condensed, nine removed. What is verbatim from v0.16 is verbatim on purpose: test immutability and its canonical authorization phrases, where the wording *is* the mechanism.
+- **Review runs on every PR, not on a sensitive tenth.** `/hstack-wrap` runs the built-in `/review` and `/security-review` before the push and puts the findings in the PR description; sensitive surfaces additionally get the deep pass in a fresh session. There is no senior human reviewer on this team, and that is the reason.
+- **The PR description is the artifact.** It carries the intention, the perimeter, the decisions, the shortcuts, and what the reviews found — replacing change-specs as the record. Living docs are the coordination channel between parallel sessions, updated in the same PR that invalidates them.
+- **`hstack-adversarial-review` posts a PR comment** instead of writing an artifact, and the author resolves the findings. `hstack-story-draft` became `hstack-story`, writes into the Notion feature via MCP, and is explicitly a product tool rather than a gate on a change.
+- **Subagents stop repeating what the templates own.** The section lists and the drift-challenge wording live in the templates; the subagents carry the judgment. `tools:` is declared only where the restriction is the point — `adversarial-reviewer` has neither Write nor Edit.
+- **Skills are named by their real invocation** — `/hstack-wrap`, `/hstack-promote`, `/hstack-test-audit` — in the kernel and throughout. The `/hstack:<name>` form used across v0.16 was never how a symlinked project Skill is invoked.
+- **The repo runs its own fast lane.** A `ci` workflow runs `npm ci && npm test` — which is `tsc` plus the description-budget fixtures — on every pull request. Four PRs shipped this release with nothing but a human running the build locally.
+
+### Known limitations
+
+- **Retroactive traceability is permanently thinner.** A change's reasoning lives in its PR description and nowhere else; there is no queryable artifact chain behind it. That was the trade, and it is not reversible for the changes that ship under it.
+- **Nothing here has run on a real change yet.** The upgrade of the first consumer, moso-app, from 0.7.1 to 0.17, is the test — and the first place the pieces added on evidence, the exposure map above all, either earn their keep or come out.
+
 ## [0.16.0] - 2026-08-21
 
 The micro-prescriptions come out (ADR-0014). hstack's prose carried a layer of instruction written for a model that needed to be told how to think — a findings quota, character thresholds standing in for substance, keyword blocklists standing in for intent, and interview scripts that had to be read out even when they did not fit the product. Fifteen prescriptions across five families are each replaced by one of three things: **a stated goal**, **a rubric loaded on demand**, or **an executable rule in the validator**. The ledger records which form each took and why.

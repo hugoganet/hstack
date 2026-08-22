@@ -6,8 +6,7 @@
  * On `hstack update` only paths in `FRAMEWORK_PATHS` are overwritten; paths
  * in `USER_CONTENT_PATHS` are NEVER touched by the installer.
  *
- * The boundary is load-bearing — see KERNEL.md "Mechanical operations" and
- * the README installation section.
+ * The boundary is load-bearing — see the README installation section.
  */
 
 /**
@@ -56,20 +55,18 @@ export const LEGACY_FRAMEWORK_PATHS = [
 export const LEGACY_SCRIPTS_DIR = "scripts";
 
 /**
- * Paths the installer NEVER touches once they exist in the consumer.
- * Listed for documentation and `hstack doctor` validation.
+ * Paths the installer NEVER touches once they exist in the consumer — the
+ * engineering memory, which belongs to the repo that wrote it.
+ *
+ * Documentation, not a mechanism: nothing imports this list. The protection is
+ * structural — `update` only ever writes paths in `FRAMEWORK_PATHS`. v0.17
+ * dropped `config.yaml`, `specs/`, `research/`, `telemetry/reports/` and
+ * `kernel-fit/` from it, because naming directories the framework no longer
+ * creates describes a boundary that has moved.
+ *
  * Relative to `<consumer>/hstack/`.
  */
-export const USER_CONTENT_PATHS = [
-  "config.yaml",
-  "context/",
-  "specs/",
-  "adr/",
-  "tech-debt/",
-  "research/",
-  "telemetry/reports/",
-  "kernel-fit/",
-] as const;
+export const USER_CONTENT_PATHS = ["context/", "adr/", "tech-debt/"] as const;
 
 /**
  * Consumer-side wiring under `<consumer>/.claude/` — symlinks pointing into
