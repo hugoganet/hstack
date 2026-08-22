@@ -91,7 +91,7 @@ console.log("description extraction");
 console.log("the current template");
 {
   const all = measureDescriptions("template");
-  check("every skill and agent is scanned", all.length, 12);
+  check("every skill and agent is scanned", all.length, 13);
   check(
     "every scanned file yielded a description",
     all.filter((d) => d.words === 0).map((d) => d.name),
