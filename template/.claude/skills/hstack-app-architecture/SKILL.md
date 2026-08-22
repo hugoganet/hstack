@@ -1,81 +1,57 @@
 ---
 name: hstack-app-architecture
-description: Use to produce or refresh `hstack/context/app-architecture.md` — module map, agent orchestration, deterministic-vs-LLM split, state ownership, surface boundaries. Greenfield Phase 3, the brownfield app-architecture step, or a standalone section refresh.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
-  - Bash
-  - Task
+description: "Use when the application architecture really moves — modules, LLM call sites, state ownership, surfaces, or what a user can reach — to write or refresh `hstack/context/app-architecture.md`, exposure map included."
 ---
 
 ## Purpose
 
-`hstack-app-architecture` is the atom that produces or refreshes `hstack/context/app-architecture.md` via the `app-architect` subagent. The artifact captures the internal architecture in five sections; subsequent module-spec authoring and per-change-spec `surfaces` declarations depend on it.
+`/hstack-app-architecture` writes or refreshes `hstack/context/app-architecture.md`: the module map
+with its exposure column, the agent orchestration model, the deterministic-vs-LLM split, the
+state-ownership map, the surface boundaries. It is what the next session reads to know what exists
+and what a user can reach.
 
-## When to invoke
-
-- Phase 3 of `/hstack:greenfield-init` (elicit mode).
-- Delegated by `/hstack:brownfield-init` mini-session 5b (extract mode).
-- Standalone via `/hstack:app-architecture [--mode extract|elicit] [--section <name>]` for refresh or single-section edits.
-- Routed-into-from-downstream when `/hstack:stack-decide` finds a stack constraint that contradicts the architecture (rare).
+It is not how the doc stays current day to day — a change that adds a route updates the map in its
+own PR, which is the kernel's rule and costs nothing. This Skill is for the moves that rule cannot
+absorb: the first write, a module boundary that no longer matches the code, an exposure map that
+has drifted away from the real routes.
 
 ## Inputs
 
-- `--mode extract | elicit` — defaults: `extract` if a `src/`, `app/`, or `lib/` tree exists in the consuming repo; `elicit` if the repo is empty (greenfield).
-- `--section <name>` — one of `modules | orchestration | split | state | surfaces`. Fast-jumps but re-runs end-of-atom coherence.
+`--section modules | orchestration | split | state | surfaces`, optional — refreshes one section.
 
-## Preconditions
+## Steps
 
-- `hstack/config.yaml` at `init-status: minimal-complete` or later.
-- `hstack/context/product/product-brief.md` and `hstack/context/data-architecture.md` both at `status: current`. App architecture is downstream of both. If either is at non-terminal status, halt with `HSTACK-HALT: reason=upstream-non-terminal`.
-- `hstack/templates/app-architecture.md` present.
-- In extract mode, a source tree (`src/`, `app/`, or `lib/`) is reachable; otherwise halt.
+1. **Extract or elicit.** Extract when a source tree exists; elicit when the repo is empty.
+2. **Invoke `app-architect`** with the material. It reads the tree, drafts each section and
+   challenges it. The questions and the confirmations happen here, in this session — a subagent
+   cannot interview.
+3. **Fill the exposure column in extract mode.** Entry points are enumerable: `app/**/page.tsx` and
+   `app/**/route.ts` for the App Router, files carrying `'use server'` for server actions, plus the
+   job and webhook registrations. Enumerate them, attach each to the module it serves, and ask the
+   engineer for a status per entry point — `live`, `routable` or `off`, as the kernel defines them.
+   A module reached only through another module's entry point names that one instead; a module no
+   live entry point reaches is `dormant`, which is derived and never a fourth status.
+4. **One line the map carries, not this Skill's to restate:** it grades the **product** severity of
+   a finding, never its security severity. Every routable entry point is covered by the kernel's
+   security checklist whatever the map says.
+5. **Each section ends with its drift challenge**, and the answer stays in the doc as evidence the
+   probe ran. A challenge that surfaces a real contradiction stops the section: the engineer
+   revises it, files an ADR, or writes a tech-debt file.
+6. **A section-targeted refresh re-reads the other four challenges** before the PR — a module
+   renamed in Section 1 and left standing in Section 4 is the failure this catches.
 
-## Orchestration steps
+## Output
 
-1. **Detect mode + entry.** Read disk state. If artifact at `current` and no `--section` and no `--force`: print summary, exit no-op.
-2. **Invoke `app-architect` subagent.** Via the Task tool with `subagent_type: app-architect`. Pass mode, optional section, the canonical session-start context. Explicitly DO NOT pass `tech-stack.md` — the architecture is stack-agnostic.
-3. **Walk sections.** The subagent walks all five sections in order in fresh-start mode. Section 3 (Deterministic-vs-LLM Split) is walked per-flow with per-step confirmation; this is the only section with finer-than-section confirmation gates because per-step declarations are too consequential to batch.
-4. **Run drift challenge prompts.** Each section ends with a drift challenge. A real drift halts with `HSTACK-HALT: reason=upstream-drift` and offers (a) revise this section, (b) re-enter the upstream atom (typically `/hstack:data-architecture --section entities` for state-ownership gaps), (c) log as ADR.
-5. **End-of-atom coherence check.** Even on section-targeted entry, the subagent re-runs all five drift challenges before terminal commit.
-6. **Terminal-state side effects (one atomic commit).** When the artifact reaches `status: current`, the Skill performs three mechanical writes in a single commit:
-   - The completed `app-architecture.md`.
-   - One `hstack/specs/<module>/spec.md` stub per module from Section 1 (header sections only, `status: draft`, body note pointing to `/hstack:module-spec`).
-   - `hstack/config.yaml` updated to set the `surfaces` enum to match Section 5.
-   The proposed-diff preview runs before this commit lands per the kernel's mechanical-operations rule.
-
-## Outputs
-
-- `hstack/context/app-architecture.md` at `status: current`.
-- One `hstack/specs/<module>/spec.md` per module at `status: draft`.
-- `hstack/config.yaml` with updated `surfaces` enum.
-- `hstack/.session-state/<session-id>.yaml` (transient).
-
-## Auto-commit triggers
-
-- Each confirmed section writes immediately and auto-commits.
-- Per-flow row in Section 3 commits individually (not full-section batch).
-- Terminal-state side effects (artifact + stubs + config) land in one atomic commit.
-
-## Idempotency contract
-
-- Artifact at `current` + no `--section` + no `--force`: print summary, exit no-op.
-- Artifact at `draft` or partial: resume at next non-confirmed section.
-- Artifact at `needs-refresh`: walk all sections in confirm-or-revise mode.
-- Module-spec stubs at `status: draft`: the atom does NOT overwrite stubs on re-run; if Section 1 added a module on refresh, the new stub lands additively; if Section 1 removed a module, the orphan stub is flagged for engineer review (the engineer either deletes it or routes the deletion through `/hstack:tech-debt-stale`).
+`hstack/context/app-architecture.md`, updated in the PR that changes it. Nothing else: no module
+spec stubs, no config file, no status.
 
 ## Stop conditions
 
-- Product-brief or data-architecture at non-terminal status.
-- A module in Section 1 has no trace to brief or data-architecture entities.
-- A Section 3 flow step has no declared mechanism or no measurable-property rationale.
-- A drift challenge surfaces an unresolved contradiction.
-- Extract mode invoked but no source tree reachable.
+Beyond the kernel's:
 
-## Failure modes
-
-- **Subagent unreachable.** Persist session state; retry later.
-- **Terminal-state side-effect commit fails partway** (e.g., one stub fails validator). The atom rolls back the in-progress write and halts with the validator error; the engineer fixes or routes through `/hstack:configure`. The artifact stays at `current` only when ALL three side effects land successfully.
+- Extract mode was asked for and no source tree is reachable.
+- An entry point's status is a guess. Ask; a wrong `off` is how a live surface stops being reviewed.
+- A step of a flow has no declared mechanism, or a rationale that names no property anyone could
+  disagree with.
+- A drift challenge surfaces a contradiction with `data-architecture.md` — typically a state class
+  with nowhere to live. Surface it; the engineer decides whether the data doc moves.
