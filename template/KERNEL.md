@@ -41,7 +41,7 @@ Announce the perimeter before writing. **Writes are restricted to the announced 
 
 ## Workflow
 
-Branch (never the default branch, one per change) → announce the perimeter → a five-bullet plan in the conversation when it holds more than three files → code and tests → `/wrap` → PR → fast CI green → Hugo reads → merge → `/promote`.
+Branch (never the default branch, one per change) → announce the perimeter → a five-bullet plan in the conversation when it holds more than three files → code and tests → `/wrap` → PR → fast CI green → a human other than the author reads → merge → `/promote`.
 
 | When | Then |
 | --- | --- |
@@ -52,7 +52,7 @@ Branch (never the default branch, one per change) → announce the perimeter →
 | a bug a review missed | an entry in `review-miss.md` |
 | a module's tests look thin | `/test-audit <module>` |
 
-**The PR is the confirmation gate.** Everything the agent decides — a living-doc update, a tech-debt file, a conscious shortcut, an ADR draft — lands in the diff *and* is named in the description.
+**The PR is the confirmation gate.** Everything the agent decides — a living-doc update, a tech-debt file, a conscious shortcut, an ADR draft — lands in the diff *and* is named in the description, which also names the Notion feature it serves, when there is one.
 
 One PR, one intention — a change spanning unrelated modules splits into several. One change, one session — once the PR is open the next starts fresh, and what it needs lives in the PR description or a living doc, never in the conversation.
 
