@@ -705,6 +705,15 @@ export async function executePlan(actions: Action[]): Promise<void> {
         break;
       case "remove-file":
         await fs.remove(a.to);
+        // Removing every SKILL.md under a deleted skill leaves the skill's
+        // directory behind, and an empty `hstack/.claude/skills/hstack-ship/`
+        // reads as a skill that is still installed. `relpath` is a suffix of
+        // `to`, so what precedes it is the consumer's hstack root — the
+        // boundary the prune must not walk past.
+        await pruneEmptyDirs(
+          dirname(a.to),
+          a.to.slice(0, a.to.length - a.relpath.length),
+        );
         break;
       case "symlink": {
         const stat = await lstat(a.to).catch(() => null);
@@ -739,6 +748,22 @@ export async function executePlan(actions: Action[]): Promise<void> {
         await fs.writeFile(a.to, a.version + "\n");
         break;
     }
+  }
+}
+
+/**
+ * Walk up from `dir`, removing directories that came out empty, and stop at
+ * `stopAt` (exclusive) or at the first directory that still holds something.
+ * A directory the engineer dropped a file into is never touched.
+ */
+async function pruneEmptyDirs(dir: string, stopAt: string): Promise<void> {
+  const boundary = resolve(stopAt);
+  let current = resolve(dir);
+  while (current !== boundary && current.startsWith(boundary)) {
+    const entries = await readdir(current).catch(() => null);
+    if (entries === null || entries.length > 0) return;
+    await fs.remove(current);
+    current = dirname(current);
   }
 }
 
