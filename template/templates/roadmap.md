@@ -1,18 +1,12 @@
 ---
-id: roadmap
-type: roadmap
-status: drafted                        # drafted | current | needs-refresh | archived
-owner: <git-handle>
-source: local                          # local | rhizome — who owns the truth; when rhizome, local edits are refused and the sync is authoritative
-reviewed-on: <YYYY-MM-DD>              # planner treats the roadmap as stale beyond 90 days
-created: <YYYY-MM-DD>
-updated: <YYYY-MM-DD>
-schema-version: 1
+reviewed-on: <YYYY-MM-DD>              # past 90 days, treat this roadmap as stale rather than current
 ---
+
+_Advisory only, never a gate (kernel § Context docs). It informs one-way-door decisions and the Forecloses / Enables section of an ADR; it never decides whether a change ships._
 
 ## Now
 
-_What we are committed to shipping. During the MVP phase, Now IS the MVP scope. Each item: one product line, one architectural-implication line. Implications are proposed by app-architect / data-architect and confirmed by the engineer — vague fortune-telling ("might need to scale") is worse than absence._
+_What we are committed to shipping. Each item: one product line, one architectural-implication line. Vague fortune-telling ("might need to scale") is worse than absence._
 
 - <item> — **architectural implication:** <one line>
 
@@ -30,12 +24,12 @@ _Plausible futures. These influence one-way-door decisions ONLY — never day-to
 
 ## Not on the path
 
-_Explicit renouncements, with the reason. Absorbs the old "Deferred" list._
+_Explicit renouncements, with the reason._
 
 - <item> — <why not>
 
 ## Success criteria for the current horizon
 
-_Concrete observable indicators that Now is done and Next gets promoted. Bullets._
+_Concrete observable indicators that Now is done and Next gets promoted._
 
 -

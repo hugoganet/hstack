@@ -1,14 +1,4 @@
----
-id: tech-stack
-type: tech-stack
-status: drafted                        # drafted | current | needs-refresh | archived
-owner: <git-handle>
-created: <YYYY-MM-DD>
-updated: <YYYY-MM-DD>
-schema-version: 1
----
-
-_Each entry below: name, version pin, why. Validator rule TS-01: every named dependency must be present in package.json at the pinned version._
+_Each entry: name, version pin, why. A pinned version is pinned on purpose — never bump one unrequested (kernel § Context docs). An entry named here exists in the manifest at the version named; when it does not, one of the two is wrong and the PR says which._
 
 ## Application
 
@@ -30,7 +20,7 @@ _LLM providers, embedding providers, orchestration libs._
 
 ## Integrations
 
-_Third-party platforms and the protocol layer (OAuth via Pipedream, webhook handlers)._
+_Third-party platforms and the protocol layer (OAuth brokers, webhook handlers)._
 
 -
 

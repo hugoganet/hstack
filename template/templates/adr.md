@@ -1,26 +1,10 @@
----
-id: ADR-<NNNN>-<slug>
-type: adr
-status: proposed                       # proposed | accepted | deprecated | superseded
-owner: <git-handle>
-decision-date: <YYYY-MM-DD>
-supersedes: null                       # ADR id when this ADR replaces another
-superseded-by: null                    # ADR id when this ADR has been replaced; reciprocal with supersedes
-related-change-specs: []
-related-modules: []
-promoted-from-kernel-fit: []           # KF-NNNN ids that motivated this ADR; reciprocal with kernel-fit-finding.promoted-to (KF-04)
-created: <YYYY-MM-DD>
-updated: <YYYY-MM-DD>
-schema-version: 2
----
-
 ## Title
 
 _Short noun phrase._
 
 ## Status
 
-_Pointer to frontmatter `status`. Note any supersession relationship._
+_Accepted on `<YYYY-MM-DD>`. When this ADR replaces another, one line of prose here: `Supersedes ADR-NNNN`. The superseded ADR is not edited — the grep is the link._
 
 ## Context
 
@@ -32,7 +16,7 @@ _The choice, stated as an active sentence. One paragraph._
 
 ## Consequences
 
-_Positive, negative, and neutral outcomes. Particularly the trade-offs accepted. Challenge prompt: name two consequences that look bad. If you can't, what alternative would have made them visible? 2–4 paragraphs._
+_Positive, negative and neutral outcomes, and particularly the trade-off actually accepted. Challenge prompt, mandatory: name two consequences that look bad. If you can't, what alternative would have made them visible?_
 
 ## Alternatives Considered
 
