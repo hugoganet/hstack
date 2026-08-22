@@ -1,115 +1,60 @@
 ---
 name: hstack-adversarial-review
-description: Use only in a fresh Claude Code session — separate from the one that ran the implementer — once `verification.md` is at `passed` and the change is at `ready-for-review`. Orchestrates the `adversarial-reviewer`, which reads the change cold.
-tools:
-  - Read
-  - Write
-  - Edit
-  - Grep
-  - Glob
-  - Bash
-  - Task
-  - "{{TODO-OTHER: fresh-session-attestation — in v1, the subagent self-attests the session is fresh; v2 substrate captures and compares Claude Code session ids automatically}}"
+description: "Use in a fresh session — never the one that wrote the change — to review a PR that touches a sensitive surface. Findings land as a PR comment; the author is the one who fixes them."
 ---
 
 ## Purpose
 
-`hstack-adversarial-review` produces `adversarial-review.md` by orchestrating the `adversarial-reviewer` subagent in a Claude Code session separate from the one that ran the implementer. The subagent reads the change cold, and "no problems" is a claim it has to defend rather than a default it may fall into. In v1, fresh-session separation is honor-system; the Skill's first job is to remind the engineer of that.
+`/hstack-adversarial-review <pr-number>` reads an open PR cold and reports what is wrong, missing,
+drifted or weakened. It orchestrates the `adversarial-reviewer` subagent and posts the findings on
+the PR. It writes no file and changes no code.
 
-Per ADR-0014 the review is not scored on its finding count. `findings-floor` stays in frontmatter as the area's expectation, but nothing gates on it; the one count the artifact must argue for is zero (AR-01).
+Reviews are judgments, not evidence (kernel § Review). An empty findings list means the reviewer
+found nothing, not that nothing is there — which is why an empty result is defended rather than
+returned.
 
 ## When to invoke
 
-Invoke after `verification.md` reaches `status: passed`, in a **fresh Claude Code session**. The Skill opens with a clear instruction to the engineer naming the requirement. If the engineer reports they are in the same session as the implementer, halt and ask them to start a new session.
+On a PR touching one of the sensitive surfaces the kernel § Review names. Every PR already gets
+`/review` and `/security-review` through `/wrap`; this is the deep pass on top, and its whole value
+is that the session running it never saw the change being written.
 
-## Inputs
+**In a fresh session.** State it in one sentence before starting — "this session has not seen the
+implementation conversation" — and if that is not true, stop and open a new one. This is
+honor-system, as the kernel says; a sentence is the whole protocol.
 
-- `<change-id>` (required, positional): the change-spec id.
+## Steps
 
-## Preconditions
+1. **Load the change.** `gh pr view <n>` for the description, `gh pr diff <n>` for the diff, plus
+   the base commit so pre-existing files can be diffed. Read the living docs the diff touches,
+   `hstack/context/invariants.md`, and the frozen `threat-model.md`. Do not load, ask for, or
+   reconstruct the conversation that produced the change.
+2. **Invoke `adversarial-reviewer`** with that material. The subagent sweeps six lenses and returns
+   findings; it does not resolve them and does not touch the code.
+3. **The test-immutability audit is mandatory** and is not subject to anyone's judgment about
+   whether it is worth filing. Every test file that existed at the base is diffed; a modification
+   or deletion without its canonical authorization echo — `Ok to change test <name>` /
+   `Ok to delete test <name>`, in a commit message or the PR description — is a finding at `high`
+   minimum. A bulk snapshot update is `critical`.
+4. **Post the findings** with `gh pr comment <n>`, or as a GitHub review when they are anchored to
+   lines. Each finding carries a severity, a category, the evidence in the diff, and what would
+   resolve it.
+5. **Resolution belongs to the author**: a corrective commit on the branch, or a tech-debt file
+   written in the same PR (kernel § Tech-debt). The reviewer never pushes the fix.
 
-Before any work:
+## Output
 
-- **Fresh-session attestation.** The Skill's first action is to print: "This Skill must run in a Claude Code session separate from the one that ran `hstack-implement`. The kernel's authoring-and-review-never-share-a-session principle is honor-system in v1; v2 substrate will verify via session-id comparison. Confirm you are in a fresh session before I proceed." Halt until the engineer confirms.
-- Verify the change-spec exists and is at `status: ready-for-review`.
-- Verify every required upstream artifact is at terminal status:
-  - test-plan at `passed` or `concerns-acknowledged`
-  - plan at `completed`
-  - security-review at `passed` or `concerns-acknowledged`
-  - data-review at `passed` or `concerns-acknowledged` when applicable
-  - ui-brief at `drafted` and figma-handoff at `ready` when applicable
-  - verification at `passed`
-- Set `findings-floor`: 3 default; 5 when `change-spec.area` is in {agent, auth, billing} per AR-06. It is recorded, not enforced.
-
-## Orchestration steps
-
-1. **Open with the fresh-session reminder.** Print the message verbatim; wait for the engineer's confirmation.
-
-2. **Invoke `adversarial-reviewer`.** Use the Task tool with `subagent_type: adversarial-reviewer` and context = [kernel, change-spec, plan, test-plan, ui-brief and figma-handoff when present, security-review, data-review when present, verification, full diff, module-spec, threat-model, hardening-checklist, data-architecture, tech-stack]. Explicitly NOT included: any implementer conversation transcript or scratchpad.
-
-3. **Findings generation across six categories.** The subagent sweeps security, scope-drift, invariant-breach, spec-compliance, data-integrity, and code-quality and reports what the sweep found — the categories are lenses, not buckets, and a change whose risk genuinely lives in one dimension produces findings in one category. `references/finding-categories.md`, alongside this file, is the calibration rubric (what each category means, what a real finding looks like, what filler looks like); the subagent reads it on demand, not on every run. Test-plan adherence is a first-class lens: missing edge-case tests surface as spec-compliance findings; missing tenant-isolation tests surface as data-integrity findings; unmet performance budgets surface as code-quality or data-integrity findings depending on cause; unmapped invariants in `verification.test-plan-coverage` surface as spec-compliance findings. **Test-immutability audit:** the subagent diffs every pre-existing test file against the branch base; any modification, deletion, or snapshot update without a matching `Ok to change/delete/update/refresh ...` authorization echo in a commit message is a mandatory finding under spec-compliance at minimum `severity: high`. Bulk snapshot-update flags visible in the diff or in CI logs escalate to `severity: critical`. This audit is mandatory and is not subject to the subagent's judgment about whether the finding is worth filing.
-
-4. **The empty result is the one the artifact defends.** Per AR-01, a review that reaches `findings-open` or `findings-resolved` with an empty `findings` array must set `findings-fewer-than-floor: true` and write a defended `justification-when-fewer` plus a filled Findings Floor Justification section, enumerating what was looked for and why each sweep came back clean. "The change is small" alone is insufficient. Any count above zero passes AR-01.
-
-5. **Resolution discipline.** Each finding's `resolution` is one of:
-   - `commit:<hash>` — must reference an existing commit on the change's branch (AR-04).
-   - `tech-debt:<id>` — must reference an existing tech-debt artifact at `open` or `in-progress` (AR-05). When the engineer chooses this path, they invoke `hstack-tech-debt-new` to create the tech-debt artifact before this review terminates.
-   - `justified-in-prose` — reserved for low-severity findings only. High-severity findings routed to `justified-in-prose` halt the Skill.
-
-6. **Fresh-session attestation in frontmatter.** The subagent writes `fresh-session-attestation: "session <id>; opened <timestamp>; no prior implementer context loaded"`. v1 records this as honor-system text; v2 substrate captures the actual session id from Claude Code's session file.
-
-7. **Findings-open is non-terminal.** The subagent does not advance `status: findings-resolved` until every finding has `status: resolved` and a `resolution` value.
-
-8. **Owner response loop.** For each finding, the engineer (the change owner) responds with a resolution. The Resolution Log section records each response. The Skill walks the engineer through every finding sequentially.
-
-## Outputs
-
-- `hstack/specs/changes/<change-id>/adversarial-review.md` at `status: findings-resolved`.
-- When `adversarial-review.md` lands at `findings-resolved` and the change-spec was at `ready-for-review`: an edit to `hstack/specs/changes/<change-id>/spec.md` advancing `status: ready-for-review → ready-to-ship` and bumping `updated:` (per ADR-0002, written by the Skill orchestrator).
-- Optional new tech-debt artifacts produced via `hstack-tech-debt-new` invocations when findings route to `tech-debt:<id>`.
-- Optional new commits on the change's branch when findings route to `commit:<hash>` and the implementer is re-invoked (separately, via `hstack-implement`) to make the fix.
-
-## Auto-commit triggers
-
-- Status transition to `in-progress` after Methodology lands.
-- Status transition to `findings-open` after all findings are written.
-- Status transition to `findings-resolved` when every finding has `status: resolved`.
-- Edits to the `findings` array.
-- Edits to any finding's `resolution`.
-- **Change-spec status transition `ready-for-review` → `ready-to-ship`** (per ADR-0002, Skill-orchestrator write). When `adversarial-review.md` reaches `findings-resolved`, the Skill orchestrator performs the change-spec advance directly via `Edit` (orchestration step 10), in a separate auto-commit with message `change-spec(<change-id>): ready-to-ship`. The change-spec becomes eligible for `hstack-ship` only after this commit lands. `hstack-ship` itself remains read-only across artifact statuses — it reads the already-written `ready-to-ship` and computes the merge-readiness scorecard. The `adversarial-reviewer` subagent does not write this transition; it stays in its critique-only lane.
-
-## Session boundary
-
-`adversarial-review` is a natural session cut: the auto-commit above left `adversarial-review.md` at its terminal status on disk, so the conversation holds nothing the next phase needs. The cut-notice format, the kickoff-prompt template and the context-block rules are in `KERNEL.md` § Session boundaries; this Skill's two variables are:
-
-```
-HSTACK-CUT: adversarial-review complete — cut recommended before ship.
-```
-
-and the next command, `/hstack:ship <change-id>`.
-
-## Idempotency contract
-
-- Re-running on a `findings-resolved` review: the subagent reads the existing artifact and produces a no-op aside from `updated` timestamps, unless new code or artifacts have landed since the prior run (in which case new findings may be generated and the status drops back to `findings-open`).
-- Re-running mid-resolution after a halt: the subagent reads the partial artifact and resumes with the first finding still at `status: open`.
-- The change-spec advance step (step 10) is idempotent: a re-run against a change-spec already at `ready-to-ship` (or `shipped`, `archived`) produces a no-op for that step. The Skill does not re-advance and does not regress.
+One PR comment. No artifact, no status, no file in the repo.
 
 ## Stop conditions
 
-Beyond the kernel's general stop conditions:
+Beyond the kernel's:
 
-- Engineer has not confirmed they are in a fresh Claude Code session.
-- A required upstream artifact is non-terminal.
-- A high-severity security or tenant-isolation finding would route to `justified-in-prose`. Halt.
-- A `commit:<hash>` resolution would reference a commit not on the change's branch.
-- A `tech-debt:<id>` resolution would reference a non-existent tech-debt artifact (the engineer must invoke `hstack-tech-debt-new` first).
-- The review found nothing and the empty-result defence cannot be written honestly. Halt and surface; a defence nobody believes is worse than an open review.
-- The diff includes changes outside `change-spec.in-scope` that CI did not catch — surface a scope-drift finding and halt the CI gap as a separate concern.
-- An implementer transcript or scratchpad is visible in the session.
-
-## Failure modes
-
-- **Engineer claims fresh session but conversation shows prior implementer transcripts.** Halt; ask the engineer to truly start a new session.
-- **The review comes back empty and the defence feels thin.** Walk the six categories against `references/finding-categories.md` once more; if the sweep is still clean, the empty result is defended explicitly and on the record, not waved through.
-- **A finding routes to `tech-debt:<id>` but the engineer hasn't created the tech-debt artifact.** The Skill prompts to invoke `hstack-tech-debt-new`; the review does not terminate until the artifact exists.
-- **A commit hash named in `resolution` does not exist on the change's branch.** Halt — the engineer either re-references the correct commit or the resolution is reconsidered.
+- The session has seen the implementation conversation. Halt and ask for a fresh one.
+- The PR cannot be read, or its diff is unavailable.
+- A living doc the review depends on is missing or stale. Say so in the findings; never invent its
+  content (kernel § Context docs).
+- The sweep came back empty and the defence cannot be written honestly. Halt and surface it — a
+  defence nobody believes is worse than an open review.
+- A high-severity finding is waved away without a fix or a tech-debt file. Do not silently retract:
+  restate it with the evidence, and leave it in the comment.
