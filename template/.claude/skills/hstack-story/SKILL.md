@@ -1,5 +1,5 @@
 ---
-name: hstack-story-draft
+name: hstack-story
 description: "Use when a user-facing change needs a story drafted or refined against an existing persona. Conditional — skipped when the parent change-spec is `internal-tooling: true` or has a non-empty `enables` array."
 tools:
   - Read
