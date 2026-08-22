@@ -3,7 +3,11 @@ import { resolve, relative, dirname, join } from "node:path";
 import { readdir, symlink, readlink, lstat, unlink } from "node:fs/promises";
 import { diffFramework } from "./diff.js";
 import { gitMove } from "./git.js";
-import { FRAMEWORK_PATHS } from "../manifest.js";
+import {
+  FRAMEWORK_PATHS,
+  LEGACY_FRAMEWORK_PATHS,
+  LEGACY_SCRIPTS_DIR,
+} from "../manifest.js";
 
 /**
  * ADR-0010: the consumer-side kernel lives at `hstack/KERNEL.md`, not
@@ -36,25 +40,18 @@ export const LEGACY_KERNEL_IMPORT_PROBE = "@hstack/CLAUDE.md";
  */
 export const LEGACY_KERNEL_PATH_PROBE = "hstack/CLAUDE.md";
 
-export const GITIGNORE_TELEMETRY_LINE = "**/.telemetry/";
-export const GITIGNORE_KERNEL_FIT_FLAGS_LINE = "hstack/kernel-fit/flags/";
 export const GITIGNORE_SESSION_STATE_LINE = "hstack/.session-state/";
 
 /**
- * Coord-notification hooks (ADR-0007): the harness runs the coord scan at
- * SessionStart and on every UserPromptSubmit, injecting a count-only pointer
- * line when unread coord-messages exist and nothing otherwise. The command
- * targets the consumer's own committed copy of the script; `hook` mode always
- * exits 0 so a coordination failure can never break a prompt.
+ * The coord-notification hooks (ADR-0007) the installer wired into consumers
+ * before v0.17 — a coord scan at SessionStart and on every UserPromptSubmit.
+ * The machinery they called is gone, so `hstack update` removes them.
+ *
+ * This probe is the ownership boundary, and it is deliberately narrow: hstack
+ * removes a hook entry only when its command names hstack's own coord script.
+ * Everything else in `.claude/settings.json` belongs to the engineer.
  */
-export const COORD_HOOK_COMMAND =
-  'python3 "$CLAUDE_PROJECT_DIR"/hstack/scripts/coord/coord_scan.py hook';
-/** Idempotency probe: any existing hook command containing this substring
- *  counts as "already wired" (survives cosmetic command edits). */
 export const COORD_HOOK_PROBE = "scripts/coord/coord_scan.py";
-export const COORD_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit"] as const;
-/** Generous cap for branch-heavy machines; the scan is typically <1s. */
-export const COORD_HOOK_TIMEOUT_S = 15;
 
 export type Action =
   | { kind: "copy-template"; from: string; to: string }
@@ -80,12 +77,26 @@ export type Action =
   | { kind: "write-version"; to: string; version: string }
   | {
       /**
-       * Merge the coord-notification hook entries (ADR-0007) into the
-       * consumer's .claude/settings.json. Merge-only: engineer-owned keys are
-       * preserved verbatim; only missing hstack hook entries are appended.
+       * v0.17: remove the coord-notification hook entries (ADR-0007) the
+       * installer put in the consumer's .claude/settings.json. Removal-only,
+       * and only for entries whose command names hstack's coord script;
+       * engineer-owned keys are preserved verbatim. An unparseable file is
+       * surfaced and skipped, never rewritten.
        */
-      kind: "merge-hooks";
+      kind: "remove-coord-hooks";
       file: string;
+    }
+  | {
+      /**
+       * v0.17: remove the pre-v0.17 framework paths listed in
+       * LEGACY_FRAMEWORK_PATHS, then `hstack/scripts/` itself if nothing else
+       * is left in it. Carries the concrete paths found on disk, so the plan
+       * shows what will go and the action is a no-op by construction once it
+       * has run.
+       */
+      kind: "remove-legacy-paths";
+      consumerRoot: string;
+      relpaths: string[];
     }
   | {
       /**
@@ -147,26 +158,7 @@ export async function planInit(
     matchOn: KERNEL_IMPORT_PROBE,
   });
 
-  // 5. Append telemetry gitignore line (create if missing)
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_TELEMETRY_LINE,
-    createIfMissing: true,
-  });
-
-  // 5b. Append kernel-fit flags gitignore line (per ADR-0005 — pins are
-  // derivative signal, mirroring the `.telemetry/` decision in ADR-0004).
-  // Findings under hstack/kernel-fit/findings/ remain committed; only the
-  // flags/ subtree is gitignored.
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
-    createIfMissing: true,
-  });
-
-  // 5c. Append session-state gitignore line. The kernel's Resumability section
+  // 5. Append session-state gitignore line. The kernel's Resumability section
   // declared hstack/.session-state/ git-ignored, but the installer never wired
   // it until ADR-0006 (the coord ack cursor made the gap load-bearing) — repos
   // installed before this may have committed session-state files; `hstack
@@ -176,15 +168,6 @@ export async function planInit(
     file: resolve(consumerRoot, ".gitignore"),
     line: GITIGNORE_SESSION_STATE_LINE,
     createIfMissing: true,
-  });
-
-  // 5d. Merge the coord-notification hook entries into .claude/settings.json
-  // (per ADR-0007 — sessions get alerted about unread coord-messages without
-  // the engineer hand-carrying the nudge). Merge-only; engineer-owned settings
-  // are never touched.
-  actions.push({
-    kind: "merge-hooks",
-    file: resolve(consumerRoot, ".claude", "settings.json"),
   });
 
   // 6. Stamp the installed-version marker so update can compare later.
@@ -216,6 +199,14 @@ export async function planUpdate(
   //    afterwards would leave the repo with two import lines.
   if (kernelFilenameNeedsMigration(await kernelFilenameState(consumerRoot))) {
     actions.push({ kind: "migrate-kernel-filename", consumerRoot });
+  }
+
+  // 0b. v0.17 legacy paths. Planned before the file diff for the same reason
+  //     the rename is: these paths left FRAMEWORK_PATHS, so the diff below is
+  //     blind to them and only this action can take them back.
+  const legacyRelpaths = await legacyPathsPresent(consumerRoot);
+  if (legacyRelpaths.length > 0) {
+    actions.push({ kind: "remove-legacy-paths", consumerRoot, relpaths: legacyRelpaths });
   }
 
   // 1. File-level diff for framework paths.
@@ -271,23 +262,11 @@ export async function planUpdate(
     matchOn: KERNEL_IMPORT_PROBE,
   });
 
-  // 5. .gitignore telemetry line — idempotent re-check.
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_TELEMETRY_LINE,
-    createIfMissing: true,
-  });
-
-  // 5b. .gitignore kernel-fit flags line — idempotent re-check (per ADR-0005).
-  actions.push({
-    kind: "append-line",
-    file: resolve(consumerRoot, ".gitignore"),
-    line: GITIGNORE_KERNEL_FIT_FLAGS_LINE,
-    createIfMissing: true,
-  });
-
-  // 5c. .gitignore session-state line — idempotent re-check (per ADR-0006).
+  // 5. .gitignore session-state line — idempotent re-check (per ADR-0006).
+  //    The `**/.telemetry/` and `hstack/kernel-fit/flags/` lines this used to
+  //    add are gone with their producers. Lines already in a consumer's
+  //    .gitignore stay: hstack never edits an engineer's file to unsay
+  //    something it once said.
   actions.push({
     kind: "append-line",
     file: resolve(consumerRoot, ".gitignore"),
@@ -295,9 +274,9 @@ export async function planUpdate(
     createIfMissing: true,
   });
 
-  // 5d. Coord-notification hooks — idempotent re-check (per ADR-0007).
+  // 5b. Coord-notification hooks — removed, not merged (v0.17).
   actions.push({
-    kind: "merge-hooks",
+    kind: "remove-coord-hooks",
     file: resolve(consumerRoot, ".claude", "settings.json"),
   });
 
@@ -402,87 +381,146 @@ async function migrateKernelFilename(consumerRoot: string): Promise<void> {
 }
 
 /**
- * Where the coord hook entries stand in a consumer's .claude/settings.json.
- * - "present": both event entries wired — nothing to do.
- * - "missing": file absent, or parseable but lacking at least one entry.
- * - "invalid": file exists but is not a JSON object, or a hooks key has an
- *   unexpected shape. Never merged into — surfaced as a blocker instead,
- *   because silently rewriting an engineer's malformed settings file is how
- *   configuration gets lost.
+ * Which of the pre-v0.17 framework paths are still on disk in this consumer.
+ * Returns paths relative to `<consumer>/hstack/`, in manifest order.
  */
-export type CoordHooksState = "present" | "missing" | "invalid";
+export async function legacyPathsPresent(consumerRoot: string): Promise<string[]> {
+  const hstackDir = resolve(consumerRoot, "hstack");
+  const present: string[] = [];
+  for (const rel of LEGACY_FRAMEWORK_PATHS) {
+    if (await fs.pathExists(resolve(hstackDir, rel))) present.push(rel);
+  }
+  return present;
+}
 
-function eventHasCoordHook(hooks: unknown, event: string): boolean {
-  if (typeof hooks !== "object" || hooks === null) return false;
-  const matchers = (hooks as Record<string, unknown>)[event];
-  if (!Array.isArray(matchers)) return false;
-  return matchers.some((m) => {
-    const inner = (m as { hooks?: unknown } | null)?.hooks;
-    if (!Array.isArray(inner)) return false;
-    return inner.some(
-      (h) =>
-        typeof (h as { command?: unknown } | null)?.command === "string" &&
-        ((h as { command: string }).command).includes(COORD_HOOK_PROBE),
-    );
-  });
+/**
+ * Remove the pre-v0.17 paths, then `hstack/scripts/` if it came out empty.
+ *
+ * `fs.remove` is a no-op on a path that is already gone, so a re-run after a
+ * partial failure finishes the job rather than erroring.
+ */
+async function removeLegacyPaths(
+  consumerRoot: string,
+  relpaths: string[],
+): Promise<void> {
+  const hstackDir = resolve(consumerRoot, "hstack");
+  for (const rel of relpaths) {
+    await fs.remove(resolve(hstackDir, rel));
+  }
+  const scriptsDir = resolve(hstackDir, LEGACY_SCRIPTS_DIR);
+  if (await fs.pathExists(scriptsDir)) {
+    const left = await readdir(scriptsDir).catch(() => null);
+    if (left !== null && left.length === 0) await fs.remove(scriptsDir);
+  }
+}
+
+/**
+ * Where the coord hook entries stand in a consumer's .claude/settings.json.
+ * - "present": at least one hstack-owned coord hook entry is still wired.
+ * - "absent": file missing, or parseable with no hstack coord hook left.
+ * - "invalid": file exists but is not a JSON object, or a hooks key has an
+ *   unexpected shape. Never written to — surfaced instead, because silently
+ *   rewriting an engineer's malformed settings file is how configuration
+ *   gets lost.
+ */
+export type CoordHooksState = "present" | "absent" | "invalid";
+
+/** True when this hook command is one hstack installed and therefore owns. */
+function isCoordHookCommand(h: unknown): boolean {
+  const command = (h as { command?: unknown } | null)?.command;
+  return typeof command === "string" && command.includes(COORD_HOOK_PROBE);
+}
+
+function matcherHasCoordHook(matcher: unknown): boolean {
+  const inner = (matcher as { hooks?: unknown } | null)?.hooks;
+  return Array.isArray(inner) && inner.some(isCoordHookCommand);
+}
+
+/** Parse the settings file, or say why it cannot be touched. */
+async function readSettings(
+  file: string,
+): Promise<{ ok: true; settings: Record<string, unknown> } | { ok: false }> {
+  if (!(await fs.pathExists(file))) return { ok: true, settings: {} };
+  let parsed: unknown;
+  try {
+    const raw = await fs.readFile(file, "utf8");
+    parsed = raw.trim() === "" ? {} : JSON.parse(raw);
+  } catch {
+    return { ok: false };
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false };
+  }
+  const hooks = (parsed as Record<string, unknown>).hooks;
+  if (
+    hooks !== undefined &&
+    (typeof hooks !== "object" || hooks === null || Array.isArray(hooks))
+  ) {
+    return { ok: false };
+  }
+  return { ok: true, settings: parsed as Record<string, unknown> };
 }
 
 export async function coordHooksState(file: string): Promise<CoordHooksState> {
-  if (!(await fs.pathExists(file))) return "missing";
-  let settings: unknown;
-  try {
-    const raw = await fs.readFile(file, "utf8");
-    settings = raw.trim() === "" ? {} : JSON.parse(raw);
-  } catch {
-    return "invalid";
+  const read = await readSettings(file);
+  if (!read.ok) return "invalid";
+  const hooks = read.settings.hooks as Record<string, unknown> | undefined;
+  if (!hooks) return "absent";
+  for (const matchers of Object.values(hooks)) {
+    if (!Array.isArray(matchers)) return "invalid";
+    if (matchers.some(matcherHasCoordHook)) return "present";
   }
-  if (typeof settings !== "object" || settings === null || Array.isArray(settings)) {
-    return "invalid";
-  }
-  const hooks = (settings as Record<string, unknown>).hooks;
-  if (hooks !== undefined && (typeof hooks !== "object" || hooks === null || Array.isArray(hooks))) {
-    return "invalid";
-  }
-  for (const event of COORD_HOOK_EVENTS) {
-    const matchers = hooks ? (hooks as Record<string, unknown>)[event] : undefined;
-    if (matchers !== undefined && !Array.isArray(matchers)) return "invalid";
-    if (!eventHasCoordHook(hooks, event)) return "missing";
-  }
-  return "present";
+  return "absent";
 }
 
-async function mergeCoordHooks(file: string): Promise<void> {
-  const state = await coordHooksState(file);
-  if (state === "present") return;
-  if (state === "invalid") {
+/**
+ * Take back the coord hook entries hstack installed (ADR-0007), and nothing
+ * else. A matcher is dropped only once its own `hooks` array is empty, an event
+ * only once it has no matchers left, and the `hooks` key only once it is empty
+ * — an engineer's SessionStart hook sitting next to hstack's survives all
+ * three. Everything outside `hooks` is untouched.
+ */
+async function removeCoordHooks(file: string): Promise<void> {
+  const read = await readSettings(file);
+  if (!read.ok) {
     // Never rewrite an unparseable engineer-owned file, and never abort the
     // rest of the plan over it — warn and let `hstack doctor` keep flagging it.
     console.error(
-      `hstack: skipped coord notification hooks — ${file} is not a parseable JSON settings object. Fix it, then re-run \`npx hstack update\`.`,
+      `hstack: left the coord notification hooks in place — ${file} is not a parseable JSON settings object. Remove the \`${COORD_HOOK_PROBE}\` entries by hand.`,
     );
     return;
   }
-  let settings: Record<string, unknown> = {};
-  if (await fs.pathExists(file)) {
-    const raw = await fs.readFile(file, "utf8");
-    if (raw.trim() !== "") settings = JSON.parse(raw);
+  const settings = read.settings;
+  const hooks = settings.hooks as Record<string, unknown> | undefined;
+  if (!hooks) return;
+
+  let removed = 0;
+  for (const [event, matchers] of Object.entries(hooks)) {
+    if (!Array.isArray(matchers)) continue;
+    const keptMatchers: unknown[] = [];
+    for (const matcher of matchers) {
+      if (!matcherHasCoordHook(matcher)) {
+        keptMatchers.push(matcher);
+        continue;
+      }
+      const inner = (matcher as { hooks: unknown[] }).hooks;
+      const keptInner = inner.filter((h) => !isCoordHookCommand(h));
+      removed += inner.length - keptInner.length;
+      if (keptInner.length > 0) {
+        keptMatchers.push({ ...(matcher as object), hooks: keptInner });
+      }
+    }
+    if (keptMatchers.length > 0) hooks[event] = keptMatchers;
+    else delete hooks[event];
   }
-  const hooks = (settings.hooks ??= {}) as Record<string, unknown>;
-  for (const event of COORD_HOOK_EVENTS) {
-    if (eventHasCoordHook(hooks, event)) continue;
-    const matchers = (hooks[event] ??= []) as unknown[];
-    matchers.push({
-      hooks: [
-        {
-          type: "command",
-          command: COORD_HOOK_COMMAND,
-          timeout: COORD_HOOK_TIMEOUT_S,
-        },
-      ],
-    });
-  }
+  if (removed === 0) return;
+  if (Object.keys(hooks).length === 0) delete settings.hooks;
+
   await fs.ensureDir(dirname(file));
   await fs.writeFile(file, JSON.stringify(settings, null, 2) + "\n");
+  console.error(
+    `hstack: removed ${removed} coord notification hook ${removed === 1 ? "entry" : "entries"} from ${file} (ADR-0007 machinery removed in v0.17).`,
+  );
 }
 
 /**
@@ -530,9 +568,9 @@ export async function pruneNoopActions(
         const cur = (await fs.readFile(a.to, "utf8")).trim();
         if (cur === packageVersion) continue;
       }
-    } else if (a.kind === "merge-hooks") {
-      // "invalid" is kept so validatePlan / doctor can surface it.
-      if ((await coordHooksState(a.file)) === "present") continue;
+    } else if (a.kind === "remove-coord-hooks") {
+      // "invalid" is kept so doctor can surface it.
+      if ((await coordHooksState(a.file)) === "absent") continue;
     }
     out.push(a);
   }
@@ -584,8 +622,12 @@ export function renderPlan(actions: Action[], consumerRoot: string): string {
           return `  unlink ${rel(a.to, consumerRoot)}`;
         case "append-line":
           return `  check  ${rel(a.file, consumerRoot)}  (idempotent append)`;
-        case "merge-hooks":
-          return `  hooks  ${rel(a.file, consumerRoot)}  (coord notification hooks, ADR-0007)`;
+        case "remove-coord-hooks":
+          return `  hooks  ${rel(a.file, consumerRoot)}  (remove the coord notification hooks, ADR-0007)`;
+        case "remove-legacy-paths":
+          return a.relpaths
+            .map((r) => `  rm     hstack/${r}  (removed in v0.17)`)
+            .join("\n");
         case "migrate-kernel-filename":
           return `  move   hstack/${LEGACY_KERNEL_FILENAME} -> hstack/${KERNEL_FILENAME} + CLAUDE.md import line  (ADR-0010)`;
         case "write-version":
@@ -636,7 +678,7 @@ export async function validatePlan(actions: Action[]): Promise<string[]> {
         }
       }
     }
-    if (a.kind === "merge-hooks") {
+    if (a.kind === "remove-coord-hooks") {
       if ((await coordHooksState(a.file)) === "invalid") {
         blockers.push(
           `${a.file} exists but is not a parseable JSON settings object (or its hooks key has an unexpected shape). ` +
@@ -663,6 +705,15 @@ export async function executePlan(actions: Action[]): Promise<void> {
         break;
       case "remove-file":
         await fs.remove(a.to);
+        // Removing every SKILL.md under a deleted skill leaves the skill's
+        // directory behind, and an empty `hstack/.claude/skills/hstack-ship/`
+        // reads as a skill that is still installed. `relpath` is a suffix of
+        // `to`, so what precedes it is the consumer's hstack root — the
+        // boundary the prune must not walk past.
+        await pruneEmptyDirs(
+          dirname(a.to),
+          a.to.slice(0, a.to.length - a.relpath.length),
+        );
         break;
       case "symlink": {
         const stat = await lstat(a.to).catch(() => null);
@@ -683,8 +734,11 @@ export async function executePlan(actions: Action[]): Promise<void> {
       case "append-line":
         await appendLineIdempotent(a.file, a.line, a.createIfMissing, a.matchOn);
         break;
-      case "merge-hooks":
-        await mergeCoordHooks(a.file);
+      case "remove-coord-hooks":
+        await removeCoordHooks(a.file);
+        break;
+      case "remove-legacy-paths":
+        await removeLegacyPaths(a.consumerRoot, a.relpaths);
         break;
       case "migrate-kernel-filename":
         await migrateKernelFilename(a.consumerRoot);
@@ -694,6 +748,22 @@ export async function executePlan(actions: Action[]): Promise<void> {
         await fs.writeFile(a.to, a.version + "\n");
         break;
     }
+  }
+}
+
+/**
+ * Walk up from `dir`, removing directories that came out empty, and stop at
+ * `stopAt` (exclusive) or at the first directory that still holds something.
+ * A directory the engineer dropped a file into is never touched.
+ */
+async function pruneEmptyDirs(dir: string, stopAt: string): Promise<void> {
+  const boundary = resolve(stopAt);
+  let current = resolve(dir);
+  while (current !== boundary && current.startsWith(boundary)) {
+    const entries = await readdir(current).catch(() => null);
+    if (entries === null || entries.length > 0) return;
+    await fs.remove(current);
+    current = dirname(current);
   }
 }
 

@@ -136,7 +136,7 @@ that the implementation cannot meet as written.
 
 **Filler looks like.** Naming preferences. Suggested comments. Requests to
 extract a function that is used once. Anything a formatter or a linter would
-have said, since `run-gates.sh` already ran.
+have said.
 
 **Severity.** `low` or `medium`. A `code-quality` finding at `high` is usually
 mis-categorized — look again at whether it is really `invariant-breach` or

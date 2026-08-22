@@ -221,20 +221,31 @@ export async function runDoctor(opts: DoctorOptions): Promise<number> {
     });
   }
 
-  // merge-hooks actions survive pruneNoopActions when the coord notification
-  // hooks are missing from .claude/settings.json, or when that file is
-  // unparseable (which update refuses to touch).
-  const hookActions = actions.filter((a) => a.kind === "merge-hooks");
+  // Leftovers from before v0.17: the coord hooks in .claude/settings.json and
+  // the framework paths that left FRAMEWORK_PATHS with their machinery. Both
+  // survive pruneNoopActions only while they are still on disk.
+  const hookActions = actions.filter((a) => a.kind === "remove-coord-hooks");
   for (const a of hookActions) {
-    const m = a as Extract<Action, { kind: "merge-hooks" }>;
+    const m = a as Extract<Action, { kind: "remove-coord-hooks" }>;
     const state = await coordHooksState(m.file);
     findings.push({
-      level: "error",
-      category: "hooks",
+      level: state === "invalid" ? "error" : "warn",
+      category: "coord-hooks",
       message:
         state === "invalid"
-          ? `.claude/settings.json is not a parseable JSON settings object — coord notification hooks cannot be wired (ADR-0007)`
-          : `.claude/settings.json is missing the coord notification hooks (ADR-0007)`,
+          ? `.claude/settings.json is not a parseable JSON settings object — hstack will not touch it; remove the coord notification hook entries by hand (ADR-0007, removed in v0.17)`
+          : `.claude/settings.json still carries the coord notification hooks (ADR-0007, removed in v0.17) — fix: \`npx hstack update\``,
+    });
+  }
+
+  const legacyActions = actions.filter((a) => a.kind === "remove-legacy-paths");
+  for (const a of legacyActions) {
+    const m = a as Extract<Action, { kind: "remove-legacy-paths" }>;
+    findings.push({
+      level: "warn",
+      category: "legacy-paths",
+      message: `${m.relpaths.length} pre-v0.17 framework path(s) still under hstack/ — fix: \`npx hstack update\``,
+      detail: opts.verbose ? m.relpaths.map((r) => `    hstack/${r}`).join("\n") : undefined,
     });
   }
 

@@ -30,10 +30,9 @@
   "scripts": {
     "build": "tsc",
     "pretest": "npm run build",
-    "test": "node scripts/test-validate-spec.mjs && node scripts/test-merge-readiness.mjs && node scripts/test-run-gates.mjs && node scripts/test-description-budget.mjs",
+    "test": "node scripts/test-description-budget.mjs",
     "dev": "tsx src/cli.ts",
-    "clean:pyc": "find template -type d -name __pycache__ -prune -exec rm -rf {} + ; find template -name '*.pyc' -delete",
-    "prepack": "npm run build && npm run clean:pyc",
+    "prepack": "npm run build",
     "prepublishOnly": "npm run build"
   },
   "engines": {

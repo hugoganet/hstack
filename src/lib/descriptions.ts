@@ -33,28 +33,21 @@ export const WORD_BUDGET = 40;
 export const CHAR_BUDGET = 300;
 
 /**
- * Named carve-outs. ADR-0011 § Named carve-outs grants three, but only the
- * first needs a larger budget in practice:
+ * Named carve-outs. Empty since v0.17.
  *
- *   `hstack-coord` — the only description that routes with no human typing
- *   anything. ADR-0007's hooks inject `HSTACK-COORD: N unread …` and the model
- *   must invoke `check` mode on sight; that sentence plus the four-mode list
- *   is load-bearing routing, not documentation. 84 words today.
- *
- * The other two carve-outs (confusable families, status preconditions stated
- * as triggers) buy a clause, not a budget — every file in those families is
- * already under 40 words. They are not listed here because listing them would
- * exempt files that do not need exempting.
+ * ADR-0011 § Named carve-outs grants three, and only one ever needed a larger
+ * budget: `hstack-coord`, the single description that routed with no human
+ * typing anything — ADR-0007's hooks injected `HSTACK-COORD: N unread …` and
+ * the model had to invoke `check` mode on sight. v0.17 removed coord, and with
+ * it the only description that could argue for the exemption. The other two
+ * carve-outs (confusable families, status preconditions stated as triggers)
+ * always bought a clause rather than a budget: every file in those families is
+ * under 40 words.
  *
  * An entry here is a decision with a reason, not a snooze. Adding one means
  * arguing that the description does routing work no body can do.
  */
-export const BUDGET_CARVE_OUTS: ReadonlyMap<string, string> = new Map([
-  [
-    "hstack-coord",
-    "autonomous invocation — the HSTACK-COORD pointer line is the framework's only non-typed routing trigger (ADR-0007, ADR-0011 carve-out 1)",
-  ],
-]);
+export const BUDGET_CARVE_OUTS: ReadonlyMap<string, string> = new Map();
 
 export interface DescriptionOverBudget {
   /** `hstack-ship`, `verifier`, … — the routing name, not the path. */

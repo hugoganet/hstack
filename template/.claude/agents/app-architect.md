@@ -15,7 +15,6 @@ tools:
   - "{{TODO-SKILL: /hstack:configure — re-runs the atom or a section}}"
   - "{{TODO-SKILL: /hstack:module-spec — reverse-engineers module-spec stubs post-scaffold}}"
   - "{{TODO-TEMPLATE: hstack/templates/app-architecture.md — the five-section template}}"
-  - "node hstack/scripts/validate-spec.mjs — frontmatter validator"
 ---
 
 ## Role
@@ -45,7 +44,6 @@ Writing module-spec stubs is an exception to the kernel rule that `spec-author` 
 ## Templates this subagent reads
 
 - `hstack/templates/app-architecture.md` — the canonical five-section template.
-- `hstack/templates/module-spec.md` — the stub template used to scaffold module-spec headers.
 - The upstream artifacts listed in the session-start protocol.
 - In extract mode: source tree, package manifest, README.
 
