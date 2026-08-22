@@ -91,7 +91,7 @@ console.log("description extraction");
 console.log("the current template");
 {
   const all = measureDescriptions("template");
-  check("every skill and agent is scanned", all.length, 52);
+  check("every skill and agent is scanned", all.length, 12);
   check(
     "every scanned file yielded a description",
     all.filter((d) => d.words === 0).map((d) => d.name),
@@ -106,18 +106,21 @@ console.log("the current template");
       findings.map((d) => `${d.name} — ${d.words}w / ${d.chars}c`).join("\n         "),
     );
 
-  // The carve-out is a decision, not a snooze: assert it is still doing work,
-  // so deleting the carve-out without shrinking the description fails here
-  // rather than silently at a consumer.
-  const coord = all.find((d) => d.name === "hstack-coord");
-  check("hstack-coord is carved out", coord?.carveOut !== null, true);
-  check("hstack-coord is genuinely over budget", coord.words > WORD_BUDGET, true);
+  // Since v0.17 nothing is carved out: hstack-coord, the one description that
+  // needed the exemption, was removed with the coord machinery. Asserting the
+  // list is empty — rather than deleting these checks — is what makes putting
+  // a name back a decision somebody has to come here and argue for.
+  check("nothing is carved out", [...BUDGET_CARVE_OUTS.keys()], []);
+  check(
+    "every description clears the budget on its own, not by exemption",
+    all.filter((d) => d.words > WORD_BUDGET || d.chars > CHAR_BUDGET).map((d) => d.name),
+    [],
+  );
   check(
     "no carve-out is granted to a file that does not need one",
     all.filter((d) => d.carveOut !== null && d.words <= WORD_BUDGET && d.chars <= CHAR_BUDGET).map((d) => d.name),
     [],
   );
-  check("only hstack-coord is carved out", [...BUDGET_CARVE_OUTS.keys()], ["hstack-coord"]);
   console.log(
     `       ${all.length} descriptions, longest non-carve-out ` +
       `${Math.max(...all.filter((d) => !d.carveOut).map((d) => d.words))}w / ` +
@@ -202,11 +205,15 @@ console.log("regression fixtures");
 
   // A carved-out name stays silent even when inflated — that is what a
   // carve-out means, and it is why adding one has to be an argued decision.
-  check(
-    "the carve-out suppresses a name on the list",
-    withTemplate((t) => t.writeSkill("hstack-coord", doc(inflated))).map((d) => d.name),
-    [],
-  );
+  // The list is empty today, so this loop asserts the mechanism against
+  // whatever is on it and nothing more.
+  for (const name of BUDGET_CARVE_OUTS.keys()) {
+    check(
+      `the carve-out suppresses ${name}`,
+      withTemplate((t) => t.writeSkill(name, doc(inflated))).map((d) => d.name),
+      [],
+    );
+  }
 }
 
 console.log("");

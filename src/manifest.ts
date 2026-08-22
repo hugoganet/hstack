@@ -23,20 +23,37 @@ export const FRAMEWORK_PATHS = [
   "templates/",
   ".claude/agents/",
   ".claude/skills/",
-  "scripts/telemetry/",
-  "scripts/coord/",
-  // The three enforcement scripts, listed file-by-file rather than as
-  // `scripts/`: that directory also holds `telemetry/` and `coord/`, which are
-  // module trees, and a consumer must be able to run each of these with the
-  // node (or bash) it already has — no node_modules, no build step.
-  //
-  //   validate-spec.mjs           the artifact contract, after every mechanical write
-  //   compute-merge-readiness.mjs the twelve merge gates, at /hstack:ship
-  //   run-gates.sh                the canonical test/lint/typecheck run, at /hstack:verify
+] as const;
+
+/**
+ * Paths the installer shipped before v0.17 and now takes back.
+ *
+ * v0.17 removed the enforcement scripts (`validate-spec.mjs`,
+ * `compute-merge-readiness.mjs`, `run-gates.sh`) and the `coord/` and
+ * `telemetry/` module trees along with the machinery that called them. Dropping
+ * them from `FRAMEWORK_PATHS` is not enough on its own: the update diff only
+ * looks at paths in that list, so a path removed from it is a path nothing will
+ * ever prune — the consumer would keep running a copy of a script this
+ * framework no longer knows about. `hstack update` therefore removes these
+ * explicitly, the same way the ADR-0010 rename is a migration rather than a
+ * diff. Planned only when the path is actually on disk, so it is a no-op by
+ * construction on a consumer installed after v0.17.
+ *
+ * Relative to `<consumer>/hstack/`. Order matters only for readability.
+ */
+export const LEGACY_FRAMEWORK_PATHS = [
   "scripts/validate-spec.mjs",
   "scripts/compute-merge-readiness.mjs",
   "scripts/run-gates.sh",
+  "scripts/coord",
+  "scripts/telemetry",
 ] as const;
+
+/**
+ * The directory the legacy paths above lived in. Removed after them, and only
+ * when empty: an engineer who put their own script there keeps it.
+ */
+export const LEGACY_SCRIPTS_DIR = "scripts";
 
 /**
  * Paths the installer NEVER touches once they exist in the consumer.
@@ -70,11 +87,11 @@ export const CLAUDE_WIRING = {
   skillsSourceDir: "hstack/.claude/skills",
   skillsTargetDir: ".claude/skills",
   /**
-   * Coord-notification hook entries merged into <consumer>/.claude/settings.json
-   * (ADR-0007). The installer owns ONLY the two entries whose command targets
-   * hstack's committed coord script — everything else in the file is
-   * engineer-owned and never touched. Merge-only, idempotent; an unparseable
-   * settings.json is a blocker, never an overwrite.
+   * <consumer>/.claude/settings.json. Until v0.17 the installer merged the
+   * ADR-0007 coord-notification hooks into it; now it only takes them back out.
+   * The installer owns ONLY the entries whose command targets hstack's coord
+   * script — everything else in the file is engineer-owned and never touched.
+   * Idempotent; an unparseable settings.json is surfaced, never overwritten.
    */
   settingsFile: ".claude/settings.json",
 } as const;

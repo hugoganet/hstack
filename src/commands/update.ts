@@ -89,17 +89,22 @@ export async function runUpdate(opts: UpdateOptions): Promise<number> {
 
   // 7. Render plan
   const summary = planSummary(actions);
+  const legacy = actions.find((a) => a.kind === "remove-legacy-paths") as
+    | Extract<Action, { kind: "remove-legacy-paths" }>
+    | undefined;
   console.log(
     pc.bold(`hstack update: v${installedVersion} -> v${newVersion}`),
   );
   console.log("");
-  renderSummary(summary);
+  renderSummary(summary, legacy?.relpaths.length ?? 0);
   console.log("");
 
   if (
     opts.verbose ||
     summary["remove-file"] ||
     summary["remove-symlink"] ||
+    summary["remove-legacy-paths"] ||
+    summary["remove-coord-hooks"] ||
     summary["migrate-kernel-filename"]
   ) {
     console.log(pc.dim("Detail:"));
@@ -147,7 +152,10 @@ export async function runUpdate(opts: UpdateOptions): Promise<number> {
   return 0;
 }
 
-function renderSummary(summary: Record<string, number>): void {
+function renderSummary(
+  summary: Record<string, number>,
+  legacyPathCount: number,
+): void {
   const fmt = (label: string, n: number, color: (s: string) => string) =>
     n > 0 ? `  ${color(`${n} ${label}`)}` : null;
 
@@ -162,6 +170,12 @@ function renderSummary(summary: Record<string, number>): void {
     fmt("framework file(s) removed", summary["remove-file"] ?? 0, pc.red),
     fmt("symlink(s) added", summary["symlink"] ?? 0, pc.green),
     fmt("symlink(s) removed", summary["remove-symlink"] ?? 0, pc.red),
+    fmt("pre-v0.17 path(s) removed", legacyPathCount, pc.red),
+    fmt(
+      "settings.json cleanup, coord notification hooks removed (ADR-0007)",
+      summary["remove-coord-hooks"] ?? 0,
+      pc.cyan,
+    ),
   ].filter(Boolean);
 
   if (lines.length === 0) {
@@ -181,6 +195,8 @@ function filterDetailedActions(
       ? true
       : a.kind === "remove-file" ||
         a.kind === "remove-symlink" ||
+        a.kind === "remove-legacy-paths" ||
+        a.kind === "remove-coord-hooks" ||
         a.kind === "migrate-kernel-filename",
   );
   return renderPlan(interesting, consumerRoot);
