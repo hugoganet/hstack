@@ -44,6 +44,23 @@ jobs:
             exit 1
           fi
 
+      # A tag can be pushed for a version that is already on the registry — an
+      # earlier release published by hand, or a tag created after the fact to
+      # mark a version retroactively. `npm publish` fails hard on that, which
+      # would turn "the tag is late" into a red workflow. Skipping is the honest
+      # outcome: the artifact the tag points at is already published.
+      - name: Check whether this version is already on the registry
+        id: registry
+        run: |
+          pkg="$(node -p "require('./package.json').name")"
+          ver="$(node -p "require('./package.json').version")"
+          if npm view "$pkg@$ver" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$pkg@$ver is already on the registry — nothing to publish."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish (dry-run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
         run: npm publish --dry-run --access public
@@ -51,7 +68,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish
-        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false)
+        if: steps.registry.outputs.published == 'false' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false))
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
