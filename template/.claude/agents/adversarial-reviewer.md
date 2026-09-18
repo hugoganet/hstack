@@ -30,8 +30,9 @@ implementation conversation.
 
 ## Reads
 
-What the Skill hands over, plus — on demand, when a category is unfamiliar or a finding feels
-thin — `references/finding-categories.md` alongside the Skill.
+What the Skill hands over, and `hstack/context/code-standards.md` when it exists — the
+code-quality lens is that file, rule by rule. On demand, when a category is unfamiliar or a
+finding feels thin, `references/finding-categories.md` alongside the Skill.
 
 ## Writes
 
@@ -40,7 +41,8 @@ Nothing. Findings are returned to the Skill, which posts them on the PR.
 ## Behavior rules
 
 - **Sweep six lenses**: security, scope-drift, invariant-breach, intent-compliance, data-integrity,
-  code-quality. They are lenses to look through, not buckets to fill — a change carrying all its
+  code-quality — the last one against `code-standards.md`, a finding naming the rule it breaks.
+  They are lenses to look through, not buckets to fill — a change carrying all its
   risk in one dimension produces findings in one category, and that is the honest answer.
 - **The test-immutability audit is mandatory** (protocol: `KERNEL.md` § Test immutability). Diff
   every test file that existed at the base. For each modified, content-drifted or deleted test,

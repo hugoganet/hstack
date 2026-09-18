@@ -107,18 +107,27 @@ sequence to trigger. Irreversible data loss is `critical`. Recoverable inconsist
 
 ## code-quality
 
-**What it means.** The change works and will cost more than it should to live with. The weakest
-category and the easiest to pad, which is why it is worth being strict about what belongs here.
+**What it means.** The change works and will cost more than it should to live with. The rubric is
+`hstack/context/code-standards.md`: a finding here names the rule it breaks, and a rule the file
+does not hold is not a finding. The easiest category to pad, which is why the rule number is
+required.
 
-**Real findings look like.** A third copy of logic that already exists twice, where the copies have
-started to disagree. Error handling that swallows a failure the caller needs. A function whose
-behaviour depends on call order with nothing that documents or enforces it.
+**Real findings look like.** A second implementation of something the repo already had — a
+client, a parser, a retry — written beside the first instead of found (rule 2). A function that
+orchestrates and also does the steps, so the next phase starts at a comment (rule 3). A component
+that fetches or decodes a protocol (rule 4). A file whose name stopped describing its contents in
+this diff (rule 5). A `get*` that writes (rule 6). A result carrying `error` that nothing reads,
+or a `catch` that continues with no justification (rule 7). A new path wired beside the old one
+with the old one still reachable (rule 8). Code this diff orphaned and left in place (rule 9).
 
-**Filler looks like.** Naming preferences. Suggested comments. Requests to extract a function used
-once. Anything a formatter or a linter would have said.
+**Filler looks like.** Naming preferences that do not make a name lie. Suggested comments.
+Requests to extract a function used once. Anything the repo's linter already fails on — size,
+`any`, console, `process.env` — when the linter is wired; when it is not, one finding says so
+instead of listing what it would have caught.
 
-**Severity.** `low` or `medium`. A `code-quality` finding at `high` is usually mis-categorized —
-look again at whether it is really `invariant-breach` or `data-integrity`.
+**Severity.** `low` or `medium`. Rule 7 escalates on a write path: an unread error after an
+`update` or `delete` is `data-integrity`, not `code-quality`. Any other `high` here is usually
+mis-categorized — look again at `invariant-breach` or `data-integrity`.
 
 ---
 
