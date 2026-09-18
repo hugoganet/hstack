@@ -2,6 +2,22 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.18.0] - 2026-09-18
+
+Code quality gets a mechanical half and a judgment half, with a hard line between them (ADR-0016). The first consumer's audit found the prose rules ignored at scale and the one lint rule at `error` respected everywhere; this release draws the conclusion.
+
+### Added
+
+- **`templates/eslint-clean-code.mjs`** — a flat-config the consumer imports from `hstack/templates/`, so `hstack update` can move it. Every rule at `error`: function and file size, complexity, nesting depth, parameter count, `no-explicit-any`, `no-non-null-assertion`, `no-floating-promises`, `only-throw-error`, `no-empty` catch, console outside the named logger, `process.env` outside the named config module, `@supabase/supabase-js` outside the named client module, `import/no-cycle`. Thresholds and module paths are options. The ratchet is ESLint's own suppressions file: freeze the existing violations once with `--suppress-all`; from then on only new ones fail.
+- **`hstack/supabase-unread-error`**, a custom rule inside that file. Supabase returns `{ data, error }` and never throws; the rule fails an awaited query whose result is discarded, destructured without `error`, or read through `.data` alone. `.throwOnError()` satisfies it. The audit counted 64 unchecked server-side writes in one repo, one of them answered with `{ ok: true }`.
+- **`templates/code-standards.md`** — the living doc for the rules that need judgment: search before writing, one function one responsibility, a component does not talk to the network, a file's name says what it holds, names describe behaviour, a returned error is a handled error, replace rather than add beside, delete what nothing imports, constants in one place. Each rule carries a `Seen here` line the consumer fills from its own code. Installed at `hstack/context/code-standards.md`, read on the trigger *application code → code-standards*.
+- **`/hstack-wrap` step 2** reads the diff against `code-standards.md`, rule by rule, and fixes what it finds before `/review` runs. Step 9 now says the fast lane — typecheck, lint, critical tests — runs locally and is green before the commit; CI is the paid backstop, not the first run, and a lint finding is fixed, never suppressed.
+
+### Changed
+
+- **The kernel** names `code-standards.md` among the living docs with its read trigger, states that lint is at `error` with a ratchet and that a `warn` is not a rule, and that the fast lane runs locally before the push. Five sentences, ~80 words.
+- **The adversarial reviewer's code-quality lens is `code-standards.md`.** A finding names the rule it breaks. The rubric's filler clause — which until now listed *"anything a formatter or a linter would have said"* — is rewritten: what the linter already fails on is filler only when the linter is wired, and an unread error on a write path escalates to `data-integrity`.
+
 ## [0.17.0] - 2026-08-22
 
 The pivot is subtractive (ADR-0015). Four months of hstack v1 produced a workflow whose per-change ceremony made every change roughly ten times slower, and no MVP. The diagnosis is not that the rules were wrong — it is that pre-PMF, the dominant risk is never shipping, not shipping bugs, and a rule that costs something on every single change has to earn it against that. So the question asked of every piece was the same: **does it change what an agent does on an ordinary change, without charging ceremony per change?** What survived was kept *in place*, with its v0.16 wording where the rule survived. What did not was removed, not replaced — this release designs almost nothing new.

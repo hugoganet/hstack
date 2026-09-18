@@ -1,6 +1,6 @@
 ---
 name: hstack-wrap
-description: Use at the end of a change, before the PR — runs /review and /security-review on the branch diff, audits test immutability, updates the living docs the diff invalidated, and writes the PR description.
+description: Use at the end of a change, before the PR — reads the diff against code-standards, runs /review and /security-review, audits test immutability, updates the living docs the diff invalidated, writes the PR description.
 ---
 
 ## Purpose
@@ -21,19 +21,21 @@ None. The diff under review is everything that will land in the PR — committed
 
 1. **Read `hstack/context/review-miss.md`** when it exists. A category a review has already missed once gets re-checked explicitly in the pass below; that is the whole reason the file exists.
 
-2. **Run `/review`, then `/security-review`** on that diff. Fix what is fixable inside the announced perimeter. Everything else is declared in the PR description — the finding, and why it was not fixed. A finding is never dropped silently, and an empty result is reported as what it is: the reviewer found nothing.
+2. **Read the diff against `hstack/context/code-standards.md`**, rule by rule, when the file exists. This is the pass the linter cannot make: a second implementation of something that already existed, a component talking to the network, an orchestrating function that also does the steps, a legacy path left wired, a returned error nobody reads. Fix what is found — the fix is usually the extraction or the deletion the rule names — and when a rule's `Seen here` line is empty and this diff is the first example, fill it in this PR. What survives on purpose is a tech-debt file, not silence.
 
-3. **Audit test immutability.** Diff the test files that already existed at the merge-base. An edit or a deletion without the canonical authorization echoed in this conversation is a blocking finding — halt, and do not open the PR (kernel § Test immutability).
+3. **Run `/review`, then `/security-review`** on that diff. Fix what is fixable inside the announced perimeter. Everything else is declared in the PR description — the finding, and why it was not fixed. A finding is never dropped silently, and an empty result is reported as what it is: the reviewer found nothing.
 
-4. **Ask each living doc whether this diff invalidated it**, and update it in this PR when it did (kernel § Context docs). When an entry point changed status — live, routable, off — the exposure column of the Module Map in `app-architecture.md` moves with it.
+4. **Audit test immutability.** Diff the test files that already existed at the merge-base. An edit or a deletion without the canonical authorization echoed in this conversation is a blocking finding — halt, and do not open the PR (kernel § Test immutability).
 
-5. **Name the conscious shortcuts.** A shortcut that survives the merge becomes a file under `hstack/tech-debt/`, from the template, written in this PR and named in its description.
+5. **Ask each living doc whether this diff invalidated it**, and update it in this PR when it did (kernel § Context docs). When an entry point changed status — live, routable, off — the exposure column of the Module Map in `app-architecture.md` moves with it.
 
-6. **Sensitive surface?** If the diff touches one (kernel § Review), the PR says so in its first line and asks for the deep pass in a fresh session — `/hstack-adversarial-review`.
+6. **Name the conscious shortcuts.** A shortcut that survives the merge becomes a file under `hstack/tech-debt/`, from the template, written in this PR and named in its description.
 
-7. **Write the PR description** from `references/pr-description.md`: intention, perimeter, decisions, shortcuts and tech-debt, the review findings split into what was fixed and what was declared, and the Notion feature it serves when there is one. When the consumer has a `.github/pull_request_template.md`, that rendered file is the one you fill — the reference file is the seed it was copied from, not a second authority.
+7. **Sensitive surface?** If the diff touches one (kernel § Review), the PR says so in its first line and asks for the deep pass in a fresh session — `/hstack-adversarial-review`.
 
-8. **Commit, then push and open the PR.** Commit in the `hstack-commit` format. Run the repo's fast lane locally first — a red PR costs a full round trip; if the repo names no fast-lane command, say so in the PR rather than inventing one. Push and `gh pr create` only after explicit confirmation in the conversation.
+8. **Write the PR description** from `references/pr-description.md`: intention, perimeter, decisions, shortcuts and tech-debt, the review findings split into what was fixed and what was declared, and the Notion feature it serves when there is one. When the consumer has a `.github/pull_request_template.md`, that rendered file is the one you fill — the reference file is the seed it was copied from, not a second authority.
+
+9. **Run the fast lane locally, then commit, push and open the PR.** Typecheck, lint and the critical tests run here, on this machine, and are green before the commit — a red PR costs a paid CI round trip for something a local run would have caught in a minute. Lint is at `error`: fix the finding, never add a suppression or a disable comment to get past it (kernel § Stop conditions). If the repo names no fast-lane command, say so in the PR rather than inventing one. Commit in the `hstack-commit` format. Push and `gh pr create` only after explicit confirmation in the conversation.
 
 ## Output
 

@@ -16,11 +16,11 @@ The human's job is intent, testing the app, and reading the PR description with 
 
 ## Context docs
 
-Living docs, at `hstack/context/`, are the agent's memory between sessions: `data-architecture.md` (tenancy, entities, RLS, RAG) · `app-architecture.md` (module map, state ownership, surface boundaries) · `tech-stack.md` (pinned versions are pinned on purpose — never bump one unrequested) · `infrastructure.md` (where things run, why the couplings, the gotchas) · `roadmap.md` (Now / Next / Later — **advisory only, never a gate**) · `invariants.md` · `review-miss.md`.
+Living docs, at `hstack/context/`, are the agent's memory between sessions: `data-architecture.md` (tenancy, entities, RLS, RAG) · `app-architecture.md` (module map, state ownership, surface boundaries) · `tech-stack.md` (pinned versions are pinned on purpose — never bump one unrequested) · `infrastructure.md` (where things run, why the couplings, the gotchas) · `roadmap.md` (Now / Next / Later — **advisory only, never a gate**) · `code-standards.md` (the rules that need judgment; the linter owns the rest) · `invariants.md` · `review-miss.md`.
 
 The **exposure map** is a column of the Module Map in `app-architecture.md`. Its atom is an entry point — page route, API route, server action, job, webhook — at `live`, `routable` (the URL responds, nothing links to it, it is fully exposed) or `off`. Updated in the PR that changes exposure, verified at `/hstack-promote`.
 
-Read triggers: db / RLS / migration → data-architecture; env / deploy / dependencies → infrastructure; user reachability → app-architecture; always → tech-stack.
+Read triggers: db / RLS / migration → data-architecture; env / deploy / dependencies → infrastructure; user reachability → app-architecture; application code → code-standards; always → tech-stack.
 
 **Non-negotiable: the agent updates a living doc in the same PR that invalidates it.** Committed state is the only authoritative view of another session — Luke's, a parallel worktree — so that PR is the coordination channel, and there is no other. Missing or stale is said in the PR, never invented.
 
@@ -56,7 +56,7 @@ Branch (never the default branch, one per change) → announce the perimeter →
 
 One PR, one intention — a change spanning unrelated modules splits into several. One change, one session — once the PR is open the next starts fresh, and what it needs lives in the PR description or a living doc, never in the conversation.
 
-Two CI lanes: the fast one — typecheck, lint, critical tests — blocks the merge, the slow one is advisory. A hotfix still goes through PR + CI; it skips preview and the train, never the checks.
+Two CI lanes: the fast one — typecheck, lint, critical tests — blocks the merge, the slow one is advisory. The fast lane runs locally and is green before the push; CI is the backstop, not the first run. Lint is at `error` with a suppressions ratchet — the frozen count only goes down, and a `warn` is not a rule. A hotfix still goes through PR + CI; it skips preview and the train, never the checks.
 
 ---
 
@@ -108,7 +108,7 @@ CI backstops, wired once: secret scanning, and a grep that fails the build on `s
 
 ## Review
 
-Every PR: `/hstack-wrap` runs `/review` and `/security-review` before the push, and their findings go in the PR description.
+Every PR: `/hstack-wrap` reads the diff against `code-standards.md`, then runs `/review` and `/security-review`, before the push; what it could not fix goes in the PR description.
 
 **Sensitive surfaces** — agent or tool boundaries, auth, RLS, schema and migrations, pgvector, payments and credits — additionally get a deep review in a fresh session. The session that authored the change and the session that reviews it are separate Claude Code sessions: the author's working memory, scratchpad, and conversation are not loaded into the reviewer's session. This is honor-system.
 
@@ -136,7 +136,7 @@ One-way doors only: fixable in one PR, then no ADR. Nygard, one page, no frontma
 
 ## Templates
 
-Templates live at `hstack/templates/`; fill them, do not invent structure. They are `tech-debt.md`, `adr.md`, `story.md`, and the living-doc templates — data-architecture, app-architecture, tech-stack, infrastructure, roadmap. The PR description has its own, `.github/pull_request_template.md`, rendered by GitHub.
+Templates live at `hstack/templates/`; fill them, do not invent structure. They are `tech-debt.md`, `adr.md`, `story.md`, the living-doc templates — data-architecture, app-architecture, tech-stack, infrastructure, roadmap, code-standards — and `eslint-clean-code.mjs`, the lint config the consumer imports rather than copies. The PR description has its own, `.github/pull_request_template.md`, rendered by GitHub.
 
 ---
 

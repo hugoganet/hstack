@@ -95,8 +95,9 @@ macOS and Linux only. Windows is hard-failed at `hstack init` — the dir-level 
 Open a fresh Claude Code session in the consuming repo. There is no init interview in the light version: the kernel is loaded by the import line, and the living docs get written when there is something true to write in them.
 
 1. **Write the two architecture docs** when the shape of the product is settled enough to be worth recording — `/hstack-data-architecture` (tenancy, entities, RLS posture, RAG layout) and `/hstack-app-architecture` (module map with its exposure column, LLM call sites, deterministic-vs-LLM split, state ownership, surfaces). Both run in extract mode against a live schema or the source tree, and ask when extraction is not enough.
-2. **Fill the rest by hand or in the PR that needs them**, from `hstack/templates/`: `tech-stack.md`, `infrastructure.md` — whose § Deploy Pipeline is what `/hstack-promote` reads — `roadmap.md`, `invariants.md`, `review-miss.md`.
-3. **Then just work.** The per-change loop below is the whole of it.
+2. **Fill the rest by hand or in the PR that needs them**, from `hstack/templates/`: `tech-stack.md`, `infrastructure.md` — whose § Deploy Pipeline is what `/hstack-promote` reads — `roadmap.md`, `invariants.md`, `review-miss.md`, and `code-standards.md` with its `Seen here` lines.
+3. **Wire the linter.** Import `hstack/templates/eslint-clean-code.mjs` from the repo's `eslint.config.mjs` (the file's header shows the call), run `npx eslint --suppress-all` once to freeze the existing violations, and commit `eslint-suppressions.json`. From then on only new violations fail `lint`, and the frozen count only goes down.
+4. **Then just work.** The per-change loop below is the whole of it.
 
 ## The change loop
 
@@ -143,10 +144,11 @@ hstack/
     roadmap.md             # Now / Next / Later — advisory, never a gate
     invariants.md          # the business rules a test names
     review-miss.md         # what a review missed, so the next one re-checks it
+    code-standards.md      # the rules that need judgment; the linter owns the rest
     ...                    # frozen and dated: threat-model, product-brief, vision, personas, incident-runbook
   adr/                     # one-way doors only
   tech-debt/               # one file per item; deleted in the PR that fixes it
-  templates/               # the eight canonical templates
+  templates/               # the nine canonical templates + eslint-clean-code.mjs
 .claude/
   skills/hstack-*/SKILL.md # nine Skills
   agents/                  # four subagents
@@ -166,6 +168,7 @@ Authoritative, in the repo:
 - [`template/KERNEL.md`](./template/KERNEL.md) — the kernel. Authority over every Skill, subagent, and template.
 - [`template/templates/`](./template/templates/) — the canonical structure of every artifact type.
 - [`adr/ADR-0015-the-light-pivot.md`](./adr/ADR-0015-the-light-pivot.md) — why the pivot is subtractive, and what it costs.
+- [`adr/ADR-0016-the-linter-enforces-the-doc-judges.md`](./adr/ADR-0016-the-linter-enforces-the-doc-judges.md) — code quality split into a lint config at `error` and a judgment doc, and why prose alone did not hold.
 - [`CHANGELOG.md`](./CHANGELOG.md) — the release history, including the full v0.16.0 lineage.
 
 Historical companions, describing the frozen full version rather than `main`:
@@ -175,6 +178,6 @@ Historical companions, describing the frozen full version rather than `main`:
 
 ## Status
 
-hstack v0.17.0 — the kernel at ~1,700 words, nine Skills, four subagents, eight templates. The `v0.16.0` tag holds the complete version: ~34 Skills, ~16 subagents, the validator, the merge gates, the coord and telemetry trees.
+hstack v0.18.0 — the kernel at ~1,800 words, nine Skills, four subagents, nine templates and a lint config. The `v0.16.0` tag holds the complete version: ~34 Skills, ~16 subagents, the validator, the merge gates, the coord and telemetry trees.
 
-Next milestone: the first real use of the light version, upgrading moso-app from 0.7.1 to 0.17.
+Next milestone: wiring the linter and `code-standards.md` into moso-app after its dead-code cleanup, and watching whether the ratchet count goes down.
