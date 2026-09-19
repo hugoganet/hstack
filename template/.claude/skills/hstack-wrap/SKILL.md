@@ -1,6 +1,6 @@
 ---
 name: hstack-wrap
-description: Use at the end of a change, before the PR — reads the diff against code-standards, runs /review and /security-review, audits test immutability, updates the living docs the diff invalidated, writes the PR description.
+description: Use at the end of a change, before the PR — reads the diff against code-standards, runs /review and /security-review, audits test disclosure, updates the living docs the diff invalidated, writes the PR description.
 ---
 
 ## Purpose
@@ -25,7 +25,7 @@ None. The diff under review is everything that will land in the PR — committed
 
 3. **Run `/review`, then `/security-review`** on that diff. Fix what is fixable inside the announced perimeter. Everything else is declared in the PR description — the finding, and why it was not fixed. A finding is never dropped silently, and an empty result is reported as what it is: the reviewer found nothing.
 
-4. **Audit test immutability.** Diff the test files that already existed at the merge-base. An edit or a deletion without the canonical authorization echoed in this conversation is a blocking finding — halt, and do not open the PR (kernel § Test immutability).
+4. **Audit test disclosure.** Diff the test files that already existed at the merge-base. Each one modified or deleted carries its tag — `behavior-change`, `refactor` or `obsolete` — in a commit body, and its plain-language line under a **Tests changed** heading in the PR description; writing that section is part of this step (kernel § Tests). An undisclosed edit is fixed here by disclosing it, not by halting. The one exception: if the honest tag would be *it was failing*, halt and fix the code instead.
 
 5. **Ask each living doc whether this diff invalidated it**, and update it in this PR when it did (kernel § Context docs). When an entry point changed status — live, routable, off — the exposure column of the Module Map in `app-architecture.md` moves with it.
 
@@ -45,6 +45,6 @@ One open PR against the default branch, carrying the code, the living-doc update
 
 Beyond the kernel's:
 
-- A pre-existing test was modified or deleted without authorization.
+- A pre-existing test was changed to turn a red suite green when the code is what is wrong.
 - A hook or a check was bypassed to get here.
 - A living doc is invalidated and you cannot update it. Say "stale" in the PR description; never invent the content.

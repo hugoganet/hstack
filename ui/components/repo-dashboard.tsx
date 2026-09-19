@@ -256,8 +256,8 @@ export function RepoDashboard({ report }: { report: TelemetryReport }) {
           ) : null}
 
           <SectionCard
-            title={`QO-3 — test-immutability audit (${qo3.authorized_count} authorized changes)`}
-            description="Non-implement commits touching test files without a canonical authorization phrase. Candidates for manual review, not verdicts."
+            title={`QO-3 — test-disclosure audit (${qo3.authorized_count} disclosed changes)`}
+            description="Non-implement commits touching test files without a disclosure tag in the commit body. Candidates for manual review, not verdicts."
           >
             <DataTable
               rows={qo3.candidate_violations.slice(0, 15)}

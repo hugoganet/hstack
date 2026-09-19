@@ -64,27 +64,27 @@ Two CI lanes: the fast one — typecheck, lint, critical tests — blocks the me
 
 Tests are mandatory on critical paths and on every business invariant a change touches. At plan time, one question: *does this code decide something that would be wrong silently?* If it does, a test names the invariant. `/hstack-test-audit` is on demand, never a per-change phase.
 
----
+**Changing an existing test is normal work.** A product before product-market fit changes its intended behaviour several times a week, and the tests move with it. No authorization phrase, no halt, no permission to request.
 
-## Test immutability
+**The one forbidden move** is changing a test so that a red suite goes green when the code under test is what is wrong. Before editing an existing test, one question: *is the test wrong, or is the code wrong?* Fix whichever one is wrong — never the other one.
 
-Once a test file exists in the working tree (committed or staged), **no agent may edit or delete it without per-test, per-conversation human authorization.** This rule exists because the dominant failure mode of LLM-driven implementation is the model editing an assertion or deleting a test to make the suite go green, rather than fixing the code under test.
+**When it cannot tell**, the agent makes the most plausible change and names the doubt in the PR description as an open question, never silently and never by halting. An unresolved doubt is information the reviewer needs, not a reason to stop working.
+
+**Disclosure replaces authorization.** Any commit that modifies or deletes a test file that existed at the merge-base says so in its body, one line per file, tagged with exactly one word:
+
+- `behavior-change` — the intended behaviour moved and the test followed it.
+- `refactor` — same assertions, moved or renamed or rewired (imports, mocks, fixtures).
+- `obsolete` — the subject of the test no longer exists.
+
+There is no fourth tag. If the honest word would be *it was failing*, that is the forbidden move, not a disclosure.
+
+The PR description repeats the same list in plain language, under a **Tests changed** heading. The commit body is for the audit; that section is for the human, who reads the description and not the diff. A PR that touches a test and has no such section is incomplete.
 
 **What counts as a test.** Files matching the repo's test patterns (e.g. `*.test.ts`, `*.spec.ts`, `__tests__/**/*`, `e2e/**/*`, `*_test.go`), snapshot files (`__snapshots__/*`), and assertion-bearing fixtures — factories and seed data encoding expected outputs.
 
-**Authorization protocol.** Halt before editing. Surface (a) the test file and test name, (b) why it must change — what it asserts vs. what is now correct, with evidence, (c) the proposed diff, (d) the alternatives, starting with fixing the code under test. Then wait for the canonical phrase — `Ok to change test <name>` or `Ok to delete test <name>`, `<name>` being the file path or a uniquely-identifying test name. The agent echoes it back verbatim before acting; nothing else is an authorization.
+**Two things stay hard, because they hide from the diff.** Bulk snapshot updates via `--update-snapshots`, `jest --updateSnapshot`, `vitest -u` or any equivalent flag, including in hooks — a mass edit nobody reads is not a disclosure. And neutralizing a test silently: adding `.skip`, replacing `test()` with `test.todo()`, deleting a case, or loosening an assertion (a `.toBe()` broadened to `.toContain()`, a timeout raised to mask a real bug) are edits like any other and carry their disclosure line.
 
-**Carve-outs.** New tests need no authorization — "new" means the path did not exist at session start. A content-preserving move is permitted, surfaced in the commit message so the review can verify nothing drifted.
-
-**Forbidden no matter what.**
-
-- Blanket authorizations ("go ahead and fix any failing tests", "update whatever snapshots need it"). Authorizations are per-test, per-conversation. The agent refuses blanket scope.
-- Bulk snapshot updates via `--update-snapshots`, `jest --updateSnapshot`, `vitest -u`, or any equivalent flag, including in pre-commit hooks.
-- Relaxing an assertion without authorization (e.g., tightening a regex to a substring match, broadening a `.toBe()` to `.toContain()`, increasing a timeout to mask a real bug).
-- Deleting a `.skip` annotation, replacing a `test()` call with `test.todo()`, or otherwise neutralizing a test without authorization. Neutralization is a form of deletion.
-- Editing a test as part of "cleaning up" a phase without an explicit authorization for that test, even if the edit is cosmetic.
-
-Authorization is single-use: it covers the test and the change discussed in the current conversation, and never carries across sessions. An unauthorized test edit is a blocking review finding.
+An undisclosed test edit is a review finding. A disclosed one is just work.
 
 ---
 

@@ -26,8 +26,9 @@ question at plan time, and this Skill is never a phase of a change.
    `data-architecture.md` when the module touches the database. Write each rule as *decides X;
    wrong in silence if Y*. A module whose code decides nothing has no gap to close — say so and
    stop rather than write tests for the sake of coverage.
-2. **Map the existing tests onto the rules.** Existing test files are read-only here
-   (kernel § Test immutability); this step reads them, it never edits them.
+2. **Map the existing tests onto the rules.** Existing test files are read-only here — an audit
+   that rewrites the tests it is auditing has audited nothing; this step reads them, never edits
+   them.
 3. **Name the gaps** — rules with no test, and tests asserting something no rule needs.
 4. **Interview the edges.** A handful of questions, not a script: *what does the user notice if
    this breaks in silence?* — plus concurrency, retries, and the cross-tenant case when the module
@@ -38,9 +39,10 @@ question at plan time, and this Skill is never a phase of a change.
 6. **The engineer picks the gaps to close now.** A module with twenty uncovered rules would make
    an unreviewable PR. Close the chosen ones; name the rest in the PR description so the next
    audit starts there.
-7. **Write the tests.** New test files need no authorization — "new" means the path did not exist
-   at session start. If closing a gap requires editing or deleting an existing test, halt and ask;
-   nothing in this Skill authorizes that.
+7. **Write the tests.** New test files only — "new" means the path did not exist at session start.
+   When closing a gap means editing or deleting an existing test, name that change in the output
+   rather than make it here; the engineer makes it in the normal flow, where it is ordinary work
+   carrying its disclosure line (kernel § Tests).
 8. **Record the invariants.** Every rule the audit surfaced goes into `hstack/context/invariants.md`
    in this PR — **including the gaps left open**. The memory is the cheap half; write it whether or
    not the test was written.
@@ -51,13 +53,12 @@ and the gap list. Steps 4 and 6 are questions for the engineer and happen here, 
 ## Output
 
 New test files, an `invariants.md` diff, and a summary for the PR description naming the gaps left
-open. Nothing else.
+open and the existing tests that need changing. Nothing else.
 
 ## Stop conditions
 
 Beyond the kernel's:
 
-- Closing a gap would require touching an existing test. Halt (§ Test immutability).
 - The module cannot be located, or spans so much of the repo that "one module" is not what is
   being audited. Ask which one.
 - An invariant the audit surfaces contradicts one already in `invariants.md`. Surface both; the

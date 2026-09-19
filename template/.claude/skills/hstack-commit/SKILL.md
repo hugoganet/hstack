@@ -27,7 +27,7 @@ Optional `--push`: push after committing — still subject to per-invocation con
    - `<type>(<scope>): <summary>`, where `<type>` is one of `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `style`, `perf`, `ci`.
    - `<scope>` names the area actually touched — never an invented or aspirational one. When the change spans unrelated areas, no single honest scope exists: propose splitting it into several commits.
    - `<summary>` ≤ 72 characters, imperative present ("add", not "added"), no trailing period.
-   - Body, when it earns its place: the why, not the what.
+   - Body, when it earns its place: the why, not the what. A staged test file that existed at the merge-base is declared there, one line per file, tagged `behavior-change`, `refactor` or `obsolete` (kernel § Tests).
    - **Never "Generated with Claude Code" or any similar attribution.**
    - Footer: conventional-commits footers only (`BREAKING CHANGE:`, `Refs: <issue>`).
 

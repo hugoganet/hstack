@@ -116,7 +116,7 @@ The nine Skills:
 
 | Skill | What it is for |
 | --- | --- |
-| `/hstack-wrap` | The end of a change: runs `/review` and `/security-review`, audits test immutability, updates the living docs the diff invalidated, writes the PR description. |
+| `/hstack-wrap` | The end of a change: runs `/review` and `/security-review`, audits test disclosure, updates the living docs the diff invalidated, writes the PR description. |
 | `/hstack-promote` | The release: pending production migrations, a smoke test on the unpromoted build, then promotion. Commands live in `infrastructure.md` § Deploy Pipeline. |
 | `/hstack-commit` | The one Commitizen format humans and agents both write. |
 | `/hstack-adversarial-review` | The deep pass on a sensitive surface, from a session that never saw the change being written. Findings land as a PR comment. |

@@ -53,6 +53,9 @@ export interface TelemetryReport {
         rows: ({ severity: string } & Record<string, number | string>)[]
         high_severity_in_prose_smells: { change: string; finding_id: string; category: string; severity: string }[]
       }
+      // The kernel rule is now test disclosure, not test immutability. These field names still say
+      // "immutability"/"authorized" because the telemetry sidecar that produces this JSON lives
+      // outside this repo; renaming them is a follow-up there.
       qo_3_test_immutability_audit: {
         authorized_count: number
         candidate_violations: { sha: string; subject: string; artifact_type: string | null; test_files: string[] }[]

@@ -1,7 +1,7 @@
 ---
 name: adversarial-reviewer
 model: opus
-description: "Use to critique a PR cold, from a session that never saw it being written — the six lenses, the mandatory test-immutability audit, an empty result that has to be defended. Surfaces findings; never resolves them."
+description: "Use to critique a PR cold, from a session that never saw it being written — the six lenses, the mandatory test-disclosure audit, an empty result that has to be defended. Surfaces findings; never resolves them."
 tools:
   - Read
   - Grep
@@ -44,11 +44,12 @@ Nothing. Findings are returned to the Skill, which posts them on the PR.
   code-quality — the last one against `code-standards.md`, a finding naming the rule it breaks.
   They are lenses to look through, not buckets to fill — a change carrying all its
   risk in one dimension produces findings in one category, and that is the honest answer.
-- **The test-immutability audit is mandatory** (protocol: `KERNEL.md` § Test immutability). Diff
+- **The test-disclosure audit is mandatory** (protocol: `KERNEL.md` § Tests). Diff
   every test file that existed at the base. For each modified, content-drifted or deleted test,
-  look for its canonical authorization echo in the commit messages or the PR description. Missing
-  echo: a finding under intent-compliance at `high` minimum, `critical` for a bulk snapshot update.
-  This one is not subject to your judgment about whether it is worth filing.
+  look for its disclosure tag — `behavior-change`, `refactor` or `obsolete` — in a commit body, and
+  its plain-language line under **Tests changed** in the PR description. Missing disclosure: a
+  finding under intent-compliance at `high` minimum, `critical` for a bulk snapshot update or a
+  silent neutralization. This one is not subject to your judgment about whether it is worth filing.
 - **Intent is what the PR says it does.** The description names the perimeter, the shortcuts and
   the docs it updated; the diff either matches or it does not.
 - **Severity is about the consequence, not the likelihood.** Cross-tenant leakage and irreversible

@@ -74,13 +74,14 @@ feature, the shortcuts taken, the living docs updated.
 Behaviour the diff adds that no line of the description anticipated — undeclared scope is a
 compliance gap in the other direction. A living doc the change invalidated and left untouched
 (kernel § Context docs). A conscious shortcut visible in the code and named nowhere. **Any
-test-file modification without its canonical authorization echo** (`KERNEL.md` § Test immutability);
-this one is mandatory and never subject to judgment about whether it is worth filing.
+test-file modification without its disclosure tag** (`KERNEL.md` § Tests); this one is mandatory
+and never subject to judgment about whether it is worth filing.
 
 **Filler looks like.** "The description could have been clearer." Style disagreements with how the
 work was sequenced.
 
-**Severity.** Unauthorized test changes: `high` minimum, `critical` for a bulk snapshot update. A
+**Severity.** Undisclosed test changes: `high` minimum, `critical` for a bulk snapshot update or a
+silent neutralization. A
 stale living doc: `high`, because the next session will read it and believe it. Everything else:
 judgment.
 

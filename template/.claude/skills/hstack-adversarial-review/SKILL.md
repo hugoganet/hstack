@@ -31,11 +31,11 @@ honor-system, as the kernel says; a sentence is the whole protocol.
    reconstruct the conversation that produced the change.
 2. **Invoke `adversarial-reviewer`** with that material. The subagent sweeps six lenses and returns
    findings; it does not resolve them and does not touch the code.
-3. **The test-immutability audit is mandatory** and is not subject to anyone's judgment about
+3. **The test-disclosure audit is mandatory** and is not subject to anyone's judgment about
    whether it is worth filing. Every test file that existed at the base is diffed; a modification
-   or deletion without its canonical authorization echo — `Ok to change test <name>` /
-   `Ok to delete test <name>`, in a commit message or the PR description — is a finding at `high`
-   minimum. A bulk snapshot update is `critical`.
+   or deletion without its disclosure — a `behavior-change` / `refactor` / `obsolete` tag in a
+   commit body, repeated under **Tests changed** in the PR description — is a finding at `high`
+   minimum. A bulk snapshot update or a silent neutralization is `critical`.
 4. **Post the findings** with `gh pr comment <n>`, or as a GitHub review when they are anchored to
    lines. Each finding carries a severity, a category, the evidence in the diff, and what would
    resolve it.

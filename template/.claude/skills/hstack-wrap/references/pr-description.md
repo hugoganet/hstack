@@ -33,6 +33,13 @@
 <!-- Conscious shortcuts that survive the merge, each with its hstack/tech-debt/TD-NNNN-<slug>.md
      file. "None" is a real answer when it is true. -->
 
+## Tests changed
+
+<!-- Every test that existed at the merge-base and was modified or deleted here, one line each,
+     in plain language, tagged behavior-change / refactor / obsolete as in the commit body. A PR
+     that touches a test and has no such list is incomplete. Where it was unclear whether the
+     test or the code was wrong, say so here as an open question. -->
+
 ## Review findings
 
 <!-- /review and /security-review, in full. These are LLM judgments, not evidence: an empty list

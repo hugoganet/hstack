@@ -2,6 +2,25 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.19.0] - 2026-09-19
+
+Changing an existing test stops needing permission and starts needing a label (ADR-0017). The authorization phrase is abolished; disclosure replaces it. This is the last per-change confirmation gate that survived the light pivot, and it is removed for the reason ADR-0015 removed the others — its cost was paid on every change and its protection was never once observed working.
+
+### Changed
+
+- **§ Test immutability is gone as a top-level law** and becomes four paragraphs inside § Tests. Three carve-outs and five prohibitions become one prohibition: changing a test so a red suite goes green when the code under test is what is wrong. Changing a test because the intended behaviour moved is stated, in the kernel, to be normal work — no phrase, no halt, no permission to request.
+- **Disclosure replaces authorization.** A commit that modifies or deletes a test file that existed at the merge-base tags each file with exactly one of `behavior-change`, `refactor`, `obsolete`. There is no fourth tag: if the honest word would be *it was failing*, that is the forbidden move and not a disclosure. The PR description repeats the list in plain language under **Tests changed** — the commit body is for the audit, that section is for the human, who reads the description and not the diff.
+- **The four canonical authorization phrases are removed from the corpus.** `Ok to change test <name>` and its siblings were kept verbatim by ADR-0013 and again by ADR-0014, both times on the argument that the wording *is* the mechanism. The argument was sound and the mechanism was never exercised: `REC-0003` measured 265 candidate violations over 90 days, the watch-list repeated verbatim for seven weeks, and no human ever reviewed a row.
+- **The escalation clause is a disclosure, not a halt.** An agent that cannot tell whether the test or the code is wrong makes the most plausible change and names the doubt in the PR description as an open question. Halting was the previous answer and it put the owner in the loop at a moment he is generally not in it.
+- **Still hard, for one stated reason — they hide from the diff.** Bulk snapshot updates (`vitest -u`, `--updateSnapshot`, any equivalent, including in hooks) and silent neutralization (`.skip`, `test.todo`, a deleted case, a `.toBe()` broadened to `.toContain()`, a timeout raised to mask a bug). A hidden edit cannot be disclosed, which is the whole argument for keeping these two where everything else was relaxed.
+- **The enforcement points follow the rule.** The adversarial reviewer and `/hstack-adversarial-review` keep a mandatory audit and check for the disclosure tag instead of the authorization echo; `/hstack-wrap` writes the **Tests changed** section rather than blocking the PR; the test strategist may now change an existing test instead of being told existing tests are read-only always; `/hstack-test-audit` keeps its own read-only posture, re-justified on the grounds that an audit which rewrites what it audits is worthless.
+- **The two places the disclosure is physically produced now say so.** The PR-description template (`hstack-wrap/references/pr-description.md`) gains a **Tests changed** heading before **Review findings**, because a step that requires a section the template never offers is a step that will be skipped. And `/hstack-commit` step 4 names the tag in its body guidance — it is the one moment where a staged test file and a commit body exist at the same time.
+- **QO-3's labels change and its field name does not.** `qo_3_test_immutability_audit` is produced by the telemetry sidecar outside this repo, so renaming it here would break the contract. Until that sidecar counts undisclosed edits instead of unphrased ones, the metric reads empty rather than wrong — and there is no audit signal in the interval. Named in ADR-0017 as a consequence, not a detail.
+
+### Added
+
+- **`adr/ADR-0017-disclosure-replaces-authorization-on-tests.md`** — supersedes ADR-0013 and ADR-0014 on the single arbitration where each declined to touch this rule; the rest of both stands. It records the two consequences that look bad: the net is now weaker in exactly the case it was built for, because a tag can be typed by the model where the old phrase could not; and the decision is made on the cost side with the benefit side still unmeasured, since hstack has never detected one unauthorized test edit — equally consistent with *it never happened* and with *we cannot see it*.
+
 ## [0.18.0] - 2026-09-18
 
 Code quality gets a mechanical half and a judgment half, with a hard line between them (ADR-0016). The first consumer's audit found the prose rules ignored at scale and the one lint rule at `error` respected everywhere; this release draws the conclusion.
