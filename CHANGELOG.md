@@ -2,6 +2,12 @@
 
 All notable changes to hstack are documented here. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows [SemVer](https://semver.org/).
 
+## [0.19.1] - 2026-09-21
+
+### Changed
+
+- **`templates/code-standards.md` rule 10 says how a guard is scoped.** A CI guard that enforces "constants live in one place" scans the whole repo and exempts files by name, each with a written reason. The first consumer's model-id guard scanned a fixed list of folders; a new `spikes/` folder wrote a model id and a price table by hand and CI stayed green. The same guard had already missed a whole naming style once, in August — both times the detector was right and its scope was the hole.
+
 ## [0.19.0] - 2026-09-19
 
 Changing an existing test stops needing permission and starts needing a label (ADR-0017). The authorization phrase is abolished; disclosure replaces it. This is the last per-change confirmation gate that survived the light pivot, and it is removed for the reason ADR-0015 removed the others — its cost was paid on every change and its protection was never once observed working.
