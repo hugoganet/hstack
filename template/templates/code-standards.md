@@ -98,7 +98,9 @@ Seen here: _<e.g. whole component folders no route reaches>_
 ## 10. Constants live in one place
 
 Table names, status strings, limits, timeouts and model ids are imported from a constants module,
-never retyped as literals at the call site. A rename is one edit.
+never retyped as literals at the call site. A rename is one edit. A CI guard that enforces a rule
+like this scans the whole repo and exempts files by name, each with a written reason — a guard
+that scans a list of folders is blind to the next folder someone creates.
 
 Seen here: _<e.g. one table name typed by hand in a hundred places>_
 
